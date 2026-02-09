@@ -1,0 +1,11 @@
+.page{max-width: var(--content-max)}
+.toolbar{
+  padding: 14px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.range{color:#64748b; font-size:12px}
+.tableCard{margin-top: 12px; padding: 14px 0 6px}
+.tableHead{padding: 10px 16px; font-size:13px; font-weight:800}
+.id{color: var(--accent); font-weight:900}

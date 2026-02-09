@@ -1,0 +1,8 @@
+.page{max-width: var(--content-max)}
+.tableCard{margin-top: 8px; padding: 14px 0 6px}
+.tableHead{padding: 10px 16px; font-size:13px; font-weight:800}
+.id{color: var(--accent); font-weight:900}
+.actions{display:flex; gap: 10px; justify-content:flex-end}
+.aBtn{width:28px;height:28px;border-radius:6px;border:0;display:grid;place-items:center;cursor:pointer}
+.ok{background:#dcfce7;color:#16a34a}
+.no{background:#fee2e2;color:#ef4444}

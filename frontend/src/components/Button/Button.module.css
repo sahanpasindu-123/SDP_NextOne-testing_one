@@ -1,0 +1,60 @@
+.btn{
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  display:inline-flex;
+  align-items:center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor:pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.left{display:inline-flex; font-size:16px}
+.primary{
+  background: var(--accent);
+  color:#fff;
+  border: 1px solid rgba(99, 102, 241, 0.28);
+}
+.primary:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.25);
+  filter: brightness(1.02);
+}
+.primary:active{
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.22);
+}
+.secondary{
+  background:#fff;
+  border-color: rgba(210,217,226,.95);
+  color:#334155;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+.secondary:hover{
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: rgba(210,217,226,.8);
+}
+.secondary:active{
+  transform: translateY(0) scale(0.99);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+.ghost{
+  background:transparent;
+  color:#334155;
+  border: 1px solid transparent;
+}
+.ghost:hover{
+  background: rgba(210, 217, 226, 0.15);
+  transform: translateY(-1px);
+  border-color: rgba(210, 217, 226, 0.3);
+}
+.ghost:active{
+  transform: translateY(0) scale(0.99);
+  background: rgba(210, 217, 226, 0.25);
+}

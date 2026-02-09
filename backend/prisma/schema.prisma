@@ -1,0 +1,356 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id                      Int               @id @default(autoincrement())
+  AdminID                 String            @unique
+  Name                    String
+  Password                String
+  Role                    String            @default("admin")
+  CreatedAt               DateTime          @default(now())
+  UpdatedAt               DateTime          @updatedAt
+  contactsReplied         Contact[]         @relation("AdminContactReplies")
+  InventoryUpdate         InventoryUpdate[]
+  auditLogs               AuditLog[]
+  Reservation             Reservation[]
+  productRequestsReviewed ProductRequest[]  @relation("ProductRequestAdmin")
+
+  @@map("admins")
+}
+
+model Employee {
+  id               Int               @id @default(autoincrement())
+  employeeId       String            @unique
+  name             String
+  password         String
+  role             String            @default("employee")
+  department       String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  inventoryUpdates InventoryUpdate[] @relation("EmployeeInventoryUpdates")
+  Sale             Sale[]
+  auditLogs        AuditLog[]
+  EmployeePlace    EmployeePlace[]
+  productRequests  ProductRequest[]  @relation("ProductRequestEmployee")
+
+  @@map("employees")
+}
+
+model Customer {
+  CustomerID         Int                 @id @default(autoincrement())
+  Name               String
+  Email              String              @unique
+  Phone              String              @unique @db.VarChar(15)
+  CreatedAt          DateTime            @default(now())
+  UpdatedAt          DateTime            @updatedAt
+  PasswordHash       String              @db.VarChar(255)
+  isActive           Boolean             @default(true)
+  lastLogin          DateTime?
+  emailVerified      Boolean             @default(false)
+  emailVerifyCode    String?             @db.VarChar(10)
+  emailVerifyExpires DateTime?
+  contacts           Contact[]
+  auditLogs          AuditLog[]
+  passwordResetCodes PasswordResetCode[]
+  reservations       Reservation[]
+  sales              Sale[]
+
+  @@map("customers")
+}
+
+model Category {
+  CategoryID      Int              @id @default(autoincrement())
+  CategoryCode    String           @unique
+  Name            String           @unique
+  CreatedAt       DateTime         @default(now())
+  UpdatedAt       DateTime         @updatedAt
+  products        Product[]
+  productRequests ProductRequest[] @relation("ProductRequestCategory")
+
+  @@map("categories")
+}
+
+model Product {
+  ProductID        Int               @id @default(autoincrement())
+  Name             String
+  Description      String?
+  Status           ProductStatus     @default(ACTIVE)
+  Price            Float
+  Stock            Int
+  StockLimit       Int?
+  CategoryID       Int
+  ImageURL         String?
+  CreatedAt        DateTime          @default(now())
+  UpdatedAt        DateTime          @updatedAt
+  PlaceID          Int?
+  place            Place?            @relation(fields: [PlaceID], references: [PlaceID])
+  inventoryUpdates InventoryUpdate[]
+  category         Category          @relation(fields: [CategoryID], references: [CategoryID])
+  reservations     Reservation[]
+  sales            Sale[]
+
+  @@index([CategoryID], map: "products_CategoryID_fkey")
+  @@map("products")
+}
+
+enum ProductStatus {
+  ACTIVE
+}
+
+enum ProductRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ProductRequest {
+  RequestID Int @id @default(autoincrement())
+
+  Name        String
+  Description String?
+  Price       Float
+  Stock       Int
+  StockLimit  Int?
+  CategoryID  Int
+  PlaceID     Int?
+  ImageURL    String?
+
+  Status ProductRequestStatus @default(PENDING)
+
+  RequestedBy Int
+  ReviewedBy  Int?
+  ReviewedAt  DateTime?
+
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
+
+  category Category @relation("ProductRequestCategory", fields: [CategoryID], references: [CategoryID])
+  employee Employee @relation("ProductRequestEmployee", fields: [RequestedBy], references: [id])
+  admin    Admin?   @relation("ProductRequestAdmin", fields: [ReviewedBy], references: [id])
+
+  @@index([CategoryID])
+  @@index([RequestedBy])
+  @@index([ReviewedBy])
+  @@map("product_requests")
+}
+
+model Reservation {
+  ReservationID Int       @id @default(autoincrement())
+  CustomerID    Int
+  ProductID     Int
+  Quantity      Int
+  Notes         String?
+  UnitPrice     Float
+  Total         Float
+  Status        String    @default("PENDING")
+  ReservedAt    DateTime  @default(now())
+  ExpiresAt     DateTime?
+  ApprovedBy    Int?
+  CreatedAt     DateTime  @default(now())
+  UpdatedAt     DateTime  @updatedAt
+  admin         Admin?    @relation(fields: [ApprovedBy], references: [id])
+  customer      Customer  @relation(fields: [CustomerID], references: [CustomerID])
+  product       Product   @relation(fields: [ProductID], references: [ProductID])
+
+  @@index([ApprovedBy], map: "reservations_ApprovedBy_fkey")
+  @@index([CustomerID], map: "reservations_CustomerID_fkey")
+  @@index([ProductID], map: "reservations_ProductID_fkey")
+  @@map("reservations")
+}
+
+model Sale {
+  SaleID         Int       @id @default(autoincrement())
+  CustomerID     Int
+  ProductID      Int
+  EmployeeID     Int
+  Quantity       Int
+  TotalPrice     Float
+  Type           String?
+  SaleDate       DateTime  @default(now())
+  CreatedAt      DateTime  @default(now())
+  UpdatedAt      DateTime  @updatedAt
+  Status         String    @default("COMPLETED")
+  ReturnedAt     DateTime?
+  ReturnedByRole String?
+  ReturnedById   Int?
+  ReturnReason   String?   @db.VarChar(255)
+  invoice        Invoice?
+  customer       Customer  @relation(fields: [CustomerID], references: [CustomerID])
+  employee       Employee  @relation(fields: [EmployeeID], references: [id])
+  product        Product   @relation(fields: [ProductID], references: [ProductID])
+
+  @@index([Status])
+  @@index([SaleDate])
+  @@index([CustomerID], map: "sales_CustomerID_fkey")
+  @@index([EmployeeID], map: "sales_EmployeeID_fkey")
+  @@index([ProductID], map: "sales_ProductID_fkey")
+  @@map("sales")
+}
+
+model Invoice {
+  InvoiceID Int      @id @default(autoincrement())
+  SaleID    Int      @unique
+  Amount    Float
+  Date      DateTime @default(now())
+  sale      Sale     @relation(fields: [SaleID], references: [SaleID])
+
+  @@map("invoices")
+}
+
+model InventoryUpdate {
+  UpdateID    Int       @id @default(autoincrement())
+  ProductID   Int
+  Changes     Int
+  Status      String?
+  SubmittedBy Int?
+  ApprovedBy  Int?
+  CreatedAt   DateTime  @default(now())
+  admin       Admin?    @relation(fields: [ApprovedBy], references: [id])
+  product     Product   @relation(fields: [ProductID], references: [ProductID])
+  employee    Employee? @relation("EmployeeInventoryUpdates", fields: [SubmittedBy], references: [id])
+
+  @@index([ApprovedBy], map: "inventory_updates_ApprovedBy_fkey")
+  @@index([ProductID], map: "inventory_updates_ProductID_fkey")
+  @@index([SubmittedBy], map: "inventory_updates_SubmittedBy_fkey")
+  @@map("inventory_updates")
+}
+
+model Contact {
+  ContactID  Int      @id @default(autoincrement())
+  CustomerID Int
+  Subject    String?
+  Message    String
+  CreatedAt  DateTime @default(now())
+
+  RepliedBy    Int?
+  ReplyMessage String?
+  RepliedAt    DateTime?
+
+  customer Customer @relation(fields: [CustomerID], references: [CustomerID])
+  admin    Admin?   @relation("AdminContactReplies", fields: [RepliedBy], references: [id])
+
+  @@index([CustomerID], map: "contacts_CustomerID_fkey")
+  @@index([RepliedBy], map: "contacts_RepliedBy_fkey")
+  @@map("contacts")
+}
+
+model Alert {
+  AlertID    Int      @id @default(autoincrement())
+  Message    String
+  Type       String
+  Status     String?
+  CustomerID Int?
+  UserID     Int?
+  CreatedAt  DateTime @default(now())
+  IsActive   Boolean  @default(true)
+
+  @@map("alerts")
+}
+
+model Report {
+  ReportID    Int      @id @default(autoincrement())
+  Title       String
+  ReportType  String?
+  TimePeriod  String?
+  CreatedBy   Int?
+  Description String?
+  Data        String   @db.LongText
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
+
+  @@map("reports")
+}
+
+model AuditLog {
+  id         Int    @id @default(autoincrement())
+  actorRole  String
+  adminId    Int?
+  employeeId Int?
+  customerId Int?
+
+  action     String
+  entityType String
+  entityId   String
+
+  beforeData String? @db.LongText
+  afterData  String? @db.LongText
+  meta       String? @db.LongText
+
+  createdAt DateTime @default(now())
+
+  admin    Admin?    @relation(fields: [adminId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [CustomerID])
+
+  @@index([actorRole])
+  @@index([adminId])
+  @@index([employeeId])
+  @@index([customerId])
+  @@index([entityType])
+  @@index([entityId])
+  @@map("audit_logs")
+}
+
+model Setting {
+  SettingID Int      @id @default(autoincrement())
+  Key       String   @unique
+  Value     String
+  UpdatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model Place {
+  PlaceID   Int      @id @default(autoincrement())
+  Code      String   @unique
+  Name      String
+  Address   String?
+  City      String?
+  Phone     String?
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
+
+  products  Product[]
+  employees EmployeePlace[]
+
+  @@map("places")
+}
+
+model EmployeePlace {
+  id         Int      @id @default(autoincrement())
+  EmployeeID Int
+  PlaceID    Int
+  IsPrimary  Boolean  @default(false)
+  CreatedAt  DateTime @default(now())
+
+  employee Employee @relation(fields: [EmployeeID], references: [id])
+  place    Place    @relation(fields: [PlaceID], references: [PlaceID])
+
+  @@unique([EmployeeID, PlaceID])
+  @@index([EmployeeID])
+  @@index([PlaceID])
+  @@map("employee_places")
+}
+
+model PasswordResetCode {
+  id         Int       @id @default(autoincrement())
+  customerId Int
+  code       String    @db.VarChar(10)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [CustomerID], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([code])
+  @@map("password_reset_codes")
+}

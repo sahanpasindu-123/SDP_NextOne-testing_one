@@ -1,0 +1,22 @@
+.page{max-width: var(--content-max)}
+.stats{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 12px 0 16px;
+}
+.grid{
+  display:grid;
+  grid-template-columns: 1.1fr .9fr;
+  gap: 16px;
+}
+.panel{padding: 14px 0 6px}
+.panelHead{padding: 10px 16px; font-size:13px; font-weight:800}
+.chartBox{padding: 6px 10px 12px}
+@media (max-width: 1100px){
+  .stats{grid-template-columns: 1fr 1fr}
+  .grid{grid-template-columns: 1fr}
+}
+@media (max-width: 640px){
+  .stats{grid-template-columns: 1fr}
+}

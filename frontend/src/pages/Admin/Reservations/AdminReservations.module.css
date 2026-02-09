@@ -1,0 +1,53 @@
+.page {
+  padding: 20px;
+}
+
+.tableCard {
+  margin-top: 12px;
+}
+
+.tableHead {
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.id {
+  font-weight: 700;
+}
+
+.cName {
+  font-weight: 600;
+}
+
+.cPhone {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ok {
+  background: #e8fff3;
+  border: 1px solid #b8f0d1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.no {
+  background: #fff1f1;
+  border: 1px solid #f3baba;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ok:disabled,
+.no:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

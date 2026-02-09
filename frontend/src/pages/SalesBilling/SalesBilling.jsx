@@ -1,0 +1,569 @@
+import { useMemo, useState, useEffect } from "react";
+import {
+  FiSearch,
+  FiPlus,
+  FiTrash2,
+  FiDollarSign,
+  FiCheckCircle,
+  FiClock,
+  FiUser,
+} from "react-icons/fi";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+import { salesAPI } from "../../api/sales";
+import { productsAPI } from "../../api/products";
+import { customersAPI } from "../../api/customers";
+
+import StatCard from "../../components/StatCard/StatCard.jsx";
+import Badge from "../../components/Badge/Badge.jsx";
+import Table from "../../components/Table/Table.jsx";
+import Button from "../../components/Button/Button.jsx";
+import styles from "./SalesBilling.module.css";
+
+const barData = [
+  { name: "Jan", sales: 4200, target: 4600 },
+  { name: "Feb", sales: 3000, target: 3800 },
+  { name: "Mar", sales: 5200, target: 5000 },
+  { name: "Apr", sales: 2800, target: 3200 },
+  { name: "May", sales: 6000, target: 5200 },
+  { name: "Jun", sales: 3400, target: 3900 },
+];
+
+export default function SalesBilling() {
+  // keep if other UI parts depend on it later
+  const [cartQty, setCartQty] = useState(1);
+
+  const [products, setProducts] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [customerId, setCustomerId] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [searchText, setSearchText] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH | CARD
+
+  const [cartItems, setCartItems] = useState([]);
+  // each: { ProductID, Name, Price, qty, Stock }
+
+  const total = useMemo(() => {
+    return cartItems.reduce(
+      (sum, it) => sum + Number(it.Price || 0) * Number(it.qty || 0),
+      0
+    );
+  }, [cartItems]);
+
+  const refreshSales = async () => {
+    const salesResponse = await salesAPI.getSales();
+    const mappedSales =
+      salesResponse.data?.map((s) => ({
+        id: `INV-${s.SaleID}`,
+        saleId: s.SaleID,
+        customer: s.customer?.Name || "—",
+        date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "—",
+        amount: `Rs ${Number(s.TotalPrice || 0).toLocaleString("en-LK")}`,
+        payment: s.Type === "CARD" ? "Credit Card" : "Cash",
+        invoiceId: s.invoice?.InvoiceID || null,
+      })) || [];
+    setSales(mappedSales);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setError(null);
+        setLoading(true);
+
+        const [productsResponse, salesResponse, customersResponse] =
+          await Promise.all([
+            productsAPI.getProducts(),
+            salesAPI.getSales(),
+            customersAPI.getAll(),
+          ]);
+
+        // productsResponse.data expected: [{ ProductID, Name, Price, Stock, ... }]
+        const mappedProducts =
+          productsResponse.data?.map((p) => ({
+            ProductID: p.ProductID,
+            Name: p.Name,
+            Price: p.Price,
+            Stock: p.Stock,
+            revenue: `Rs ${Number(p.Price || 0).toLocaleString("en-LK")}`,
+          })) || [];
+
+        const mappedCustomers =
+          customersResponse?.data?.map((c) => ({
+            CustomerID: c.CustomerID,
+            Name: c.Name,
+          })) || [];
+
+        const mappedSales =
+          salesResponse.data?.map((s) => ({
+            id: `INV-${s.SaleID}`,
+            saleId: s.SaleID,
+            customer: s.customer?.Name || "—",
+            date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "—",
+            amount: `Rs ${Number(s.TotalPrice || 0).toLocaleString("en-LK")}`,
+            payment: s.Type === "CARD" ? "Credit Card" : "Cash",
+            invoiceId: s.invoice?.InvoiceID || null,
+          })) || [];
+
+        setProducts(mappedProducts);
+        setCustomers(mappedCustomers);
+        setCustomerId((prev) => prev ?? (mappedCustomers[0]?.CustomerID ?? null));
+        setSales(mappedSales);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Failed to load data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const cols = [
+    {
+      key: "id",
+      header: "Invoice ID",
+      width: 110,
+      render: (r) => <span className={styles.invId}>{r.id}</span>,
+    },
+    { key: "customer", header: "Customer" },
+    {
+      key: "date",
+      header: "Date",
+      width: 160,
+      render: (r) => <span className={styles.dateCell}>📅 {r.date}</span>,
+    },
+    { key: "amount", header: "Amount", width: 140 },
+    {
+      key: "payment",
+      header: "Payment",
+      width: 140,
+      render: (r) =>
+        r.payment === "Cash" ? (
+          <Badge tone="success">Cash</Badge>
+        ) : (
+          <Badge tone="success">Credit Card</Badge>
+        ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      width: 160,
+      render: (r) => (
+        <div className={styles.links}>
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              alert(
+                `Invoice: ${r.id}\nCustomer: ${r.customer}\nAmount: ${r.amount}\nPayment: ${r.payment}`
+              );
+            }}
+          >
+            View
+          </a>
+          <span className={styles.sep}>|</span>
+          <a
+            href="#"
+            onClick={async (e) => {
+              e.preventDefault();
+              try {
+                if (!r.saleId) return alert("Missing sale id");
+
+                // create invoice if not exists
+                const res = await fetch(
+                  `${import.meta.env.VITE_API_BASE || ""}/api/sales/${r.saleId}/invoice`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                  }
+                );
+
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message || "Invoice failed");
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                  type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `invoice-sale-${r.saleId}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                console.error(err);
+                alert(err.message || "Download failed");
+              }
+            }}
+          >
+            Download
+          </a>
+        </div>
+      ),
+    },
+  ];
+
+  const filteredProducts = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => String(p.Name).toLowerCase().includes(q));
+  }, [products, searchText]);
+
+  const addToCart = (p) => {
+    if (Number(p.Stock) <= 0) {
+      alert("Out of stock");
+      return;
+    }
+
+    setCartItems((prev) => {
+      const found = prev.find((x) => x.ProductID === p.ProductID);
+      if (found) {
+        return prev.map((x) =>
+          x.ProductID === p.ProductID
+            ? { ...x, qty: Math.min(Number(p.Stock), Number(x.qty) + 1) }
+            : x
+        );
+      }
+      return [
+        ...prev,
+        {
+          ProductID: p.ProductID,
+          Name: p.Name,
+          Price: p.Price,
+          Stock: p.Stock,
+          qty: 1,
+        },
+      ];
+    });
+  };
+
+  const decQty = (productId) => {
+    setCartItems((prev) =>
+      prev.map((x) =>
+        x.ProductID === productId ? { ...x, qty: Math.max(1, x.qty - 1) } : x
+      )
+    );
+  };
+
+  const incQty = (productId) => {
+    setCartItems((prev) =>
+      prev.map((x) =>
+        x.ProductID === productId
+          ? { ...x, qty: Math.min(Number(x.Stock || 999999), x.qty + 1) }
+          : x
+      )
+    );
+  };
+
+  const removeItem = (productId) => {
+    setCartItems((prev) => prev.filter((x) => x.ProductID !== productId));
+  };
+
+  const processSale = async () => {
+    try {
+      if (!customerId) return alert("Select a customer");
+      if (cartItems.length === 0) return alert("Cart is empty");
+
+      for (const it of cartItems) {
+        await salesAPI.createSale({
+          CustomerID: customerId,
+          ProductID: it.ProductID,
+          Quantity: it.qty,
+          Type: paymentMethod,
+        });
+      }
+
+      alert("Sale processed");
+      setCartItems([]);
+      await refreshSales();
+    } catch (e) {
+      console.error(e);
+      alert(e?.response?.data?.message || "Process sale failed");
+    }
+  };
+
+  const generateInvoiceForLatestSale = async () => {
+    try {
+      if (!sales || sales.length === 0) return alert("No sales found");
+
+      const latest = sales[0];
+      if (!latest?.saleId) return alert("Missing sale id");
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE || ""}/api/sales/${latest.saleId}/invoice`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Invoice failed");
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-sale-${latest.saleId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      alert("Invoice generated (JSON downloaded)");
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Invoice failed");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className="pageTitle">Sales & Billing</div>
+        <div style={{ padding: 24, opacity: 0.8 }}>Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.page}>
+        <div className="pageTitle">Sales & Billing</div>
+        <div style={{ padding: 24, color: "tomato" }}>{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.page}>
+      <div className="pageTitle">Sales & Billing</div>
+
+      <div className={styles.blockTitle}>
+        <div className={styles.h1}>Sales & Billing</div>
+        <div className={styles.sub}>
+          Manage your sales, invoices, and billing information.
+        </div>
+      </div>
+
+      <div className={styles.topGrid}>
+        <div className={`card ${styles.products}`}>
+          <div className={styles.productsHead}>
+            <div className={styles.phTitle}>Products</div>
+            <div className={styles.pSearch}>
+              <FiSearch className={styles.sIcon} />
+              <input
+                placeholder="Search inventory..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className={styles.pGrid}>
+            {filteredProducts.map((p) => (
+              <div key={p.ProductID} className={styles.pCard}>
+                <div className={styles.pName}>{p.Name}</div>
+                <div className={styles.pMeta}>Total Revenue</div>
+                <div className={styles.pBottom}>
+                  <div className={styles.pRevenue}>{p.revenue}</div>
+                  <div className={styles.pStock}>Stock : {p.Stock}</div>
+                </div>
+
+                <button
+                  className={styles.addBtn}
+                  aria-label="Add"
+                  onClick={() => addToCart(p)}
+                >
+                  <FiPlus />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.rightCol}>
+          <div className={`card ${styles.cart}`}>
+            <div className={styles.cartTitle}>Cart</div>
+
+            {cartItems.length === 0 ? (
+              <div style={{ padding: 12, opacity: 0.7 }}>Cart is empty</div>
+            ) : (
+              cartItems.map((it) => (
+                <div key={it.ProductID} className={styles.cartRow}>
+                  <div>
+                    <div className={styles.cartName}>{it.Name}</div>
+                    <div className={styles.cartEach}>
+                      Rs. {Number(it.Price || 0)} each
+                    </div>
+                  </div>
+
+                  <div className={styles.qty}>
+                    <button onClick={() => decQty(it.ProductID)}>−</button>
+                    <div>{it.qty}</div>
+                    <button onClick={() => incQty(it.ProductID)}>+</button>
+                  </div>
+
+                  <button
+                    className={styles.trash}
+                    aria-label="Remove"
+                    onClick={() => removeItem(it.ProductID)}
+                  >
+                    <FiTrash2 />
+                  </button>
+                </div>
+              ))
+            )}
+
+            <div className={styles.totalRow}>
+              <div className={styles.totalLabel}>Total</div>
+              <div className={styles.totalValue}>
+                Rs. {Number(total || 0).toLocaleString("en-LK")}
+              </div>
+            </div>
+          </div>
+
+          <div className={`card ${styles.checkout}`}>
+            <div className={styles.cartTitle}>Checkout</div>
+
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>
+                Customer
+              </div>
+              <select
+                value={customerId ?? ""}
+                onChange={(e) => setCustomerId(Number(e.target.value))}
+                style={{
+                  width: "100%",
+                  height: 40,
+                  borderRadius: 10,
+                  padding: "0 10px",
+                }}
+              >
+                {customers.map((c) => (
+                  <option key={c.CustomerID} value={c.CustomerID}>
+                    {c.Name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.pm}>Payment Method</div>
+            <div className={styles.pmRow}>
+              <button
+                className={`${styles.pmBtn} ${
+                  paymentMethod === "CASH" ? styles.pmActive : ""
+                }`}
+                onClick={() => setPaymentMethod("CASH")}
+              >
+                Cash
+              </button>
+              <button
+                className={`${styles.pmBtn} ${
+                  paymentMethod === "CARD" ? styles.pmActive : ""
+                }`}
+                onClick={() => setPaymentMethod("CARD")}
+              >
+                Card
+              </button>
+            </div>
+
+            <Button
+              style={{ width: "100%", height: 42, borderRadius: 10 }}
+              onClick={processSale}
+            >
+              Process Sale
+            </Button>
+
+            <button className={styles.invoiceBtn} onClick={generateInvoiceForLatestSale}>
+              Generate Invoice
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.stats}>
+        <StatCard
+          label="Total Revenue Monthly"
+          value={`Rs ${sales
+            .reduce((sum, s) => sum + Number(String(s.amount).replace(/[^\d]/g, "") || 0), 0)
+            .toLocaleString("en-LK")}`}
+          icon={<FiDollarSign />}
+          iconTone="purple"
+        />
+        <StatCard
+          label="Total Orders Monthly"
+          value={String(sales.length)}
+          icon={<FiCheckCircle />}
+          iconTone="blue"
+        />
+        <StatCard
+          label="Pending Payments"
+          value="Rs 0"
+          icon={<FiClock />}
+          iconTone="accent"
+        />
+        <StatCard
+          label="New Customers"
+          value={String(customers.length)}
+          icon={<FiUser />}
+          iconTone="green"
+        />
+      </div>
+
+      <div className={`card ${styles.chartCard}`}>
+        <div className={styles.chartHead}>Sales Overview</div>
+        <div className={styles.chartBox}>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={barData} barGap={10}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="sales" fill="#e2ad00" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="target" fill="#3dd9ff" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className={styles.legend}>
+            <span>
+              <i className={styles.l1} /> sales
+            </span>
+            <span>
+              <i className={styles.l2} /> target
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className={`card ${styles.tableCard}`}>
+        <div className={styles.tableHead}>
+          <div>Recent Invoices</div>
+          <a className={styles.viewAll} href="#" onClick={(e) => e.preventDefault()}>
+            View All
+          </a>
+        </div>
+        <Table columns={cols} rows={sales} />
+      </div>
+    </div>
+  );
+}

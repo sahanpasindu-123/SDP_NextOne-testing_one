@@ -1,0 +1,8 @@
+.bg{
+  min-height:100vh;
+  background: var(--accent);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 24px;
+}

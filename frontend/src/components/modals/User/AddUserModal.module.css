@@ -1,0 +1,63 @@
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.45);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+  z-index:9999;
+}
+.modal{
+  width:540px; max-width:95vw;
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 14px 36px rgba(0,0,0,.18);
+  padding:22px 22px 18px;
+}
+.top{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px;
+}
+.title{
+  font-size:22px; font-weight:800; color:#111827;
+}
+.close{
+  border:0; background:transparent; cursor:pointer;
+  font-size:26px; line-height:1;
+  color:#6b7280;
+}
+.form{ display:flex; flex-direction:column; gap:14px; }
+.block{ display:flex; flex-direction:column; gap:8px; }
+.label{ font-size:13px; font-weight:700; color:#374151; }
+.radios{ display:flex; gap:26px; align-items:center; }
+.radio{ display:flex; gap:10px; align-items:center; font-size:14px; color:#111827; }
+.radio input{ width:16px; height:16px; }
+.input{
+  height:42px;
+  border:1px solid #e5e7eb;
+  border-radius:8px;
+  padding:0 12px;
+  outline:none;
+  font-size:14px;
+}
+.input:focus{ border-color:#cbd5e1; }
+.actions{
+  display:flex; justify-content:flex-end; gap:14px;
+  margin-top:8px;
+}
+.cancelBtn{
+  height:42px; padding:0 22px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fff;
+  cursor:pointer;
+  font-weight:700;
+  color:#374151;
+}
+.primaryBtn{
+  height:42px; padding:0 22px;
+  border:0;
+  border-radius:8px;
+  background:#e0ab00;
+  cursor:pointer;
+  font-weight:800;
+  color:#fff;
+}

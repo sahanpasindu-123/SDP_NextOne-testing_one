@@ -1,0 +1,28 @@
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:24px;z-index:9999}
+.modal{width:760px;max-width:95vw;background:#fff;border-radius:10px;box-shadow:0 18px 42px rgba(0,0,0,.28);overflow:hidden}
+.top{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #eef1f6}
+.title{font-size:16px;font-weight:800;color:#111827}
+.close{width:34px;height:34px;border:0;background:transparent;cursor:pointer;font-size:22px;line-height:1;color:#9aa3b2;border-radius:8px}
+.close:hover{background:#f3f4f6}
+.form{padding:18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
+.block{display:flex;flex-direction:column;gap:8px}
+.full{grid-column:1/-1}
+.label{font-size:12px;font-weight:700;color:#4b5563}
+.input,.select{height:44px;border:1px solid #d7dce6;border-radius:8px;padding:0 12px;outline:none;font-size:14px;background:#fff}
+.textarea{min-height:120px;border:1px solid #d7dce6;border-radius:8px;padding:12px;outline:none;font-size:14px;resize:none;background:#fff}
+.input:focus,.select:focus,.textarea:focus{border-color:#c9ceda}
+
+.actions{display:flex;justify-content:flex-end;gap:12px;margin-top:18px}
+.cancelBtn{height:40px;padding:0 18px;border:0;border-radius:8px;background:#e5e7eb;color:#111827;font-weight:700;cursor:pointer}
+.primaryBtn{height:40px;padding:0 18px;border:0;border-radius:8px;background:#e0ab00;color:#fff;font-weight:900;cursor:pointer}
+.primaryBtn:active,.cancelBtn:active{transform:translateY(1px)}
+
+.file{display:none}
+.uploadRow{display:flex;align-items:flex-start;gap:12px}
+.uploadBtn{height:40px;padding:0 18px;border:1px dashed #cbd5e1;border-radius:10px;background:#fff;color:#111827;font-weight:800;cursor:pointer}
+.previewWrap{display:flex;align-items:center;gap:14px}
+.previewImg{width:76px;height:76px;border-radius:10px;object-fit:cover;border:1px solid #e5e7eb}
+.previewActions{display:flex;gap:10px}
+.smallBtn{height:34px;padding:0 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;font-weight:800;cursor:pointer}
+.smallDanger{height:34px;padding:0 14px;border:1px solid #ef4444;border-radius:8px;background:#fff;color:#ef4444;font-weight:900;cursor:pointer}

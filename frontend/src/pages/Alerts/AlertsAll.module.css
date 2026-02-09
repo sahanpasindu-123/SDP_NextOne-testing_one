@@ -1,0 +1,70 @@
+.page{max-width: var(--content-max)}
+.blockTitle{margin: 10px 0 14px}
+.h1{font-size:20px;font-weight:700}
+.sub{font-size:13px;color:var(--muted); margin-top:4px}
+.toolbar{
+  padding: 14px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 14px;
+}
+.leftBtns{display:flex; gap: 10px; align-items:center}
+.rightBtns{display:flex; gap: 10px; align-items:center}
+.dd{
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(210,217,226,.95);
+  background:#fff;
+  font-weight:600;
+  color:#475569;
+  cursor:pointer;
+}
+.stats{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 14px 0;
+}
+
+.filterCard {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.filterRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filterInput {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.2);
+  color: inherit;
+}
+
+.tableCard{padding: 14px 0 6px}
+.tableHead{padding: 10px 16px; font-size:13px; font-weight:700}
+.aTitle{font-weight:800}
+.aSub{font-size:11px;color:#64748b;margin-top:4px}
+.typeCell{display:flex; gap: 10px; align-items:center; color:#475569; font-weight:600}
+.typeIcon{
+  width: 18px; height:18px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  background:#dbeafe;
+  color:#1d4ed8;
+  font-size:11px;
+  font-weight:900;
+}
+.unreadRow{background:#eff6ff}
+@media (max-width: 1100px){
+  .toolbar{flex-direction:column; align-items:flex-start}
+  .stats{grid-template-columns: 1fr}
+}

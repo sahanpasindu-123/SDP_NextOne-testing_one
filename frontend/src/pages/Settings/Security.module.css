@@ -1,0 +1,95 @@
+.wrap{ width:100%; }
+.title{
+  font-size:16px;
+  font-weight:800;
+  color:#111827;
+  margin-bottom:14px;
+}
+.sectionLabel{
+  font-size:13px;
+  font-weight:800;
+  color:#374151;
+  margin:10px 0 10px;
+}
+.block{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+.label{ font-size:12px; font-weight:700; color:#4b5563; }
+.input{
+  height:44px;
+  border:1px solid #d7dce6;
+  border-radius:8px;
+  padding:0 12px;
+  outline:none;
+  font-size:14px;
+}
+
+.updateBtn{
+  height:38px;
+  padding:0 18px;
+  border:0;
+  border-radius:8px;
+  background:#e0ab00;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.sessionCard{
+  margin-top:10px;
+  background:#f9fafb;
+  border:1px solid #eef2f7;
+  border-radius:12px;
+  padding:14px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.sessionTitle{ font-size:13px; font-weight:900; color:#111827; }
+.sessionSub{ font-size:12px; color:#6b7280; margin-top:4px; }
+.badge{
+  background:#d1fae5;
+  color:#166534;
+  font-weight:800;
+  font-size:12px;
+  padding:8px 12px;
+  border-radius:999px;
+}
+
+.dangerBtn{
+  margin-top:14px;
+  height:38px;
+  padding:0 18px;
+  border:1px solid #ef4444;
+  border-radius:8px;
+  background:#fff;
+  color:#ef4444;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.table{
+  margin-top:10px;
+  border:1px solid #eef2f7;
+  border-radius:12px;
+  overflow:hidden;
+}
+.tHead{
+  background:#f3f4f6;
+  display:grid;
+  grid-template-columns: 1.3fr 1.4fr 1.2fr .7fr;
+  gap:10px;
+  padding:12px 14px;
+  font-size:12px;
+  color:#6b7280;
+  font-weight:800;
+}
+.tRow{
+  display:grid;
+  grid-template-columns: 1.3fr 1.4fr 1.2fr .7fr;
+  gap:10px;
+  padding:12px 14px;
+  border-top:1px solid #eef2f7;
+  font-size:12px;
+  color:#111827;
+}
+.ok{ color:#16a34a; font-weight:900; }
+.bad{ color:#ef4444; font-weight:900; }

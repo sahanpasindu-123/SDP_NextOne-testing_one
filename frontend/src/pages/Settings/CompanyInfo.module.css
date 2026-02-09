@@ -1,0 +1,79 @@
+.wrap{ width:100%; }
+.title{
+  font-size:16px;
+  font-weight:800;
+  color:#111827;
+  margin-bottom:14px;
+}
+
+.logoRow{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin:14px 0 18px;
+}
+.logoBox{
+  width:78px;
+  height:78px;
+  border-radius:10px;
+  background:#e0ab00;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:22px;
+}
+.primaryMini{
+  height:34px;
+  padding:0 16px;
+  border:0;
+  border-radius:8px;
+  background:#e0ab00;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.grid2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px 18px;
+}
+.block{ display:flex; flex-direction:column; gap:8px; }
+.blockFull{ grid-column: 1 / -1; display:flex; flex-direction:column; gap:8px; }
+.label{ font-size:12px; font-weight:700; color:#4b5563; }
+
+.input{
+  height:44px;
+  border:1px solid #d7dce6;
+  border-radius:8px;
+  padding:0 12px;
+  outline:none;
+  font-size:14px;
+  background:#fff;
+}
+
+.footer{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:18px;
+}
+.saveBtn{
+  height:46px;
+  padding:0 22px;
+  border:0;
+  border-radius:10px;
+  background:#e0ab00;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.saveIco{
+  width:14px;height:14px;
+  border:2px solid rgba(255,255,255,.9);
+  border-radius:3px;
+}

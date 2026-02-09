@@ -1,0 +1,66 @@
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.45);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+  z-index:9999;
+}
+.modal{
+  width:520px; max-width:95vw;
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 14px 36px rgba(0,0,0,.18);
+  padding:22px 22px 18px;
+  text-align:center;
+}
+.top{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:8px;
+  text-align:left;
+}
+.title{
+  font-size:20px; font-weight:800; color:#111827;
+}
+.close{
+  border:0; background:transparent; cursor:pointer;
+  font-size:26px; line-height:1;
+  color:#6b7280;
+}
+.iconWrap{
+  display:flex; justify-content:center;
+  margin:14px 0 10px;
+}
+.icon{
+  width:54px; height:54px;
+  border-radius:999px;
+  background:#ffe3e3;
+  color:#ef4444;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900;
+  font-size:26px;
+}
+.msg{ color:#374151; margin-top:6px; font-size:14px; }
+.name{ margin-top:10px; font-weight:800; color:#111827; }
+.sub{ margin-top:8px; color:#9ca3af; font-size:13px; }
+.actions{
+  display:flex; justify-content:flex-end; gap:14px;
+  margin-top:18px;
+}
+.cancelBtn{
+  height:42px; padding:0 22px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fff;
+  cursor:pointer;
+  font-weight:700;
+  color:#374151;
+}
+.deleteBtn{
+  height:42px; padding:0 22px;
+  border:0;
+  border-radius:8px;
+  background:#ef4444;
+  cursor:pointer;
+  font-weight:800;
+  color:#fff;
+}
