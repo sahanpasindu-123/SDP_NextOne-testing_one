@@ -10,23 +10,31 @@ router.get("/ping", (req, res) => {
 });
 
 /* ================= STAFF ================= */
+
+// Backward-compatible login
 router.post("/login", authController.login);
+
+// Staff login (admin / employee)
 router.post("/staff-login", authController.staffLogin);
 
 /* ================= CUSTOMER ================= */
+
+// Signup & login
 router.post("/customer-signup", authController.customerSignup);
 router.post("/customer-login", authController.customerLogin);
 
-// Email verification
+// Email verification flow
 router.post("/verify-email", authController.verifyEmail);
 router.post("/resend-verification", authController.resendVerification);
 
 /* ================= FORGOT PASSWORD FLOW ================= */
+
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/verify-code", authController.verifyResetCode);
 router.post("/reset-password", authController.resetPassword);
 
 /* ================= USER ================= */
+
 router.get("/me", authenticateToken, authController.me);
 
 module.exports = router;

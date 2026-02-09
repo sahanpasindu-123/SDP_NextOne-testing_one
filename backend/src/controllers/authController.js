@@ -3,7 +3,6 @@ require("../config/env");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const prisma = require("../utils/prisma");
-// utils/mailer exports sendMail and provides sendEmail alias for backwards-compat.
 const { sendEmail } = require("../utils/mailer");
 
 /* ================= PASSWORD VALIDATION ================= */
@@ -25,9 +24,19 @@ function validateStrongPassword(password) {
   return { ok: true };
 }
 
+/* ================= EMAIL VALIDATION ================= */
+
+function isValidEmail(email) {
+  if (!email) return false;
+
+  const cleaned = String(email).trim().toLowerCase();
+  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+  return regex.test(cleaned);
+}
+
 /* ================= PHONE VALIDATION (Sri Lanka) ================= */
 
-// Accept: 07XXXXXXXX, 947XXXXXXXX, +947XXXXXXXX
 function isValidSLPhone(phone) {
   if (!phone) return false;
   const cleaned = String(phone).replace(/\s+/g, "");
@@ -35,7 +44,6 @@ function isValidSLPhone(phone) {
   return regex.test(cleaned);
 }
 
-// Normalize to: +947XXXXXXXX
 function normalizeSLPhone(phone) {
   let p = String(phone).replace(/\s+/g, "");
 
@@ -43,7 +51,6 @@ function normalizeSLPhone(phone) {
   if (p.startsWith("94")) return `+${p}`;
   if (p.startsWith("0")) return `+94${p.slice(1)}`;
 
-  // fallback: return as-is (will fail validation earlier if invalid)
   return p;
 }
 
@@ -55,7 +62,7 @@ function getJwtSecret() {
 
 function signToken(payload) {
   const secret = getJwtSecret();
-  if (!secret) throw new Error("JWT secret missing in .env (JWT_ACCESS_SECRET or JWT_SECRET)");
+  if (!secret) throw new Error("JWT secret missing in .env");
   return jwt.sign(payload, secret, {
     expiresIn: process.env.JWT_EXPIRES_IN || "1d",
   });
@@ -77,30 +84,20 @@ const me = async (req, res) => {
   try {
     return res.status(200).json({ success: true, user: req.user || null });
   } catch (err) {
-    return res.status(500).json({ success: false, message: "Server error", error: err.message });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// kept for compatibility
-// POST /api/auth/login
-// Backwards-compatible alias:
-//  - If body has adminId/employeeId => staff login
-//  - Else if body has email/password => customer login
 const login = async (req, res) => {
   try {
     const { adminId, employeeId, email, password } = req.body || {};
 
-    if (adminId || employeeId) {
-      return staffLogin(req, res);
-    }
-
-    if (email && password) {
-      return customerLogin(req, res);
-    }
+    if (adminId || employeeId) return staffLogin(req, res);
+    if (email && password) return customerLogin(req, res);
 
     return res.status(400).json({
       success: false,
-      message: "Provide either (adminId/employeeId + password) or (email + password)",
+      message: "Provide either staff or customer credentials",
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -108,14 +105,7 @@ const login = async (req, res) => {
 };
 
 /* ================= STAFF LOGIN ================= */
-/**
- * POST /api/auth/staff-login
- * body: { adminId? (string), employeeId? (string), password }
- *
- * ✅ Token payload now uses numeric PK:
- *  - ADMIN: { id: admin.id, role: "ADMIN", code: admin.AdminID }
- *  - EMPLOYEE: { id: employee.id, role: "EMPLOYEE", code: employee.employeeId }
- */
+
 const staffLogin = async (req, res) => {
   try {
     const { adminId, employeeId, password } = req.body || {};
@@ -157,13 +147,7 @@ const staffLogin = async (req, res) => {
 };
 
 /* ================= CUSTOMER SIGNUP ================= */
-/**
- * POST /api/auth/customer-signup
- * body: { name, email, contact, password }
- *
- * Creates user if not exists.
- * If exists but not verified: resend code.
- */
+
 async function customerSignup(req, res) {
   try {
     const { name, email, contact, password } = req.body || {};
@@ -172,13 +156,17 @@ async function customerSignup(req, res) {
       return res.status(400).json({ success: false, message: "All fields required" });
     }
 
-    // ✅ Phone validate + normalize
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: "Invalid email address" });
+    }
+
     if (!isValidSLPhone(contact)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid phone number. Use 0771234567 or +94771234567 format.",
+        message: "Invalid phone number. Use 0771234567 or +94771234567",
       });
     }
+
     const normalizedContact = normalizeSLPhone(contact);
 
     const pw = validateStrongPassword(password);
@@ -196,21 +184,19 @@ async function customerSignup(req, res) {
       return res.status(409).json({ success: false, message: "Email already registered" });
     }
 
-    // exists but not verified -> resend
     if (existing && !existing.emailVerified) {
       await prisma.customer.update({
         where: { Email: cleanEmail },
         data: { emailVerifyCode: code, emailVerifyExpires: expires },
       });
 
-      res.json({ success: true, message: "Verification code resent", email: cleanEmail });
-
       fireAndForgetEmail({
         to: cleanEmail,
         subject: "Verify your email",
-        text: `Your verification code is ${code}. It expires in 10 minutes.`,
+        text: `Your verification code is ${code}`,
       });
-      return;
+
+      return res.json({ success: true, message: "Verification code resent" });
     }
 
     const hash = await bcrypt.hash(String(password), 10);
@@ -219,7 +205,7 @@ async function customerSignup(req, res) {
       data: {
         Name: String(name).trim(),
         Email: cleanEmail,
-        Phone: normalizedContact, // ✅ always +94 format
+        Phone: normalizedContact,
         PasswordHash: hash,
         emailVerified: false,
         emailVerifyCode: code,
@@ -228,45 +214,39 @@ async function customerSignup(req, res) {
       },
     });
 
-    res.status(201).json({ success: true, message: "Signup success. Verify email.", email: cleanEmail });
-
     fireAndForgetEmail({
       to: cleanEmail,
       subject: "Verify your email",
-      text: `Your verification code is ${code}. It expires in 10 minutes.`,
+      text: `Your verification code is ${code}`,
     });
 
-    return;
+    return res.status(201).json({ success: true, message: "Signup success. Verify email." });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 }
 
 /* ================= VERIFY EMAIL ================= */
+
 async function verifyEmail(req, res) {
   try {
     const { email, code } = req.body || {};
 
-    if (!email || !code) {
-      return res.status(400).json({ success: false, message: "email and code required" });
+    if (!email || !code || !isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: "Invalid email or code" });
     }
 
-    const cleanEmail = String(email).trim().toLowerCase();
-    const inputCode = String(code).trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     const customer = await prisma.customer.findUnique({ where: { Email: cleanEmail } });
-
     if (!customer) return res.status(404).json({ success: false, message: "User not found" });
 
     if (customer.emailVerified) {
       const token = signToken({ id: customer.CustomerID, role: "CUSTOMER" });
-      return res.json({ success: true, token, message: "Already verified" });
+      return res.json({ success: true, token });
     }
 
-    const expired = !customer.emailVerifyExpires || new Date(customer.emailVerifyExpires) < new Date();
-    const invalid = customer.emailVerifyCode !== inputCode;
-
-    if (invalid || expired) {
+    if (customer.emailVerifyCode !== code || new Date(customer.emailVerifyExpires) < new Date()) {
       return res.status(400).json({ success: false, message: "Invalid or expired code" });
     }
 
@@ -276,23 +256,23 @@ async function verifyEmail(req, res) {
     });
 
     const token = signToken({ id: customer.CustomerID, role: "CUSTOMER" });
-    return res.json({ success: true, token, message: "Email verified" });
+    return res.json({ success: true, token });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 }
 
 /* ================= CUSTOMER LOGIN ================= */
+
 async function customerLogin(req, res) {
   try {
     const { email, password } = req.body || {};
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "email and password required" });
+    if (!email || !password || !isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
-    const cleanEmail = String(email).trim().toLowerCase();
-
+    const cleanEmail = email.trim().toLowerCase();
     const customer = await prisma.customer.findUnique({ where: { Email: cleanEmail } });
 
     if (!customer || !customer.isActive) {
@@ -302,7 +282,7 @@ async function customerLogin(req, res) {
     if (!customer.emailVerified) {
       return res.status(403).json({
         success: false,
-        message: "Email not verified. Please verify your email.",
+        message: "Email not verified",
         code: "EMAIL_NOT_VERIFIED",
       });
     }
@@ -324,79 +304,37 @@ async function customerLogin(req, res) {
   }
 }
 
-/* ================= FORGOT PASSWORD ================= */
+/* ================= FORGOT / RESET ================= */
+
 async function forgotPassword(req, res) {
   try {
     const { email } = req.body || {};
-    if (!email) return res.status(400).json({ success: false, message: "Email required" });
 
-    const cleanEmail = String(email).trim().toLowerCase();
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: "Invalid email" });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
     const customer = await prisma.customer.findUnique({ where: { Email: cleanEmail } });
 
     if (!customer || !customer.isActive) {
-      return res.json({ success: true, message: "If the email exists, a reset code was sent" });
+      return res.json({ success: true });
     }
 
     const code = generateCode6();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await prisma.passwordResetCode.updateMany({
-      where: { customerId: customer.CustomerID, usedAt: null },
-      data: { usedAt: new Date() },
-    });
-
     await prisma.passwordResetCode.create({
       data: { customerId: customer.CustomerID, code, expiresAt },
     });
 
-    res.json({ success: true, message: "Reset code sent" });
-
     fireAndForgetEmail({
       to: cleanEmail,
       subject: "Password Reset Code",
-      text: `Your password reset code is ${code}. It expires in 10 minutes.`,
+      text: `Your password reset code is ${code}`,
     });
 
-    return;
-  } catch (e) {
-    return res.status(500).json({ success: false, message: e.message });
-  }
-}
-
-/* ================= VERIFY RESET CODE ================= */
-async function verifyResetCode(req, res) {
-  try {
-    const { email, code } = req.body || {};
-
-    if (!email || !code) {
-      return res.status(400).json({ success: false, message: "email and code required" });
-    }
-
-    const cleanEmail = String(email).trim().toLowerCase();
-    const inputCode = String(code).trim();
-
-    const customer = await prisma.customer.findUnique({ where: { Email: cleanEmail } });
-    if (!customer || !customer.isActive) {
-      return res.status(400).json({ success: false, message: "Invalid or expired code" });
-    }
-
-    const now = new Date();
-
-    const record = await prisma.passwordResetCode.findFirst({
-      where: {
-        customerId: customer.CustomerID,
-        code: inputCode,
-        usedAt: null,
-        expiresAt: { gte: now },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!record) {
-      return res.status(400).json({ success: false, message: "Invalid or expired code" });
-    }
-
-    return res.json({ success: true, message: "Code verified" });
+    return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
@@ -408,7 +346,10 @@ async function resendVerification(req, res) {
     const { email } = req.body || {};
 
     if (!email) {
-      return res.status(400).json({ success: false, message: "Email is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
@@ -417,10 +358,18 @@ async function resendVerification(req, res) {
       where: { Email: cleanEmail },
     });
 
-    if (!customer) return res.status(404).json({ success: false, message: "User not found" });
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
 
-    if (customer.emailVerified === true) {
-      return res.json({ success: true, message: "Email already verified" });
+    if (customer.emailVerified) {
+      return res.json({
+        success: true,
+        message: "Email already verified",
+      });
     }
 
     const code = generateCode6();
@@ -428,10 +377,11 @@ async function resendVerification(req, res) {
 
     await prisma.customer.update({
       where: { Email: cleanEmail },
-      data: { emailVerifyCode: code, emailVerifyExpires: expires },
+      data: {
+        emailVerifyCode: code,
+        emailVerifyExpires: expires,
+      },
     });
-
-    res.json({ success: true, message: "Verification code resent" });
 
     fireAndForgetEmail({
       to: cleanEmail,
@@ -439,46 +389,76 @@ async function resendVerification(req, res) {
       text: `Your verification code is ${code}. It expires in 10 minutes.`,
     });
 
-    return;
+    return res.json({
+      success: true,
+      message: "Verification code resent",
+    });
+  } catch (e) {
+    return res.status(500).json({
+      success: false,
+      message: e.message,
+    });
+  }
+}
+
+
+async function verifyResetCode(req, res) {
+  try {
+    const { email, code } = req.body || {};
+
+    if (!email || !code || !isValidEmail(email)) {
+      return res.status(400).json({ success: false });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const customer = await prisma.customer.findUnique({ where: { Email: cleanEmail } });
+    if (!customer) return res.status(400).json({ success: false });
+
+    const record = await prisma.passwordResetCode.findFirst({
+      where: {
+        customerId: customer.CustomerID,
+        code,
+        usedAt: null,
+        expiresAt: { gte: new Date() },
+      },
+    });
+
+    if (!record) {
+      return res.status(400).json({ success: false });
+    }
+
+    return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 }
 
-/* ================= RESET PASSWORD ================= */
 async function resetPassword(req, res) {
   try {
     const { email, code, newPassword } = req.body || {};
 
-    if (!email || !code || !newPassword) {
-      return res.status(400).json({ success: false, message: "email, code, newPassword required" });
+    if (!email || !code || !newPassword || !isValidEmail(email)) {
+      return res.status(400).json({ success: false });
     }
 
     const pw = validateStrongPassword(newPassword);
     if (!pw.ok) return res.status(400).json({ success: false, message: pw.message });
 
-    const cleanEmail = String(email).trim().toLowerCase();
-    const inputCode = String(code).trim();
-
+    const cleanEmail = email.trim().toLowerCase();
     const customer = await prisma.customer.findUnique({ where: { Email: cleanEmail } });
-    if (!customer || !customer.isActive) {
-      return res.status(400).json({ success: false, message: "Invalid or expired code" });
-    }
-
-    const now = new Date();
+    if (!customer) return res.status(400).json({ success: false });
 
     const record = await prisma.passwordResetCode.findFirst({
       where: {
         customerId: customer.CustomerID,
-        code: inputCode,
+        code,
         usedAt: null,
-        expiresAt: { gte: now },
+        expiresAt: { gte: new Date() },
       },
-      orderBy: { createdAt: "desc" },
     });
 
     if (!record) {
-      return res.status(400).json({ success: false, message: "Invalid or expired code" });
+      return res.status(400).json({ success: false });
     }
 
     const hash = await bcrypt.hash(String(newPassword), 10);
@@ -490,15 +470,11 @@ async function resetPassword(req, res) {
       }),
       prisma.passwordResetCode.update({
         where: { id: record.id },
-        data: { usedAt: now },
-      }),
-      prisma.passwordResetCode.updateMany({
-        where: { customerId: customer.CustomerID, usedAt: null },
-        data: { usedAt: now },
+        data: { usedAt: new Date() },
       }),
     ]);
 
-    return res.json({ success: true, message: "Password reset successful" });
+    return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
