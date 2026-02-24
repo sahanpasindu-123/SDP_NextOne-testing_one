@@ -13,4 +13,13 @@ if (result.error && result.error.code !== "ENOENT") {
   console.warn("⚠️ Failed to load .env:", result.error.message);
 }
 
+const { EnvSchema } = require("./env.schema");
+
+const parsed = EnvSchema.safeParse(process.env);
+if (!parsed.success) {
+  console.error("❌ Invalid/missing ENV:", parsed.error.flatten().fieldErrors);
+  process.exit(1);
+}
+
+
 module.exports = { ENV_PATH };

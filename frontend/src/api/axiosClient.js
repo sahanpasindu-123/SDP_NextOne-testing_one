@@ -7,16 +7,7 @@ const axiosClient = axios.create({ baseURL });
 // ===============================
 // Error normalization
 // ===============================
-// We want every API failure to be representable in the UI as:
-// {
-//   status: number | null,
-//   message: string,
-//   errors?: Array<{ field?: string, message: string }>,
-//   isNetworkError?: boolean,
-//   raw?: unknown
-// }
 export function normalizeAxiosError(error) {
-  // Network / CORS / backend-down errors have no `response`
   if (error && !error.response) {
     return {
       status: null,
@@ -30,13 +21,11 @@ export function normalizeAxiosError(error) {
   const status = error?.response?.status ?? null;
   const data = error?.response?.data;
 
-  // Prefer backend-provided message, fall back to axios message.
   const message =
     (typeof data?.message === "string" && data.message) ||
     (typeof error?.message === "string" && error.message) ||
     "Request failed";
 
-  // `errors` can come from your global error handler or validation libs.
   const errors = Array.isArray(data?.errors) ? data.errors : undefined;
 
   return {
@@ -51,12 +40,17 @@ export function normalizeAxiosError(error) {
 // Helpers (AUTH)
 // ===============================
 function clearAuthStorage() {
-  // Keys used in this project (keep both for safety)
+  // legacy keys
   localStorage.removeItem("authToken");
   localStorage.removeItem("token");
   localStorage.removeItem("role");
 
-  // Optional extras (harmless if not used)
+  // ✅ role-based keys (IMPORTANT)
+  localStorage.removeItem("adminToken");
+  localStorage.removeItem("employeeToken");
+  localStorage.removeItem("customerToken");
+
+  // optional extras
   localStorage.removeItem("user");
   localStorage.removeItem("admin");
   localStorage.removeItem("employee");
@@ -75,28 +69,58 @@ function emitLogout(reason, details) {
 }
 
 // ===============================
+// Token selection by portal path
+// ===============================
+function pickTokenByPortalPath() {
+  const path = window.location?.pathname || "";
+
+  if (path.startsWith("/admin")) {
+    return localStorage.getItem("adminToken");
+  }
+  if (path.startsWith("/employee")) {
+    return localStorage.getItem("employeeToken");
+  }
+  return localStorage.getItem("customerToken");
+}
+
+// ===============================
 // Request interceptor (JWT)
 // ===============================
 axiosClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+    const portalToken = pickTokenByPortalPath();
+
+    // fallback to legacy keys (for old pages)
+    const token =
+      portalToken ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("token");
 
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // DEV-only: help debug intermittent 401s (missing Authorization)
+    // DEV-only logging
     if (import.meta?.env?.DEV) {
       const url = String(config?.url || "");
       const base = String(config?.baseURL || "");
-      const isApiCall = base.includes("/api") || url.startsWith("/api") || url.startsWith("/");
+      const isApiCall =
+        base.includes("/api") || url.startsWith("/api") || url.startsWith("/");
+
       if (isApiCall) {
         console.log("[axios] request", {
           method: String(config?.method || "GET").toUpperCase(),
           url,
           hasAuthHeader: !!config?.headers?.Authorization,
-          tokenKey: localStorage.getItem("authToken") ? "authToken" : localStorage.getItem("token") ? "token" : null,
+          tokenKey: portalToken
+            ? "portalToken"
+            : localStorage.getItem("authToken")
+            ? "authToken"
+            : localStorage.getItem("token")
+            ? "token"
+            : null,
+          portalPath: window.location?.pathname,
         });
       }
     }
@@ -125,7 +149,6 @@ axiosClient.interceptors.response.use(
     const url = String(error?.config?.url || "");
     const message = String(error?.response?.data?.message || "");
 
-    // ✅ Do not redirect on auth endpoints (avoid loops)
     const isAuthCall =
       url.includes("/auth/staff-login") ||
       url.includes("/auth/login") ||
@@ -137,7 +160,6 @@ axiosClient.interceptors.response.use(
       url.includes("/auth/verify-code") ||
       url.includes("/auth/reset-password");
 
-    // ✅ Handle Unauthorized/Forbidden
     if ((status === 401 || status === 403) && !isAuthCall) {
       console.log("AUTH FAIL:", {
         status,
@@ -145,22 +167,17 @@ axiosClient.interceptors.response.use(
         message,
         data: error?.response?.data,
         authHeader: error?.config?.headers?.Authorization,
+        portalPath: window.location?.pathname,
       });
 
-      // 401: token invalid/expired/missing. Always log out.
-      // 403: do NOT auto logout (usually permission issue), let UI show message.
+      // 401 => always logout (token invalid/expired)
+      // 403 => DO NOT logout (permission issue)
       if (status === 401) {
-        // IMPORTANT:
-        // - Never hardcode /auth/* redirects here.
-        // - Never infer portal from pathname.
-        // - Clear storage and let portal-aware ProtectedRoute decide where to go.
         clearAuthStorage();
         emitLogout("401", { status, url });
       }
     }
 
-    // Always reject a normalized shape so UI can show meaningful messages.
-    // Keep original axios error inside `.raw` for debugging.
     return Promise.reject(normalizeAxiosError(error));
   }
 );
