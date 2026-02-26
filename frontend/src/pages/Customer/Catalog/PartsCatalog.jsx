@@ -16,14 +16,21 @@ import prodImg6 from "../../../assets/JCB_IMG/img6.jpg";
 const productImages = [prodImg1, prodImg2, prodImg3, prodImg4, prodImg5, prodImg6];
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-// VITE_API_URL includes `/api`, but images are served from `/uploads` (outside `/api`).
-const API_ORIGIN = String(API_BASE).replace(/\/api\/?$/, "");
 
 function buildImageUrl(imageUrl) {
   if (!imageUrl) return null;
-  // backend provides ImageURL like /uploads/products/xxx
+  
+  // If already a full URL, return as-is
   if (String(imageUrl).startsWith("http")) return imageUrl;
-  return `${API_ORIGIN}${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
+  
+  // Get the base URL without the /api suffix
+  const baseUrl = String(API_BASE).replace(/\/api\/?$/, "");
+  
+  // Ensure the image URL starts with /uploads
+  const cleanImageUrl = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
+  
+  // Construct the full URL
+  return `${baseUrl}${cleanImageUrl}`;
 }
 
 function mapApiProductToCard(p, i) {

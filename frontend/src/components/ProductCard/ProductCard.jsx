@@ -1,3 +1,4 @@
+import { useState } from "react";
 import styles from "./ProductCard.module.css";
 import Badge from "../Badge/Badge.jsx";
 import { FiEye, FiShoppingCart } from "react-icons/fi";
@@ -5,10 +6,15 @@ import { FiEye, FiShoppingCart } from "react-icons/fi";
 export default function ProductCard({ product, onReserve }) {
   const isLow = product.stockLabel === "Low Stock";
   const available = Number(product.available ?? 0);
+  const [imageError, setImageError] = useState(false);
 
   const handleReserve = () => {
     if (!onReserve) return;
     onReserve(product);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   return (
@@ -16,10 +22,11 @@ export default function ProductCard({ product, onReserve }) {
       <div
         className={styles.img}
         style={{
-          backgroundImage: product?.image
+          backgroundImage: product?.image && !imageError
             ? `url(${product.image})`
             : "none",
         }}
+        onError={handleImageError}
       />
 
       <div className={styles.body}>

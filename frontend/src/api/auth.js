@@ -5,8 +5,8 @@ export const authAPI = {
   // Backwards-compatible login alias
   // (Prefer customerLogin() or staffLogin() in new code)
   // -----------------------------
-  login: async (email, password) => {
-    const response = await axiosClient.post("/auth/login", { email, password });
+  login: async (employeeId, password) => {
+    const response = await axiosClient.post("/auth/login", { employeeId, password });
     const data = response.data;
 
     const token = data?.token || data?.data?.token;
@@ -35,31 +35,36 @@ export const authAPI = {
   // { adminId: "ADM001", password: "123456" }
   // { employeeId: "EMP001", password: "123456" }
   // -----------------------------
-  staffLogin: async (payload) => {
-    const response = await axiosClient.post("/auth/staff-login", payload);
-    const data = response.data;
+  staffLogin: async (data) => {
+    try {
+      const response = await axiosClient.post("/auth/staff-login", data);
+      const resData = response.data;
 
-    const token = data?.token || data?.data?.token;
-    const role = String(data?.role || data?.data?.role || "").toUpperCase();
+      const token = resData?.token || resData?.data?.token;
+      const role = String(resData?.role || resData?.data?.role || "").toUpperCase();
 
-    if (!token) {
-      throw new Error("Login succeeded but token missing.");
-    }
+      if (!token) {
+        throw new Error("Login succeeded but token missing.");
+      }
 
-    // ✅ Role-based tokens (IMPORTANT)
-    if (role === "ADMIN") localStorage.setItem("adminToken", token);
-    else if (role === "EMPLOYEE") localStorage.setItem("employeeToken", token);
-    else {
-      // fallback if backend didn't send role correctly
+      // ✅ Role-based tokens (IMPORTANT)
+      if (role === "ADMIN") localStorage.setItem("adminToken", token);
+      else if (role === "EMPLOYEE") localStorage.setItem("employeeToken", token);
+      else {
+        // fallback if backend didn't send role correctly
+        localStorage.setItem("authToken", token);
+      }
+
+      // Keep legacy keys for compatibility (optional)
+      localStorage.setItem("token", token);
       localStorage.setItem("authToken", token);
+      if (role) localStorage.setItem("role", role);
+
+      return { ...resData, token, role };
+    } catch (error) {
+      console.log("LOGIN ERROR:", error?.response?.data);
+      throw error;
     }
-
-    // Keep legacy keys for compatibility (optional)
-    localStorage.setItem("token", token);
-    localStorage.setItem("authToken", token);
-    if (role) localStorage.setItem("role", role);
-
-    return { ...data, token, role };
   },
 
   // -----------------------------

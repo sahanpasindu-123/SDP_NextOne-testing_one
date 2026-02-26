@@ -90,14 +90,13 @@ const me = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { adminId, employeeId, email, password } = req.body || {};
+    const { adminId, employeeId, password } = req.body || {};
 
     if (adminId || employeeId) return staffLogin(req, res);
-    if (email && password) return customerLogin(req, res);
 
     return res.status(400).json({
       success: false,
-      message: "Provide either staff or customer credentials",
+      message: "employeeId (or adminId) and password required",
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -110,13 +109,20 @@ const staffLogin = async (req, res) => {
   try {
     const { adminId, employeeId, password } = req.body || {};
 
+    const normalizedAdminId = adminId ? String(adminId).trim() : null;
+    const normalizedEmployeeId = employeeId ? String(employeeId).trim() : null;
+
     if (!password) {
       return res.status(400).json({ success: false, message: "password required" });
     }
 
-    if (adminId) {
+    if (!normalizedAdminId && !normalizedEmployeeId) {
+      return res.status(400).json({ success: false, message: "employeeId (or adminId) required" });
+    }
+
+    if (normalizedAdminId) {
       const admin = await prisma.admin.findUnique({
-        where: { AdminID: String(adminId) },
+        where: { AdminID: normalizedAdminId },
       });
 
       if (!admin || !(await bcrypt.compare(String(password), admin.Password))) {
@@ -127,9 +133,9 @@ const staffLogin = async (req, res) => {
       return res.json({ success: true, token, role: "ADMIN" });
     }
 
-    if (employeeId) {
+    if (normalizedEmployeeId) {
       const employee = await prisma.employee.findUnique({
-        where: { employeeId: String(employeeId) },
+        where: { employeeId: normalizedEmployeeId },
       });
 
       if (!employee || !employee.isActive || !(await bcrypt.compare(String(password), employee.password))) {
@@ -140,7 +146,7 @@ const staffLogin = async (req, res) => {
       return res.json({ success: true, token, role: "EMPLOYEE" });
     }
 
-    return res.status(400).json({ success: false, message: "adminId or employeeId required" });
+    return res.status(400).json({ success: false, message: "employeeId (or adminId) required" });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }

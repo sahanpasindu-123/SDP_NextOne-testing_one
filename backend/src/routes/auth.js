@@ -7,6 +7,8 @@ const { validate } = require("../middleware/validate");
 
 const {
   LoginSchema,
+  StaffLoginSchema,
+  CustomerLoginSchema,
   CustomerSignupSchema,
   EmailSchema,
   ResetPasswordSchema,
@@ -41,7 +43,7 @@ router.get("/ping", (req, res) => {
 router.post(
   "/login",
   loginLimiter,
-  validate(LoginSchema),
+  validate(StaffLoginSchema),
   authController.login
 );
 
@@ -49,7 +51,7 @@ router.post(
 router.post(
   "/staff-login",
   loginLimiter,
-  validate(LoginSchema),
+  validate(StaffLoginSchema),
   authController.staffLogin
 );
 
@@ -66,7 +68,7 @@ router.post(
 router.post(
   "/customer-login",
   loginLimiter,
-  validate(LoginSchema),
+  validate(CustomerLoginSchema),
   authController.customerLogin
 );
 

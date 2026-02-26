@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./EmployeeLogin.module.css";
 import { authAPI } from "../../api/auth";
 import { useAuth } from "../../context/AuthContext";
+import { useCategories } from "../../context/CategoriesContext";
 
 export default function EmployeeLogin() {
   const [employeeId, setEmployeeId] = useState("");
@@ -10,11 +11,15 @@ export default function EmployeeLogin() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { refreshCategories } = useCategories();
 
   const clearAuth = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("authToken");
     localStorage.removeItem("role");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("employeeToken");
+    localStorage.removeItem("customerToken");
     localStorage.removeItem("user");
     localStorage.removeItem("userId");
   };
@@ -23,14 +28,22 @@ export default function EmployeeLogin() {
     e.preventDefault();
     if (loading) return;
 
+    const normalizedEmployeeId = String(employeeId || "").trim();
+    const rawPassword = String(password || "");
+
+    if (!normalizedEmployeeId || !rawPassword) {
+      alert("Employee ID and password are required.");
+      return;
+    }
+
     setLoading(true);
     clearAuth();
 
     try {
-      // ✅ FIX: correct payload
+      // Send only required fields
       const result = await authAPI.staffLogin({
-        employeeId: employeeId,
-        password: password,
+        employeeId: normalizedEmployeeId,
+        password: rawPassword,
       });
 
       if (!result?.token || result?.role !== "EMPLOYEE") {
@@ -40,10 +53,14 @@ export default function EmployeeLogin() {
       // Save auth
       login(result.token, "EMPLOYEE");
 
+      // Fetch categories after token is set
+      await refreshCategories();
+
       // Navigate
       navigate("/employee/dashboard", { replace: true });
     } catch (err) {
       clearAuth();
+      console.log(err?.response?.data);
       const msg =
         err?.response?.data?.message ||
         err?.message ||

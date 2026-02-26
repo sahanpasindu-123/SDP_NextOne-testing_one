@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { categoriesAPI } from "../api/categories";
+import { useAuth } from "./AuthContext";
 
 const CategoriesContext = createContext(null);
 
@@ -7,10 +8,10 @@ export function CategoriesProvider({ children }) {
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const didInitialFetchRef = useRef(false);
+  const lastTokenRef = useRef(null);
+  const { token } = useAuth();
 
   const refreshCategories = useCallback(async () => {
-    const token = localStorage.getItem("authToken");
-
     // ✅ If no token, do NOT call protected endpoint
     if (!token) {
       console.log("refreshCategories() skipped: no authToken");
@@ -34,22 +35,27 @@ export function CategoriesProvider({ children }) {
     } finally {
       setLoadingCategories(false);
     }
-  }, []);
+  }, [token]);
 
   // ✅ Load once on app start (ONLY if token exists)
   useEffect(() => {
     // React.StrictMode intentionally double-invokes effects in dev.
     // This guard prevents duplicate API calls (and duplicate 401 spam) on mount.
-    if (didInitialFetchRef.current) return;
-    didInitialFetchRef.current = true;
-
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      refreshCategories();
-    } else {
-      console.log("CategoriesProvider: no authToken on start, not fetching categories");
+    if (!didInitialFetchRef.current) {
+      didInitialFetchRef.current = true;
     }
-  }, [refreshCategories]);
+
+    if (!token) {
+      setCategories([]);
+      console.log("CategoriesProvider: no authToken on start, not fetching categories");
+      return;
+    }
+
+    if (lastTokenRef.current === token) return;
+    lastTokenRef.current = token;
+
+    refreshCategories();
+  }, [token, refreshCategories]);
 
   const value = useMemo(
     () => ({

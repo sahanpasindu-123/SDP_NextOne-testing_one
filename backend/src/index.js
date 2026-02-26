@@ -91,8 +91,21 @@ const PORT = process.env.PORT || 5000;
  * CORS (MUST be before routes)
  * ================================
  */
+// Parse CORS_ORIGIN environment variable to handle multiple origins
+const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
+const allowedOrigins = corsOrigin.split(',').map(origin => origin.trim());
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -109,7 +122,8 @@ app.options("*", cors(corsOptions));
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
-    contentSecurityPolicy: false, // tighten in production
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // 🔥 IMPORTANT
+    contentSecurityPolicy: false,
   })
 );
 
@@ -168,6 +182,7 @@ app.use(morgan("dev"));
  * Static files (uploads)
  * ================================
  */
+// Add CORS headers for static file serving
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 /**

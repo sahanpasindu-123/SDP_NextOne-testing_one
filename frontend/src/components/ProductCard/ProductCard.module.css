@@ -22,6 +22,25 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
+  padding: 10px;
+}
+
+/* Image placeholder styling */
+.img::after {
+  content: "No Image Available";
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+/* Hide placeholder text when image is loaded */
+.img[style*="url("]::after {
+  display: none;
 }
 
 /* ================= BODY ================= */
@@ -72,6 +91,7 @@
 
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
