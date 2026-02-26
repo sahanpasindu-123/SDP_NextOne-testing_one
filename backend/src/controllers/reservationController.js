@@ -6,6 +6,9 @@ const prisma = require("../utils/prisma");
 const confirmReservation = async (req, res) => {
   try {
     const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ success: false, message: "Invalid id" });
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // 1️⃣ Check reservation exists
@@ -17,14 +20,16 @@ const confirmReservation = async (req, res) => {
         throw new Error("Reservation not found");
       }
 
-      // 2️⃣ Prevent confirming cancelled reservation
-      if (existing.Status === "CANCELLED") {
-        throw new Error("Cannot confirm a cancelled reservation");
+      const current = String(existing.Status || "").toUpperCase();
+
+      // 2️⃣ Prevent double confirm
+      if (current === "CONFIRMED") {
+        throw new Error("Reservation already confirmed");
       }
 
-      // 3️⃣ Prevent double confirm
-      if (existing.Status === "CONFIRMED") {
-        throw new Error("Reservation already confirmed");
+      // 3️⃣ Allow only PENDING/RESERVED -> CONFIRMED
+      if (!["PENDING", "RESERVED"].includes(current)) {
+        throw new Error(`Cannot confirm a ${current.toLowerCase()} reservation`);
       }
 
       // 4️⃣ Ensure product not already confirmed elsewhere
@@ -64,35 +69,47 @@ const confirmReservation = async (req, res) => {
 const cancelReservation = async (req, res) => {
   try {
     const id = Number(req.params.id);
-
-    const existing = await prisma.reservation.findUnique({
-      where: { ReservationID: id },
-    });
-
-    if (!existing) {
-      return res.status(404).json({
-        success: false,
-        message: "Reservation not found",
-      });
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ success: false, message: "Invalid id" });
     }
 
-    // Prevent cancelling already cancelled reservation
-    if (existing.Status === "CANCELLED") {
-      return res.status(400).json({
-        success: false,
-        message: "Reservation already cancelled",
+    const reservation = await prisma.$transaction(async (tx) => {
+      const existing = await tx.reservation.findUnique({
+        where: { ReservationID: id },
       });
-    }
 
-    const reservation = await prisma.reservation.update({
-      where: { ReservationID: id },
-      data: { Status: "CANCELLED" },
+      if (!existing) {
+        const e = new Error("Reservation not found");
+        e.status = 404;
+        throw e;
+      }
+
+      const current = String(existing.Status || "").toUpperCase();
+      const cancelAllowed = ["PENDING", "RESERVED", "CONFIRMED"];
+      if (!cancelAllowed.includes(current)) {
+        const e = new Error(
+          `Cannot cancel a ${current.toLowerCase()} reservation`
+        );
+        e.status = 400;
+        throw e;
+      }
+
+      // Return stock on customer cancel (prevents stock leakage)
+      await tx.product.update({
+        where: { ProductID: existing.ProductID },
+        data: { Stock: { increment: existing.Quantity } },
+      });
+
+      return await tx.reservation.update({
+        where: { ReservationID: id },
+        data: { Status: "CANCELLED" },
+      });
     });
 
     return res.json({ success: true, reservation });
 
   } catch (err) {
-    return res.status(500).json({
+    return res.status(err.status || 500).json({
       success: false,
       message: err.message || "Server error",
     });
