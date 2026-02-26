@@ -15,9 +15,9 @@ import prodImg6 from "../../../assets/JCB_IMG/img6.jpg";
 
 const productImages = [prodImg1, prodImg2, prodImg3, prodImg4, prodImg5, prodImg6];
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-function buildImageUrl(imageUrl) {
+export function buildImageUrl(imageUrl) {
   if (!imageUrl) return null;
   
   // If already a full URL, return as-is
@@ -33,7 +33,7 @@ function buildImageUrl(imageUrl) {
   return `${baseUrl}${cleanImageUrl}`;
 }
 
-function mapApiProductToCard(p, i) {
+export function mapApiProductToCard(p, i) {
   const stock = Number(p.Stock ?? 0);
   return {
     id: p.ProductID,

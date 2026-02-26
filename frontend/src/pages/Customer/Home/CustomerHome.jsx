@@ -2,86 +2,13 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import styles from "./CustomerHome.module.css";
 import ProductCard from "../../../components/ProductCard/ProductCard.jsx";
 import ReserveModal from "../../../components/ReserveModal/ReserveModal";
-import axiosClient from "../../../api/axiosClient"; // ✅ make sure this path is correct
+import productsAPI from "../../../api/products";
+import { mapApiProductToCard } from "../Catalog/PartsCatalog.jsx";
 
 import heroBg from "../../../assets/JCB_IMG/img5.jpg";
-import prodImg1 from "../../../assets/JCB_IMG/img1.jpg";
-import prodImg2 from "../../../assets/JCB_IMG/img2.jpg";
-import prodImg3 from "../../../assets/JCB_IMG/img3.jpg";
-import prodImg4 from "../../../assets/JCB_IMG/img4.jpg";
-import prodImg5 from "../../../assets/JCB_IMG/img5.jpg";
-import prodImg6 from "../../../assets/JCB_IMG/img6.jpg";
-
-const productImages = [prodImg1, prodImg2, prodImg3, prodImg4, prodImg5, prodImg6];
-
-/**
- * ✅ Backend unchanged strategy:
- * - Fetch products from existing endpoint
- * - No dummy fallback
- * - Add loading/error/empty states
- * - Derive "New Arrivals" on the frontend
- * - Keep Reserve flow optimistic (UI-only) because backend isn't updated
- */
-
-// 🔧 CHANGE ONLY THIS if needed:
-const PRODUCTS_ENDPOINT = "/products"; // or "/products/public"
-
-function formatLKR(amount) {
-  const n = Number(amount);
-  if (Number.isNaN(n)) return "LKR 0.00";
-  return `LKR ${n.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function normalizeProduct(raw, idx = 0) {
-  // Handle multiple possible backend field names without changing backend
-  const id = raw.id ?? raw.ProductID ?? raw.productId ?? raw.ProductId ?? idx + 1;
-
-  const name =
-    raw.name ?? raw.ProductName ?? raw.productName ?? raw.title ?? "Unnamed Product";
-
-  const partNo = raw.partNo ?? raw.PartNo ?? raw.part_number ?? raw.partNumber ?? raw.sku ?? "";
-
-  const desc = raw.desc ?? raw.description ?? raw.ProductDescription ?? "";
-
-  const price = raw.price ?? raw.Price ?? raw.unitPrice ?? 0;
-
-  const available =
-    raw.available ??
-    raw.stock ??
-    raw.quantity ??
-    raw.AvailableQty ??
-    raw.qty ??
-    0;
-
-  const image =
-    raw.imageUrl ??
-    raw.image ??
-    raw.thumbnail ??
-    raw.ProductImage ??
-    productImages[idx % productImages.length];
-
-  // createdAt is optional; if missing, we'll fall back to id for "new arrivals"
-  const createdAt = raw.createdAt ?? raw.CreatedAt ?? raw.created_at ?? null;
-
-  // stock label for UI
-  const safeAvailable = Math.max(0, Number(available) || 0);
-  const stockLabel = safeAvailable === 0 ? "Out of Stock" : safeAvailable <= 5 ? "Low Stock" : "In Stock";
-
-  return {
-    id,
-    name,
-    partNo,
-    desc,
-    price: Number(price) || 0,
-    available: safeAvailable,
-    stockLabel,
-    image,
-    createdAt,
-  };
-}
 
 export default function CustomerHome() {
-  const [rawProducts, setRawProducts] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -93,10 +20,6 @@ export default function CustomerHome() {
 
   // Optional: simple search (frontend only)
   const [q, setQ] = useState("");
-
-  const products = useMemo(() => {
-    return rawProducts.map((p, idx) => normalizeProduct(p, idx));
-  }, [rawProducts]);
 
   const filteredProducts = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -142,23 +65,19 @@ export default function CustomerHome() {
       setLoading(true);
       setError("");
 
-      const res = await axiosClient.get(PRODUCTS_ENDPOINT);
-
-      // Support possible response shapes:
-      // 1) { data: [...] }
-      // 2) { data: { data: [...] } }
-      // 3) [...]
-      const list = res?.data?.data ?? res?.data ?? [];
-      setRawProducts(Array.isArray(list) ? list : []);
+      const res = await productsAPI.getProducts();
+      const list = res?.data || [];
+      const mapped = Array.isArray(list) ? list.map(mapApiProductToCard) : [];
+      setProducts(mapped);
     } catch (err) {
-      // axiosClient normalized errors => err.message + err.status
+      // Normalize errors when possible (status/message)
       const status = err?.status;
       if (status === 401 || status === 403) {
         setError("Please log in to view products.");
       } else {
         setError(err?.message || "Failed to load products.");
       }
-      setRawProducts([]);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -172,9 +91,8 @@ export default function CustomerHome() {
   const handleReserveConfirm = (product, qty) => {
     const qNum = Math.max(1, Number(qty) || 1);
 
-    setRawProducts((prev) => {
-      const normalizedPrev = prev.map((p, idx) => normalizeProduct(p, idx));
-      const updated = normalizedPrev.map((p) => {
+    setProducts((prev) => {
+      const updated = prev.map((p) => {
         if (p.id !== product.id) return p;
 
         const nextAvail = Math.max(0, p.available - qNum);
@@ -182,8 +100,6 @@ export default function CustomerHome() {
         return { ...p, available: nextAvail, stockLabel };
       });
 
-      // Convert back to raw-ish objects so we keep structure consistent
-      // Here we just store normalized objects; that's fine for UI.
       return updated;
     });
 
@@ -261,7 +177,7 @@ export default function CustomerHome() {
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>New Arrivals</h3>
               <div className={styles.grid}>
                 {newArrivals.map((p) => (
-                  <ProductCard key={`new-${p.id}`} product={{ ...p, priceLabel: formatLKR(p.price) }} onReserve={setSelectedProduct} />
+                  <ProductCard key={`new-${p.id}`} product={p} onReserve={setSelectedProduct} />
                 ))}
               </div>
             </>
@@ -273,7 +189,7 @@ export default function CustomerHome() {
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>All Products</h3>
               <div className={styles.grid}>
                 {pagedProducts.map((p) => (
-                  <ProductCard key={p.id} product={{ ...p, priceLabel: formatLKR(p.price) }} onReserve={setSelectedProduct} />
+                  <ProductCard key={p.id} product={p} onReserve={setSelectedProduct} />
                 ))}
               </div>
 
@@ -332,3 +248,14 @@ export default function CustomerHome() {
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
