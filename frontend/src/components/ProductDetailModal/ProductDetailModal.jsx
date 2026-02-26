@@ -1,0 +1,66 @@
+import React from "react";
+import "./ProductDetailModal.css";
+
+const ProductModal = ({ isOpen, onClose, product }) => {
+  if (!isOpen || !product) return null;
+
+  const price = Number(product.price || 0);
+  const available = Number(product.available ?? 0);
+  const stockLabel =
+    product.stockLabel || (available === 0 ? "Out of Stock" : available <= 5 ? "Low Stock" : "In Stock");
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h2>Product Details</h2>
+          <button className="close-btn" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <div className="modal-content">
+          <div className="image-section">
+            <img src={product.image} alt={product.name} />
+          </div>
+
+          <div className="details-section">
+            <span className="stock-badge">{stockLabel}</span>
+            <h3>{product.name}</h3>
+
+            <div className="info-row">
+              <span>Product ID:</span>
+              <span>{product.partNo || product.id}</span>
+            </div>
+
+            <div className="info-row">
+              <span>Category:</span>
+              <span>{product.category || "N/A"}</span>
+            </div>
+
+            <div className="info-row">
+              <span>Price:</span>
+              <span className="price">
+                LKR {price.toLocaleString("en-LK")}.00
+              </span>
+            </div>
+
+            <div className="info-row">
+              <span>Stock Quantity:</span>
+              <span>{available} units</span>
+            </div>
+
+            <div className="description">
+              <h4>Description</h4>
+              <p>{product.desc || "N/A"}</p>
+            </div>
+
+            <button className="reserve-btn">Reserve This Part</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProductModal;

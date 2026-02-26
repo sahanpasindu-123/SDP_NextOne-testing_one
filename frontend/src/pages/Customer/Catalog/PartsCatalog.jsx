@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./PartsCatalog.module.css";
 import ProductCard from "../../../components/ProductCard/ProductCard.jsx";
+import ProductDetailModal from "../../../components/ProductDetailModal/ProductDetailModal.jsx";
 import ReserveModal from "../../../components/ReserveModal/ReserveModal";
 import productsAPI from "../../../api/products";
 import { reservationsAPI } from "../../../api/reservations";
@@ -51,6 +52,7 @@ export default function PartsCatalog() {
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [detailProduct, setDetailProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -169,11 +171,24 @@ export default function PartsCatalog() {
         ) : (
           <div className={styles.grid}>
             {filteredProducts.map((p) => (
-              <ProductCard key={p.id} product={p} onReserve={setSelectedProduct} />
+              <ProductCard
+                key={p.id}
+                product={p}
+                onReserve={setSelectedProduct}
+                onViewDetails={setDetailProduct}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {detailProduct && (
+        <ProductDetailModal
+          isOpen={!!detailProduct}
+          product={detailProduct}
+          onClose={() => setDetailProduct(null)}
+        />
+      )}
 
       {selectedProduct && (
         <ReserveModal

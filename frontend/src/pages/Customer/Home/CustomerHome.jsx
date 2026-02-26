@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import styles from "./CustomerHome.module.css";
 import ProductCard from "../../../components/ProductCard/ProductCard.jsx";
+import ProductDetailModal from "../../../components/ProductDetailModal/ProductDetailModal.jsx";
 import ReserveModal from "../../../components/ReserveModal/ReserveModal";
 import productsAPI from "../../../api/products";
 import { mapApiProductToCard } from "../Catalog/PartsCatalog.jsx";
@@ -13,6 +14,7 @@ export default function CustomerHome() {
   const [error, setError] = useState("");
 
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [detailProduct, setDetailProduct] = useState(null);
 
   // Simple client-side pagination (backend unchanged)
   const [page, setPage] = useState(1);
@@ -177,7 +179,12 @@ export default function CustomerHome() {
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>New Arrivals</h3>
               <div className={styles.grid}>
                 {newArrivals.map((p) => (
-                  <ProductCard key={`new-${p.id}`} product={p} onReserve={setSelectedProduct} />
+                  <ProductCard
+                    key={`new-${p.id}`}
+                    product={p}
+                    onReserve={setSelectedProduct}
+                    onViewDetails={setDetailProduct}
+                  />
                 ))}
               </div>
             </>
@@ -189,7 +196,12 @@ export default function CustomerHome() {
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>All Products</h3>
               <div className={styles.grid}>
                 {pagedProducts.map((p) => (
-                  <ProductCard key={p.id} product={p} onReserve={setSelectedProduct} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    onReserve={setSelectedProduct}
+                    onViewDetails={setDetailProduct}
+                  />
                 ))}
               </div>
 
@@ -237,6 +249,14 @@ export default function CustomerHome() {
           )}
         </section>
       </div>
+
+      {detailProduct && (
+        <ProductDetailModal
+          isOpen={!!detailProduct}
+          product={detailProduct}
+          onClose={() => setDetailProduct(null)}
+        />
+      )}
 
       {selectedProduct && (
         <ReserveModal

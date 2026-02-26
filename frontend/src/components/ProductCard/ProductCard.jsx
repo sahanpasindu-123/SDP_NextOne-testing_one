@@ -3,7 +3,7 @@ import styles from "./ProductCard.module.css";
 import Badge from "../Badge/Badge.jsx";
 import { FiEye, FiShoppingCart } from "react-icons/fi";
 
-export default function ProductCard({ product, onReserve }) {
+export default function ProductCard({ product, onReserve, onViewDetails }) {
   const isLow = product.stockLabel === "Low Stock";
   const available = Number(product.available ?? 0);
   const [imageError, setImageError] = useState(false);
@@ -11,6 +11,12 @@ export default function ProductCard({ product, onReserve }) {
   const handleReserve = () => {
     if (!onReserve) return;
     onReserve(product);
+  };
+
+  const handleViewDetails = () => {
+    if (!onViewDetails) return;
+    if (!product?.id) return;
+    onViewDetails(product);
   };
 
   const handleImageError = () => {
@@ -56,7 +62,11 @@ export default function ProductCard({ product, onReserve }) {
         </div>
 
         <div className={styles.btnRow}>
-          <button type="button" className={styles.viewBtn}>
+          <button
+            type="button"
+            className={styles.viewBtn}
+            onClick={handleViewDetails}
+          >
             <FiEye /> <span>View Details</span>
           </button>
 
