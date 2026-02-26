@@ -127,6 +127,7 @@ export default function AdminInventory() {
           <button
             className={`${styles.iconBtn} ${styles.edit}`}
             onClick={() => {
+              closeInventoryModals();
               setSelectedProduct(r.raw);
               setUpdateOpen(true);
             }}
@@ -153,6 +154,7 @@ export default function AdminInventory() {
           <button
             className={`${styles.iconBtn} ${styles.image}`}
             onClick={() => {
+              closeInventoryModals();
               setSelectedProduct(r.raw);
               setImageOpen(true);
             }}
@@ -252,7 +254,15 @@ export default function AdminInventory() {
     }
   };
 
+  const closeInventoryModals = () => {
+    setAddOpen(false);
+    setUpdateOpen(false);
+    setImageOpen(false);
+  };
+
   const openAddProduct = () => {
+    closeInventoryModals();
+    setSelectedProduct(null);
     setAddOpen(true);
     refreshCategories().catch((e) => console.error("refreshCategories failed:", e));
   };
@@ -324,7 +334,10 @@ export default function AdminInventory() {
 
       <UpdateProductModal
         open={updateOpen}
-        onClose={() => setUpdateOpen(false)}
+        onClose={() => {
+          setUpdateOpen(false);
+          setSelectedProduct(null);
+        }}
         onSubmit={handleUpdateSubmit}
         categories={categoriesForModal.map((c) => c.Name)}
         initial={{
@@ -341,7 +354,10 @@ export default function AdminInventory() {
 
       <AddProductImageModal
         open={imageOpen}
-        onClose={() => setImageOpen(false)}
+        onClose={() => {
+          setImageOpen(false);
+          setSelectedProduct(null);
+        }}
         onSubmit={handleImageSubmit}
       />
     </div>

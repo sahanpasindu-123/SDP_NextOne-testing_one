@@ -89,6 +89,16 @@ export default function CustomerHome() {
     fetchProducts();
   }, [fetchProducts]);
 
+  const openDetails = (product) => {
+    setSelectedProduct(null);
+    setDetailProduct(product);
+  };
+
+  const openReserve = (product) => {
+    setDetailProduct(null);
+    setSelectedProduct(product);
+  };
+
   // Reserve confirm = UI-only optimistic update (backend unchanged)
   const handleReserveConfirm = (product, qty) => {
     const qNum = Math.max(1, Number(qty) || 1);
@@ -182,8 +192,8 @@ export default function CustomerHome() {
                   <ProductCard
                     key={`new-${p.id}`}
                     product={p}
-                    onReserve={setSelectedProduct}
-                    onViewDetails={setDetailProduct}
+                    onReserve={openReserve}
+                    onViewDetails={openDetails}
                   />
                 ))}
               </div>
@@ -199,8 +209,8 @@ export default function CustomerHome() {
                   <ProductCard
                     key={p.id}
                     product={p}
-                    onReserve={setSelectedProduct}
-                    onViewDetails={setDetailProduct}
+                    onReserve={openReserve}
+                    onViewDetails={openDetails}
                   />
                 ))}
               </div>
@@ -255,7 +265,7 @@ export default function CustomerHome() {
           isOpen={!!detailProduct}
           product={detailProduct}
           onClose={() => setDetailProduct(null)}
-          onReserve={setSelectedProduct}
+          onReserve={openReserve}
         />
       )}
 

@@ -127,13 +127,21 @@ export default function InventoryAll() {
   const handleDelete = (row) => navigate(`${base}/inventory/delete/${row.sku}`);
 
   const handleUpdateOpen = (row) => {
+    closeInventoryModals();
     setSelectedProduct(row.raw);
     setUpdateOpen(true);
   };
 
   const handleImageOpen = (row) => {
+    closeInventoryModals();
     setSelectedProduct(row.raw);
     setImageOpen(true);
+  };
+
+  const closeInventoryModals = () => {
+    setAddOpen(false);
+    setUpdateOpen(false);
+    setImageOpen(false);
   };
 
   // ✅ EMPLOYEE: Add product -> Send request to admin (PENDING)
@@ -304,7 +312,14 @@ export default function InventoryAll() {
 
       <div className={`card ${styles.toolbar}`}>
         <div className={styles.leftBtns}>
-          <Button leftIcon={<FiPlus />} onClick={() => setAddOpen(true)}>
+          <Button
+            leftIcon={<FiPlus />}
+            onClick={() => {
+              closeInventoryModals();
+              setSelectedProduct(null);
+              setAddOpen(true);
+            }}
+          >
             {isEmployeePortal ? "Request Product" : "Add New Item"}
           </Button>
           <Button variant="secondary" leftIcon={<FiFilter />}>
@@ -366,7 +381,10 @@ export default function InventoryAll() {
 
       <UpdateProductModal
         open={updateOpen}
-        onClose={() => setUpdateOpen(false)}
+        onClose={() => {
+          setUpdateOpen(false);
+          setSelectedProduct(null);
+        }}
         onSubmit={handleUpdateSubmit}
         categories={categories.map((c) => c.Name)}
         initial={{
@@ -382,7 +400,10 @@ export default function InventoryAll() {
 
       <AddProductImageModal
         open={imageOpen}
-        onClose={() => setImageOpen(false)}
+        onClose={() => {
+          setImageOpen(false);
+          setSelectedProduct(null);
+        }}
         onSubmit={handleImageSubmit}
       />
     </div>

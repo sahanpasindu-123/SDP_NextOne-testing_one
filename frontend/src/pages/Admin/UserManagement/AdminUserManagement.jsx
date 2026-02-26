@@ -33,12 +33,24 @@ export default function AdminUserManagement() {
   const [errorEmployees, setErrorEmployees] = useState("");
   const [errorCustomers, setErrorCustomers] = useState("");
 
-  const openAdd = () => setAddOpen(true);
+  const closeUserModals = () => {
+    setAddOpen(false);
+    setUpdOpen(false);
+    setDelOpen(false);
+  };
+
+  const openAdd = () => {
+    closeUserModals();
+    setSelectedUser(null);
+    setAddOpen(true);
+  };
   const openUpdate = (user) => {
+    closeUserModals();
     setSelectedUser(user);
     setUpdOpen(true);
   };
   const openDelete = (user) => {
+    closeUserModals();
     setSelectedUser(user);
     setDelOpen(true);
   };
@@ -300,21 +312,30 @@ export default function AdminUserManagement() {
       {/* Modals */}
       <AddUserModal
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={() => {
+          setAddOpen(false);
+          setSelectedUser(null);
+        }}
         onSubmit={handleAddSubmit}
         defaultType="employee"
       />
 
       <UpdateUserModal
         open={updOpen}
-        onClose={() => setUpdOpen(false)}
+        onClose={() => {
+          setUpdOpen(false);
+          setSelectedUser(null);
+        }}
         onSubmit={handleUpdateSubmit}
         initial={selectedUser || undefined}
       />
 
       <DeleteUserModal
         open={delOpen}
-        onClose={() => setDelOpen(false)}
+        onClose={() => {
+          setDelOpen(false);
+          setSelectedUser(null);
+        }}
         onDelete={handleDelete}
         userName={selectedUser?.name || selectedUser?.Name || ""}
       />

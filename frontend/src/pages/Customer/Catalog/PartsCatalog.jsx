@@ -121,6 +121,16 @@ export default function PartsCatalog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const openDetails = (product) => {
+    setSelectedProduct(null);
+    setDetailProduct(product);
+  };
+
+  const openReserve = (product) => {
+    setDetailProduct(null);
+    setSelectedProduct(product);
+  };
+
   const handleReserveConfirm = async (product, qty) => {
     await reservationsAPI.createReservation(product.id, qty);
     await loadProducts();
@@ -174,8 +184,8 @@ export default function PartsCatalog() {
               <ProductCard
                 key={p.id}
                 product={p}
-                onReserve={setSelectedProduct}
-                onViewDetails={setDetailProduct}
+                onReserve={openReserve}
+                onViewDetails={openDetails}
               />
             ))}
           </div>
@@ -187,7 +197,7 @@ export default function PartsCatalog() {
           isOpen={!!detailProduct}
           product={detailProduct}
           onClose={() => setDetailProduct(null)}
-          onReserve={setSelectedProduct}
+          onReserve={openReserve}
         />
       )}
 
