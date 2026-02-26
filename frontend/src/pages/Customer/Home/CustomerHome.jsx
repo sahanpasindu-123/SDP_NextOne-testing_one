@@ -255,6 +255,7 @@ export default function CustomerHome() {
           isOpen={!!detailProduct}
           product={detailProduct}
           onClose={() => setDetailProduct(null)}
+          onReserve={setSelectedProduct}
         />
       )}
 

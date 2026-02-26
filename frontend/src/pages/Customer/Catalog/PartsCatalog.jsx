@@ -187,6 +187,7 @@ export default function PartsCatalog() {
           isOpen={!!detailProduct}
           product={detailProduct}
           onClose={() => setDetailProduct(null)}
+          onReserve={setSelectedProduct}
         />
       )}
 

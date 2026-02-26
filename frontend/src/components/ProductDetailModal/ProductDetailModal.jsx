@@ -1,13 +1,19 @@
 import React from "react";
 import "./ProductDetailModal.css";
 
-const ProductModal = ({ isOpen, onClose, product }) => {
+const ProductModal = ({ isOpen, onClose, product, onReserve }) => {
   if (!isOpen || !product) return null;
 
   const price = Number(product.price || 0);
   const available = Number(product.available ?? 0);
   const stockLabel =
     product.stockLabel || (available === 0 ? "Out of Stock" : available <= 5 ? "Low Stock" : "In Stock");
+
+  const handleReserve = () => {
+    if (onClose) onClose();
+    if (!onReserve) return;
+    onReserve(product);
+  };
 
   return (
     <div className="modal-overlay">
@@ -55,7 +61,9 @@ const ProductModal = ({ isOpen, onClose, product }) => {
               <p>{product.desc || "N/A"}</p>
             </div>
 
-            <button className="reserve-btn">Reserve This Part</button>
+            <button className="reserve-btn" onClick={handleReserve}>
+              Reserve This Part
+            </button>
           </div>
         </div>
       </div>

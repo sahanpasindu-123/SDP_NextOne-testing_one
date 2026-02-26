@@ -9,6 +9,7 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
   const [imageError, setImageError] = useState(false);
 
   const handleReserve = () => {
+    console.log("[ProductCard] Reserve click", product);
     if (!onReserve) return;
     onReserve(product);
   };
