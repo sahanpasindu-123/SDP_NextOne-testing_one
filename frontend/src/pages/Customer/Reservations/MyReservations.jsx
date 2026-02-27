@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import styles from "./MyReservations.module.css";
 import Badge from "../../../components/Badge/Badge.jsx";
 import { reservationsAPI } from "../../../api/reservations";
@@ -26,6 +26,7 @@ const formatDate = (val) => {
 };
 
 export default function MyReservations() {
+  const isMountedRef = useRef(true);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
@@ -35,8 +36,9 @@ export default function MyReservations() {
     try {
       setLoading(true);
       const res = await reservationsAPI.getMyReservations();
-      const list = res?.data || [];
+      const list = Array.isArray(res?.data) ? res.data : [];
 
+      if (!isMountedRef.current) return;
       setRows(
         list.map((r) => ({
           id: r.ReservationID,
@@ -50,15 +52,23 @@ export default function MyReservations() {
       );
     } catch (e) {
       console.error("load my reservations failed:", e);
-      setMessage({ type: "error", text: e?.message || "Failed to load reservations" });
-      setRows([]);
+      if (isMountedRef.current) {
+        setMessage({ type: "error", text: e?.message || "Failed to load reservations" });
+        setRows([]);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     load();
+    return () => {
+      isMountedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -69,18 +79,25 @@ export default function MyReservations() {
     if (!ok) return;
 
     try {
-      setMessage(null);
-      setCancellingId(reservationId);
+      if (isMountedRef.current) {
+        setMessage(null);
+        setCancellingId(reservationId);
+      }
 
       await reservationsAPI.cancelReservation(reservationId);
 
+      if (!isMountedRef.current) return;
       setMessage({ type: "success", text: "Reservation cancelled" });
       await load(); // re-fetch
     } catch (e) {
       console.error("cancel failed:", e);
-      setMessage({ type: "error", text: e?.message || "Cancel failed" });
+      if (isMountedRef.current) {
+        setMessage({ type: "error", text: e?.message || "Cancel failed" });
+      }
     } finally {
-      setCancellingId(null);
+      if (isMountedRef.current) {
+        setCancellingId(null);
+      }
     }
   };
 

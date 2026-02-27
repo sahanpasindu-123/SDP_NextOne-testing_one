@@ -14,7 +14,7 @@ export default function DeleteUserModal({
         <div className={styles.top}>
           <div className={styles.title}>Delete User</div>
           <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            ×
+            x
           </button>
         </div>
 

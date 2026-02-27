@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import styles from "./BackupData.module.css";
 
@@ -11,6 +11,7 @@ import {
 } from "../../api/settings";
 
 export default function BackupData() {
+  const isMountedRef = useRef(true);
   const [auto, setAuto] = useState(true);
   const [freq, setFreq] = useState("Daily (at midnight)");
   const [backups, setBackups] = useState([]);
@@ -18,7 +19,11 @@ export default function BackupData() {
 
   // Load backups on page load
   useEffect(() => {
+    isMountedRef.current = true;
     loadBackups();
+    return () => {
+      isMountedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -27,6 +32,7 @@ export default function BackupData() {
       const res = await listBackups();
       // Supports: {data: [...] } OR direct array return
       const data = Array.isArray(res) ? res : res?.data;
+      if (!isMountedRef.current) return;
       setBackups(data || []);
     } catch (err) {
       console.error(err);
@@ -45,7 +51,9 @@ export default function BackupData() {
       console.error(err);
       alert("Backup failed");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

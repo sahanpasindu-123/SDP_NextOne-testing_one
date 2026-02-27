@@ -1,18 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authAPI } from "../../../api/auth";
+import { useAuth } from "../../../context/AuthContext";
 import styles from "./Auth.module.css";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
+  const isMountedRef = useRef(true);
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    isMountedRef.current = true;
     const savedEmail = localStorage.getItem("pendingVerifyEmail");
     if (savedEmail) setEmail(savedEmail);
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const handleVerify = async (e) => {
@@ -41,10 +48,22 @@ export default function VerifyEmail() {
 
       localStorage.removeItem("pendingVerifyEmail");
 
+      if (token) {
+        const role =
+          res?.role ||
+          res?.data?.role ||
+          res?.data?.data?.role ||
+          user?.role ||
+          "CUSTOMER";
+        login(token, role);
+      }
+
       // ✅ Verified success → go to Home
       navigate("/customer/home");
     } catch (err) {
-      setError(err?.response?.data?.message || "Invalid code or expired");
+      if (isMountedRef.current) {
+        setError(err?.response?.data?.message || "Invalid code or expired");
+      }
     }
   };
 

@@ -3,6 +3,7 @@ import axios from "axios";
 const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const axiosClient = axios.create({ baseURL });
+const INTERCEPTOR_FLAG = "__axiosClientInterceptorsRegistered";
 
 // ===============================
 // Error normalization
@@ -14,6 +15,8 @@ export function normalizeAxiosError(error) {
       message:
         "Unable to reach the server. Please check your connection or try again later.",
       isNetworkError: true,
+      response: undefined,
+      data: undefined,
       raw: error,
     };
   }
@@ -23,6 +26,7 @@ export function normalizeAxiosError(error) {
 
   const message =
     (typeof data?.message === "string" && data.message) ||
+    (typeof data?.error === "string" && data.error) ||
     (typeof error?.message === "string" && error.message) ||
     "Request failed";
 
@@ -32,6 +36,8 @@ export function normalizeAxiosError(error) {
     status,
     message,
     errors,
+    response: error?.response,
+    data,
     raw: error,
   };
 }
@@ -45,7 +51,7 @@ function clearAuthStorage() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
 
-  // ✅ role-based keys (IMPORTANT)
+  //  role-based keys (IMPORTANT)
   localStorage.removeItem("adminToken");
   localStorage.removeItem("employeeToken");
   localStorage.removeItem("customerToken");
@@ -83,9 +89,12 @@ function pickTokenByPortalPath() {
   return localStorage.getItem("customerToken");
 }
 
-// ===============================
-// Request interceptor (JWT)
-// ===============================
+if (!axiosClient[INTERCEPTOR_FLAG]) {
+  axiosClient[INTERCEPTOR_FLAG] = true;
+
+  // ===============================
+  // Request interceptor (JWT)
+  // ===============================
 axiosClient.interceptors.request.use(
   (config) => {
     const portalToken = pickTokenByPortalPath();
@@ -127,7 +136,7 @@ axiosClient.interceptors.request.use(
       }
     }
 
-    // ✅ Do NOT force Content-Type for FormData (let axios set boundary)
+    //  Do NOT force Content-Type for FormData (let axios set boundary)
     const isFormData =
       typeof FormData !== "undefined" && config.data instanceof FormData;
 
@@ -183,5 +192,6 @@ axiosClient.interceptors.response.use(
     return Promise.reject(normalizeAxiosError(error));
   }
 );
+}
 
 export default axiosClient;

@@ -20,7 +20,7 @@ const formatMoney = (val) => {
 };
 
 const formatDate = (val) => {
-  if (!val) return "—";
+  if (!val) return "N/A";
   const d = new Date(val);
   if (Number.isNaN(d.getTime())) return String(val);
   return d.toISOString().slice(0, 10);
@@ -31,23 +31,22 @@ export default function AdminReservations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const isMountedRef = useRef(true);
+  const pollRef = useRef(null);
 
-  // ✅ React 18 StrictMode mounts effects twice in DEV.
-  // Guard to avoid duplicate polling intervals.
-  const didStartPollingRef = useRef(false);
-
-  const load = async () => {
+  const load = async ({ silent = false } = {}) => {
     try {
       setError(null);
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await reservationsAPI.getAdminReservations();
-      const list = res?.data || [];
+      const list = Array.isArray(res?.data) ? res.data : [];
+      if (!isMountedRef.current) return;
       setRows(
         list.map((r) => ({
           id: r.ReservationID,
-          customer: r.customer?.Name || "—",
-          phone: r.customer?.Phone || "—",
-          item: `${r.product?.Name || "—"}`,
+          customer: r.customer?.Name || "N/A",
+          phone: r.customer?.Phone || "N/A",
+          item: `${r.product?.Name || "N/A"}`,
           qty: r.Quantity,
           total: formatMoney(r.Total),
           reserved: formatDate(r.ReservedAt),
@@ -57,20 +56,51 @@ export default function AdminReservations() {
       );
     } catch (e) {
       console.error("admin reservations load failed:", e);
-      setError(e?.message || "Failed to load reservations");
-      setRows([]);
+      if (isMountedRef.current) {
+        setError(e?.message || "Failed to load reservations");
+        setRows([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent && isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    if (didStartPollingRef.current) return;
-    didStartPollingRef.current = true;
+    isMountedRef.current = true;
 
-    load();
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        if (document.visibilityState !== "visible") return;
+        load({ silent: true });
+      }, 8000);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        load();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      isMountedRef.current = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      stopPolling();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -118,13 +148,17 @@ export default function AdminReservations() {
               disabled={busyId === r.id}
               onClick={async () => {
                 try {
-                  setBusyId(r.id);
+                  if (isMountedRef.current) {
+                    setBusyId(r.id);
+                  }
                   await reservationsAPI.adminApprove(r.id);
                   await load();
                 } catch (e) {
                   alert(e?.message || "Approve failed");
                 } finally {
-                  setBusyId(null);
+                  if (isMountedRef.current) {
+                    setBusyId(null);
+                  }
                 }
               }}
             >
@@ -139,13 +173,17 @@ export default function AdminReservations() {
                 const ok = window.confirm("Reject this reservation?");
                 if (!ok) return;
                 try {
-                  setBusyId(r.id);
+                  if (isMountedRef.current) {
+                    setBusyId(r.id);
+                  }
                   await reservationsAPI.adminReject(r.id);
                   await load();
                 } catch (e) {
                   alert(e?.message || "Reject failed");
                 } finally {
-                  setBusyId(null);
+                  if (isMountedRef.current) {
+                    setBusyId(null);
+                  }
                 }
               }}
             >
@@ -153,7 +191,7 @@ export default function AdminReservations() {
             </button>
           </div>
         ) : (
-          <span style={{ opacity: 0.7 }}>—</span>
+          <span style={{ opacity: 0.7 }}>N/A</span>
         ),
     },
   ];
@@ -167,7 +205,7 @@ export default function AdminReservations() {
         <div className={styles.tableHead}>All Reservations</div>
 
         {loading ? (
-          <div style={{ padding: 16 }}>Loading…</div>
+          <div style={{ padding: 16 }}>Loading...</div>
         ) : error ? (
           <div style={{ padding: 16 }}>
             <div style={{ marginBottom: 10 }}>{error}</div>

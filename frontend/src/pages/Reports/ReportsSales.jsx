@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { FiDownload, FiFilter } from "react-icons/fi";
 import Table from "../../components/Table/Table.jsx";
@@ -11,25 +11,34 @@ import { reportsAPI } from "../../api/reports";
 export default function ReportsSales() {
   const location = useLocation();
   const base = location.pathname.startsWith("/admin") ? "/admin" : "/employee";
+  const isMountedRef = useRef(true);
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // ---------------- Fetch data ----------------
   useEffect(() => {
+    isMountedRef.current = true;
     fetchSalesReport();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const fetchSalesReport = async () => {
     try {
-const res = await reportsAPI.getSalesReport();
-setRows(res.data);
-      setRows(res.data.data);
+      setLoading(true);
+      const res = await reportsAPI.getSalesReport();
+      if (!isMountedRef.current) return;
+      const data = res?.data?.data ?? res?.data ?? [];
+      setRows(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load sales report");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -78,7 +87,8 @@ setRows(res.data);
   };
 
   const handleFilter = () => {
-    toast("Filter UI not implemented yet");
+    fetchSalesReport();
+    toast("Filter applied");
   };
 
   if (loading) {

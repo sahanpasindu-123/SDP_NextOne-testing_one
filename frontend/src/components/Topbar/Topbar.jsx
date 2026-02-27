@@ -1,7 +1,15 @@
 import { FiSearch, FiBell, FiUser } from 'react-icons/fi'
+import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './Topbar.module.css'
 
 export default function Topbar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const path = location?.pathname || ''
+  const notificationsPath = path.startsWith('/admin')
+    ? '/admin/low-stock'
+    : '/employee/alerts'
+
   return (
     <header className={styles.topbar}>
       <div className={styles.right}>
@@ -10,7 +18,12 @@ export default function Topbar() {
           <input placeholder="Search..." />
         </div>
 
-        <button className={styles.iconBtn} aria-label="Notifications">
+        <button
+          className={styles.iconBtn}
+          aria-label="Notifications"
+          type="button"
+          onClick={() => navigate(notificationsPath)}
+        >
           <FiBell />
           <span className={styles.dot}>3</span>
         </button>

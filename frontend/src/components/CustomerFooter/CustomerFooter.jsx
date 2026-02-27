@@ -1,7 +1,28 @@
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { FiMapPin, FiPhone, FiMail } from 'react-icons/fi'
 import styles from './CustomerFooter.module.css'
+import { useCategories } from "../../context/CategoriesContext.jsx";
 
 export default function CustomerFooter() {
+  const { categories } = useCategories();
+
+  const nameToId = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(categories) ? categories : []).forEach((c) => {
+      const n = String(c?.Name || "").trim().toLowerCase();
+      if (n && c?.CategoryID != null) map.set(n, c.CategoryID);
+    });
+    return map;
+  }, [categories]);
+
+  const categoryLink = (name) => {
+    const cleanName = String(name || "").trim();
+    const id = nameToId.get(cleanName.toLowerCase());
+    if (id != null) return `/customer/catalog?categoryId=${encodeURIComponent(String(id))}`;
+    return `/customer/catalog?category=${encodeURIComponent(cleanName)}`;
+  };
+
   return (
     <footer className={styles.footer}>
       <div className={styles.grid}>
@@ -21,21 +42,21 @@ export default function CustomerFooter() {
         <div>
           <div className={styles.title}>Quick Links</div>
           <div className={styles.links}>
-            <a href="/customer/home">Home</a>
-            <a href="/customer/catalog">Products</a>
-            <a href="#" onClick={(e)=>e.preventDefault()}>About Us</a>
-            <a href="/customer/contact">Contact</a>
+            <Link to="/customer/home">Home</Link>
+            <Link to="/customer/catalog">Products</Link>
+            <Link to="/customer/home">About Us</Link>
+            <Link to="/customer/contact">Contact</Link>
           </div>
         </div>
 
         <div>
           <div className={styles.title}>Categories</div>
           <div className={styles.links}>
-            <a href="#" onClick={(e)=>e.preventDefault()}>Engine Parts</a>
-            <a href="#" onClick={(e)=>e.preventDefault()}>Hydraulic Systems</a>
-            <a href="#" onClick={(e)=>e.preventDefault()}>Electrical Components</a>
-            <a href="#" onClick={(e)=>e.preventDefault()}>Filters</a>
-            <a href="#" onClick={(e)=>e.preventDefault()}>Attachments</a>
+            <Link to={categoryLink("Engine Parts")}>Engine Parts</Link>
+            <Link to={categoryLink("Hydraulic Systems")}>Hydraulic Systems</Link>
+            <Link to={categoryLink("Electrical Components")}>Electrical Components</Link>
+            <Link to={categoryLink("Filters")}>Filters</Link>
+            <Link to={categoryLink("Attachments")}>Attachments</Link>
           </div>
         </div>
 
@@ -50,10 +71,10 @@ export default function CustomerFooter() {
       </div>
 
       <div className={styles.bottom}>
-        <div>© 2025 JCB Parts. All rights reserved.</div>
+        <div>(c) 2025 JCB Parts. All rights reserved.</div>
         <div className={styles.bottomRight}>
-          <a href="#" onClick={(e)=>e.preventDefault()}>Privacy Policy</a>
-          <a href="#" onClick={(e)=>e.preventDefault()}>Terms of Service</a>
+          <Link to="/customer/home">Privacy Policy</Link>
+          <Link to="/customer/home">Terms of Service</Link>
         </div>
       </div>
     </footer>

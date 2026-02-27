@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./UpdateUserModal.module.css";
 
 export default function UpdateUserModal({
@@ -7,26 +7,37 @@ export default function UpdateUserModal({
   onSubmit,
   initial, // pass from parent when opening (optional)
 }) {
-  const init = initial || {
-    type: "employee",
-    name: "",
-    id: "",
-    jobRole: "",
-    email: "",
-    contactNumber: "",
-    status: "Inactive",
-  };
+  const [type, setType] = useState("employee");
 
-  const [type, setType] = useState(init.type);
+  const [name, setName] = useState("");
+  const [empId, setEmpId] = useState("");
+  const [jobRole, setJobRole] = useState("");
 
-  const [name, setName] = useState(init.name);
-  const [empId, setEmpId] = useState(init.id);
-  const [jobRole, setJobRole] = useState(init.jobRole);
+  const [email, setEmail] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
 
-  const [email, setEmail] = useState(init.email);
-  const [contactNumber, setContactNumber] = useState(init.contactNumber);
+  const [status, setStatus] = useState("Inactive");
 
-  const [status, setStatus] = useState(init.status);
+  useEffect(() => {
+    if (!open) return;
+    const init = initial || {
+      type: "employee",
+      name: "",
+      id: "",
+      jobRole: "",
+      email: "",
+      contactNumber: "",
+      status: "Inactive",
+    };
+
+    setType(init.type || "employee");
+    setName(init.name || "");
+    setEmpId(init.id || "");
+    setJobRole(init.jobRole || "");
+    setEmail(init.email || "");
+    setContactNumber(init.contactNumber || "");
+    setStatus(init.status || "Inactive");
+  }, [open, initial]);
 
   if (!open) return null;
 
@@ -47,7 +58,7 @@ export default function UpdateUserModal({
         <div className={styles.top}>
           <div className={styles.title}>Update User</div>
           <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            ×
+            x
           </button>
         </div>
 

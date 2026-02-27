@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LineChart,
@@ -26,6 +26,7 @@ const segments = ["Monthly", "Quarterly", "Yearly"];
 export default function ReportsPerformance() {
   const location = useLocation();
   const base = location.pathname.startsWith("/admin") ? "/admin" : "/employee";
+  const isMountedRef = useRef(true);
 
   const [range, setRange] = useState("This Month");
   const [seg, setSeg] = useState("Monthly");
@@ -37,13 +38,23 @@ export default function ReportsPerformance() {
 
   // ---------------- Fetch performance data ----------------
   useEffect(() => {
+    isMountedRef.current = true;
     fetchPerformance();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    fetchPerformance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, seg]);
 
   const fetchPerformance = async () => {
     try {
-const res = await reportsAPI.getPerformanceReport();
-setData(res.data);
+      const res = await reportsAPI.getPerformanceReport();
+      const payload = res?.data || {};
 
       /*
         Expected backend response shape:
@@ -55,10 +66,11 @@ setData(res.data);
         }
       */
 
-      setOverview(res.data.overview || []);
-      setChart(res.data.chart || []);
-      setTopSelling(res.data.topSelling || []);
-      setRecentReports(res.data.recentReports || []);
+      if (!isMountedRef.current) return;
+      setOverview(Array.isArray(payload?.overview) ? payload.overview : []);
+      setChart(Array.isArray(payload?.chart) ? payload.chart : []);
+      setTopSelling(Array.isArray(payload?.topSelling) ? payload.topSelling : []);
+      setRecentReports(Array.isArray(payload?.recentReports) ? payload.recentReports : []);
     } catch (err) {
       console.error("Performance report fetch failed", err);
     }
@@ -76,8 +88,7 @@ setData(res.data);
   };
 
   const handleFilterClick = () => {
-    console.log("ReportsPerformance: Filter clicked", { range, seg });
-    alert("Filter clicked (filter panel not built yet).");
+    fetchPerformance();
   };
 
   const handleExportReport = () => {

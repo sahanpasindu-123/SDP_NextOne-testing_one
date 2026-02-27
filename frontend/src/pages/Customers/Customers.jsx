@@ -1,10 +1,11 @@
 import { FiSearch, FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { customersAPI } from '../../api/customers'
 import Badge from '../../components/Badge/Badge.jsx'
 import styles from './Customers.module.css'
 
 export default function Customers() {
+  const isMountedRef = useRef(true)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -13,71 +14,84 @@ export default function Customers() {
   const [roleFilter, setRoleFilter] = useState("ALL") // ALL | VERIFIED | UNVERIFIED
 
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        setLoading(true)
-        console.log("🔍 [Customers] Fetching customers from API");
-        const response = await customersAPI.getCustomers()
-        console.log("✅ [Customers] API response:", response);
+  const fetchCustomers = useCallback(async () => {
+    try {
+      setLoading(true)
+      console.log("[Customers] Fetching customers from API")
+      const response = await customersAPI.getCustomers()
+      console.log("[Customers] API response:", response)
 
-        // Handle both old and new response formats
-        let customersData = [];
+      // Handle both old and new response formats
+      let customersData = []
 
-        if (response.success && response.data) {
-          // New format: {success: true, data: [...]}
-          customersData = response.data;
-        } else if (Array.isArray(response)) {
-          // Old format: plain array
-          customersData = response;
-        } else {
-          // Fallback
-          customersData = response.data || [];
-        }
+      if (response?.success && Array.isArray(response.data)) {
+        // New format: {success: true, data: [...]}
+        customersData = response.data
+      } else if (Array.isArray(response)) {
+        // Old format: plain array
+        customersData = response
+      } else if (Array.isArray(response?.data?.data)) {
+        customersData = response.data.data
+      } else if (Array.isArray(response?.data)) {
+        customersData = response.data
+      } else {
+        // Fallback
+        customersData = []
+      }
 
-        // Map API response to the expected format
-        const mappedRows = customersData.map((customer) => ({
-          id:
-            customer.id ||
-            customer.CustomerID ||
-            customer.customerId ||
-            customer.customerID,
+      // Map API response to the expected format
+      const mappedRows = customersData.map((customer) => ({
+        id:
+          customer.id ||
+          customer.CustomerID ||
+          customer.customerId ||
+          customer.customerID,
 
-          name: customer.name || customer.Name || "Unknown",
-          email: customer.email || customer.Email || "No email",
-          phone: customer.phone || customer.Phone || "—",
+        name: customer.name || customer.Name || "Unknown",
+        email: customer.email || customer.Email || "No email",
+        phone: customer.phone || customer.Phone || "N/A",
 
-          status:
-            customer.isActive === false || customer.status === "Inactive"
-              ? "Inactive"
-              : "Active",
+        status:
+          customer.isActive === false || customer.status === "Inactive"
+            ? "Inactive"
+            : "Active",
 
-          verified:
-            customer.emailVerified === true ||
-            customer.verified === true ||
-            customer.isVerified === true,
+        verified:
+          customer.emailVerified === true ||
+          customer.verified === true ||
+          customer.isVerified === true,
 
-          last:
-            customer.lastLogin ||
-            customer.last ||
-            customer.updatedAt ||
-            customer.UpdatedAt ||
-            "Never",
-        }))
+        last:
+          customer.lastLogin ||
+          customer.last ||
+          customer.updatedAt ||
+          customer.UpdatedAt ||
+          "Never",
+      }))
 
-
-        console.log("✅ [Customers] Mapped rows:", mappedRows);
-        setRows(mappedRows)
-      } catch (err) {
-        console.error("❌ [Customers] Error fetching customers:", err);
+      console.log("[Customers] Mapped rows:", mappedRows)
+      if (!isMountedRef.current) return
+      setRows(mappedRows)
+    } catch (err) {
+      console.error("[Customers] Error fetching customers:", err)
+      if (isMountedRef.current) {
         setError('Failed to load customers')
-      } finally {
+      }
+    } finally {
+      if (isMountedRef.current) {
         setLoading(false)
       }
     }
-
-    fetchCustomers()
   }, [])
+
+  useEffect(() => {
+    isMountedRef.current = true
+    fetchCustomers()
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [fetchCustomers])
+
 
   const filteredRows = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -125,12 +139,7 @@ export default function Customers() {
 
                 await customersAPI.createCustomer({ name, email, phone })
                 alert("Customer added")
-                // re-fetch list
-                setLoading(true)
-                const response = await customersAPI.getCustomers()
-                const customersData = response?.data || response?.data?.data || response?.data || []
-                // easiest: reload page state by triggering fetch again
-                window.location.reload()
+                await fetchCustomers()
               } catch (e) {
                 console.error(e)
                 alert(e?.response?.data?.message || "Add customer failed")
@@ -160,7 +169,7 @@ export default function Customers() {
                 setRoleFilter(order[(i + 1) % order.length])
               }}
             >
-              {roleFilter === "ALL" ? "All Customers" : roleFilter} ˅
+              {roleFilter === "ALL" ? "All Customers" : roleFilter} v
             </button>
             <button
               className={styles.dd}
@@ -170,7 +179,7 @@ export default function Customers() {
                 setStatusFilter(order[(i + 1) % order.length])
               }}
             >
-              {statusFilter === "ALL" ? "All Status" : statusFilter} ˅
+              {statusFilter === "ALL" ? "All Status" : statusFilter} v
             </button>
 
           </div>
@@ -223,7 +232,7 @@ export default function Customers() {
 
                         alert("Customer updated")
                         // reload list quickly
-                        window.location.reload()
+                        await fetchCustomers()
                       } catch (e) {
                         console.error(e)
                         alert(e?.response?.data?.message || "Update failed")
@@ -244,7 +253,8 @@ export default function Customers() {
                         await customersAPI.deleteCustomer(r.id)
                         alert("Customer deleted")
                         // remove locally without full reload
-                        setRows((prev) => prev.filter((x) => x.id !== r.id))
+                        if (!isMountedRef.current) return
+                        setRows((prev) => pre?.filter((x) => x.id !== r.id))
                       } catch (e) {
                         console.error(e)
                         alert(e?.response?.data?.message || "Delete failed")

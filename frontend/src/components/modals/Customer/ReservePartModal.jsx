@@ -29,15 +29,18 @@ export default function ReservePartModal({ open, onClose, product, onSuccess }) 
   const handleConfirm = async () => {
     if (!product) return;
 
-    if (qty < 1) return;
-    if (qty > available) return;
+    const max = Number(available);
+    const safeQty = Math.max(1, Number(qty) || 1);
+
+    if (safeQty < 1) return;
+    if (Number.isFinite(max) && safeQty > max) return;
 
     try {
       setLoading(true);
 
       const data = await reservationsAPI.createReservation(
         product.ProductID ?? product.id,
-        qty,
+        safeQty,
         null,
         notes
       );
@@ -75,7 +78,13 @@ export default function ReservePartModal({ open, onClose, product, onSuccess }) 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               type="button"
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              onClick={() =>
+                setQty((q) => {
+                  const current = Number(q);
+                  const safeCurrent = Number.isFinite(current) ? current : 1;
+                  return Math.max(1, safeCurrent - 1);
+                })
+              }
               disabled={loading}
             >
               -
@@ -85,7 +94,15 @@ export default function ReservePartModal({ open, onClose, product, onSuccess }) 
 
             <button
               type="button"
-              onClick={() => setQty((q) => Math.min(available, q + 1))}
+              onClick={() =>
+                setQty((q) => {
+                  const current = Number(q);
+                  const safeCurrent = Number.isFinite(current) ? current : 1;
+                  const max = Number(available);
+                  if (!Number.isFinite(max) || max <= 0) return safeCurrent;
+                  return Math.min(max, safeCurrent + 1);
+                })
+              }
               disabled={loading || available <= 0}
             >
               +

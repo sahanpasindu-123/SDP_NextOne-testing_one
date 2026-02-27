@@ -33,41 +33,38 @@ export default function InventoryAll() {
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   const [items, setItems] = useState([]);
-  const [categories, setCategories] = useState([]); // ✅ objects from DB
+  const [categories, setCategories] = useState([]); //  objects from DB
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isMountedRef = useRef(true);
 
-  // ✅ React 18 StrictMode mounts effects twice in DEV.
-  // Guard to avoid creating duplicate polling intervals / duplicate request storms.
-  const didStartPollingRef = useRef(false);
-
-  // ✅ Dynamic tabs from DB categories
+  //  Dynamic tabs from DB categories
   const tabs = useMemo(() => {
     const baseTabs = [{ label: "All", value: "all" }];
-    const dynamicTabs = (categories || []).map((c) => ({
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const dynamicTabs = safeCategories.map((c) => ({
       label: c.Name,
       value: String(c.CategoryID), // tab value = CategoryID
     }));
     return baseTabs.concat(dynamicTabs);
   }, [categories]);
 
-  // ✅ Load products + categories
+  //  Load products + categories
   useEffect(() => {
-    if (didStartPollingRef.current) return;
-    didStartPollingRef.current = true;
+    isMountedRef.current = true;
 
     const fetchAll = async () => {
       try {
         setLoading(true);
-        console.log("🔍 [Inventory] Fetching products and categories");
+        console.log("[Inventory] Fetching products and categories");
 
         const [pRes, cRes] = await Promise.all([
           productsAPI.getProducts(),
           productsAPI.getCategories(),
         ]);
 
-        console.log("✅ [Inventory] Products response:", pRes);
-        console.log("✅ [Inventory] Categories response:", cRes);
+        console.log("[Inventory] Products response:", pRes);
+        console.log("[Inventory] Categories response:", cRes);
 
         // Handle categories response format
         let categoriesData = [];
@@ -79,7 +76,8 @@ export default function InventoryAll() {
           categoriesData = cRes?.data || [];
         }
 
-        setCategories(categoriesData);
+        if (!isMountedRef.current) return;
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
 
         // Handle products response format
         let productsData = [];
@@ -92,7 +90,8 @@ export default function InventoryAll() {
         }
 
         // Products mapping (align with your backend)
-        const mappedItems = productsData.map((p) => ({
+        const safeProducts = Array.isArray(productsData) ? productsData : [];
+        const mappedItems = safeProducts.map((p) => ({
           id: p.ProductID,
           name: p.Name || "Unknown Product",
           categoryId: p.CategoryID,
@@ -104,14 +103,19 @@ export default function InventoryAll() {
           raw: p,
         }));
 
-        console.log("✅ [Inventory] Mapped items:", mappedItems);
+        console.log("[Inventory] Mapped items:", mappedItems);
+        if (!isMountedRef.current) return;
         setItems(mappedItems);
         setError(null);
       } catch (err) {
-        console.error("❌ [Inventory] Error fetching products/categories:", err);
-        setError("Failed to load products/categories");
+        console.error("[Inventory] Error fetching products/categories:", err);
+        if (isMountedRef.current) {
+          setError("Failed to load products/categories");
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
 
@@ -121,7 +125,10 @@ export default function InventoryAll() {
       fetchAll().catch((err) => console.error("poll inventory failed:", err));
     }, POLL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleDelete = (row) => navigate(`${base}/inventory/delete/${row.sku}`);
@@ -144,12 +151,12 @@ export default function InventoryAll() {
     setImageOpen(false);
   };
 
-  // ✅ EMPLOYEE: Add product -> Send request to admin (PENDING)
+  //  EMPLOYEE: Add product -> Send request to admin (PENDING)
   const handleAddSubmit = async (data) => {
     try {
       const fd = new FormData();
       fd.append("productName", data.productName);
-      fd.append("categoryId", String(data.categoryId)); // ✅ required
+      fd.append("categoryId", String(data.categoryId)); //  required
       fd.append("price", data.price);
       fd.append("stockQty", data.stockQty);
       fd.append("minQty", data.minQty);
@@ -158,8 +165,9 @@ export default function InventoryAll() {
 
       await productRequestsAPI.createRequest(fd);
 
+      if (!isMountedRef.current) return;
       setAddOpen(false);
-      alert("Product request sent to Admin ✅ (Pending approval)");
+      alert("Product request sent to Admin  (Pending approval)");
     } catch (e) {
       console.error("createRequest failed:", e);
       alert("Failed to submit product request (check backend / token)");
@@ -206,7 +214,7 @@ export default function InventoryAll() {
       width: 180,
       render: (r) => (
         isEmployeePortal ? (
-          <span style={{ opacity: 0.7 }}>—</span>
+          <span style={{ opacity: 0.7 }}>N/A</span>
         ) : (
         <div className={styles.actions}>
           <button
@@ -228,7 +236,7 @@ export default function InventoryAll() {
             aria-label="Add Image"
             onClick={() => handleImageOpen(r)}
           >
-            📷
+            Img
           </button>
         </div>
         )
@@ -275,8 +283,8 @@ export default function InventoryAll() {
     stockFilter === "all" ? "Filter" : stockFilter === "low" ? "Low Stock" : "Out of Stock";
 
 
-  // ✅ Filter by CategoryID (tab value)
-  // ✅ Filter by CategoryID (tab) + stockFilter + searchTerm
+  //  Filter by CategoryID (tab value)
+  //  Filter by CategoryID (tab) + stockFilter + searchTerm
   const filtered = useMemo(() => {
     let list = tab === "all" ? items : items.filter((i) => String(i.categoryId) === String(tab));
 
@@ -322,10 +330,10 @@ export default function InventoryAll() {
           >
             {isEmployeePortal ? "Request Product" : "Add New Item"}
           </Button>
-          <Button variant="secondary" leftIcon={<FiFilter />}>
+          <Button variant="secondary" leftIcon={<FiFilter />} onClick={handleToolbarFilter}>
             Filter
           </Button>
-          <Button variant="secondary" leftIcon={<FiDownload />}>
+          <Button variant="secondary" leftIcon={<FiDownload />} onClick={handleToolbarExport}>
             Export
           </Button>
         </div>
@@ -340,14 +348,14 @@ export default function InventoryAll() {
         </div>
       </div>
 
-      {/* ✅ Dynamic tabs */}
+      {/*  Dynamic tabs */}
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
       <div className={styles.stats}>
         <StatCard
           label="Total Items"
           value={String(totalItems)}
-          icon={<span style={{ fontWeight: 900 }}>⬣</span>}
+          icon={<span style={{ fontWeight: 900 }}>*</span>}
           iconTone="purple"
         />
         <StatCard
@@ -359,7 +367,7 @@ export default function InventoryAll() {
         <StatCard
           label="Out of Stock"
           value={String(outOfStockCount)}
-          icon={<span style={{ fontWeight: 900 }}>🗑</span>}
+          icon={<span style={{ fontWeight: 900 }}>Del</span>}
           iconTone="red"
         />
       </div>
@@ -369,12 +377,12 @@ export default function InventoryAll() {
         <Table columns={cols} rows={filtered} />
       </div>
 
-      {/* ✅ Employee add -> PENDING request */}
+      {/*  Employee add -> PENDING request */}
       <AddNewProductModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSubmit={handleAddSubmit}
-        categories={categories} // ✅ objects from DB
+        categories={categories} //  objects from DB
         title={isEmployeePortal ? "Request Product" : "Add New Product"}
         submitLabel={isEmployeePortal ? "Submit Request" : "Add Item"}
       />

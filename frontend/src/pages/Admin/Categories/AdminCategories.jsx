@@ -12,12 +12,10 @@ export default function AdminCategories() {
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const POLL_MS = 10000;
+  const isMountedRef = useRef(true);
+  const pollRef = useRef(null);
 
-  // ✅ React 18 StrictMode mounts effects twice in DEV.
-  // Guard to avoid duplicate polling intervals / request storms.
-  const didStartPollingRef = useRef(false);
-
-  // ✅ shared context refresher
+  //  shared context refresher
   const { refreshCategories } = useCategories();
 
   const load = async () => {
@@ -26,23 +24,48 @@ export default function AdminCategories() {
       alert(res?.message || "Failed to load categories");
       return;
     }
-    setItems(res.data || []);
+    if (!isMountedRef.current) return;
+    setItems(Array.isArray(res?.data) ? res.data : []);
   };
 
   useEffect(() => {
-    if (didStartPollingRef.current) return;
-    didStartPollingRef.current = true;
+    isMountedRef.current = true;
 
-    load().catch((e) => {
-      console.error(e);
-      alert("Failed to load categories (check backend + token)");
-    });
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
 
-    const interval = setInterval(() => {
-      load().catch((e) => console.error("poll categories failed:", e));
-    }, POLL_MS);
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        if (document.visibilityState !== "visible") return;
+        load().catch((e) => console.error("poll categories failed:", e));
+      }, POLL_MS);
+    };
 
-    return () => clearInterval(interval);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        load().catch((e) => {
+          console.error(e);
+          alert("Failed to load categories (check backend + token)");
+        });
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      isMountedRef.current = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      stopPolling();
+    };
   }, []);
 
   const handleAdd = async (name) => {
@@ -54,18 +77,21 @@ export default function AdminCategories() {
         return;
       }
 
+      if (!isMountedRef.current) return;
       setAddOpen(false);
 
-      // ✅ update category page list
+      //  update category page list
       await load();
 
-      // ✅ MOST IMPORTANT: update global categories for Inventory dropdown real-time
+      //  MOST IMPORTANT: update global categories for Inventory dropdown real-time
       await refreshCategories();
     } catch (e) {
       console.error(e);
       alert("Add category failed (check Network tab)");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -82,12 +108,14 @@ export default function AdminCategories() {
       }
 
       await load();
-      await refreshCategories(); // ✅ keep dropdown in sync
+      await refreshCategories(); //  keep dropdown in sync
     } catch (e) {
       console.error(e);
       alert("Update failed");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -104,16 +132,18 @@ export default function AdminCategories() {
       }
 
       await load();
-      await refreshCategories(); // ✅ keep dropdown in sync
+      await refreshCategories(); //  keep dropdown in sync
     } catch (e) {
       console.error(e);
       alert("Delete failed (maybe products exist in this category)");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
-  const rows = items.map((c) => ({
+  const rows = (Array.isArray(items) ? items : []).map((c) => ({
     id: c.CategoryID,
     name: c.Name,
     raw: c,

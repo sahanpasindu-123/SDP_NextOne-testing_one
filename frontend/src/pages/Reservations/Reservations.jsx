@@ -15,13 +15,10 @@ export default function Reservations() {
   const [error, setError] = useState(null);
 
   const statusFilterRef = useRef(statusFilter);
+  const isMountedRef = useRef(true);
   useEffect(() => {
     statusFilterRef.current = statusFilter;
   }, [statusFilter]);
-
-  // ✅ React 18 StrictMode mounts effects twice in DEV.
-  // Guard to avoid duplicate polling intervals.
-  const didStartPollingRef = useRef(false);
 
   // ---------
   // Helpers
@@ -42,7 +39,7 @@ export default function Reservations() {
   };
 
   const formatDate = (val) => {
-    if (!val) return "—";
+    if (!val) return "N/A";
     const d = new Date(val);
     if (Number.isNaN(d.getTime())) return String(val);
     return d.toISOString().slice(0, 10);
@@ -61,41 +58,52 @@ export default function Reservations() {
       if (currentFilter !== "ALL") params.status = currentFilter;
 
       const res = await employeeReservationsAPI.list(params);
-      const list = res?.data || [];
+      const list = Array.isArray(res?.data) ? res.data : [];
 
       const mapped = list.map((r) => ({
         id: r.ReservationID,
-        customer: r.customer?.Name || "—",
-        phone: r.customer?.Phone || "—",
-        items: `${r.product?.Name || "—"}\nQty: ${r.Quantity}`,
+        customer: r.customer?.Name || "N/A",
+        phone: r.customer?.Phone || "N/A",
+        items: `${r.product?.Name || "N/A"}\nQty: ${r.Quantity}`,
         total: formatMoney(r.Total),
         expire: formatDate(r.ExpiresAt),
         status: normalizeStatusLabel(r.Status),
         raw: r,
       }));
 
+      if (!isMountedRef.current) return;
       setRows(mapped);
     } catch (e) {
       console.error("load reservations failed:", e);
-      setError("Failed to load reservations");
-      setRows([]);
+      if (isMountedRef.current) {
+        setError("Failed to load reservations");
+        setRows([]);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     // Always reload when filter changes
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
-    // Start polling interval only once (StrictMode-safe)
-    if (didStartPollingRef.current) return;
-    didStartPollingRef.current = true;
-
+  useEffect(() => {
     const t = setInterval(load, 8000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+  }, []);
 
   // ---------
   // Client-side search filter (fast)
@@ -171,7 +179,7 @@ export default function Reservations() {
       key: "expire",
       header: "Expire Date",
       width: 170,
-      render: (r) => <span className={styles.date}>📅 {r.expire}</span>,
+      render: (r) => <span className={styles.date}>Date: {r.expire}</span>,
     },
     {
       key: "status",
@@ -273,7 +281,7 @@ export default function Reservations() {
         </div>
 
         <button className={styles.dd} onClick={cycleStatus}>
-          {statusLabel} ˅
+          {statusLabel} v
         </button>
       </div>
 

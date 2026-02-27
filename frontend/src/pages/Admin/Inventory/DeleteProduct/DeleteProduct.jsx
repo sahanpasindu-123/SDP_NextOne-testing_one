@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FiAlertTriangle, FiArrowLeft, FiTrash2 } from "react-icons/fi";
 import styles from "./DeleteProduct.module.css";
@@ -7,6 +7,7 @@ import { inventoryAPI } from "../../../../api/inventory";
 
 
 export default function DeleteProduct() {
+  const isMountedRef = useRef(true);
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -18,19 +19,28 @@ export default function DeleteProduct() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    isMountedRef.current = true;
     const load = async () => {
       try {
         const res = await inventoryAPI.getById(id);
+        if (!isMountedRef.current) return;
         setProduct(res?.data || null);
       } catch (e) {
         console.error("getProductById failed:", e);
         toast.error(e?.message || "Product load failed");
-        setProduct(null);
+        if (isMountedRef.current) {
+          setProduct(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
     load();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [id]);
 
 
@@ -54,7 +64,9 @@ export default function DeleteProduct() {
       console.error("deleteProduct failed:", e);
       toast.error(e?.message || "Delete failed");
     } finally {
-      setDeleting(false);
+      if (isMountedRef.current) {
+        setDeleting(false);
+      }
     }
   };
 
@@ -95,7 +107,7 @@ export default function DeleteProduct() {
           </div>
           <div className={styles.row}>
             <div className={styles.label}>Category</div>
-            <div className={styles.value}>{product.CategoryName || "—"}</div>
+            <div className={styles.value}>{product.CategoryName || "N/A"}</div>
           </div>
           <div className={styles.row}>
             <div className={styles.label}>Price</div>
@@ -107,7 +119,7 @@ export default function DeleteProduct() {
           </div>
           <div className={styles.row}>
             <div className={styles.label}>Minimum Required</div>
-            <div className={styles.value}>{product.StockLimit ?? "—"}</div>
+            <div className={styles.value}>{product.StockLimit ?? "N/A"}</div>
           </div>
           <div className={styles.row}>
             <div className={styles.label}>SKU</div>
@@ -127,7 +139,7 @@ export default function DeleteProduct() {
             style={deleting ? { opacity: 0.7, cursor: "not-allowed" } : undefined}
           >
             <FiTrash2 />
-            {deleting ? "Deleting…" : "Delete Product"}
+            {deleting ? "Deleting..." : "Delete Product"}
           </button>
         </div>
       </div>

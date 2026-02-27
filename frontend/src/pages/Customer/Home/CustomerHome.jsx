@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import styles from "./CustomerHome.module.css";
 import ProductCard from "../../../components/ProductCard/ProductCard.jsx";
 import ProductDetailModal from "../../../components/ProductDetailModal/ProductDetailModal.jsx";
 import ReserveModal from "../../../components/ReserveModal/ReserveModal";
 import productsAPI from "../../../api/products";
+import { reservationsAPI } from "../../../api/reservations";
 import { mapApiProductToCard } from "../Catalog/PartsCatalog.jsx";
 
 import heroBg from "../../../assets/JCB_IMG/img5.jpg";
 
 export default function CustomerHome() {
+  const isMountedRef = useRef(true);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,7 +31,7 @@ export default function CustomerHome() {
 
     return products.filter((p) => {
       return (
-        p.name.toLowerCase().includes(query) ||
+        String(p?.name || "").toLowerCase().includes(query) ||
         (p.partNo || "").toLowerCase().includes(query)
       );
     });
@@ -70,28 +72,62 @@ export default function CustomerHome() {
       const res = await productsAPI.getProducts();
       const list = res?.data || [];
       const mapped = Array.isArray(list) ? list.map(mapApiProductToCard) : [];
+      if (!isMountedRef.current) return;
       setProducts(mapped);
     } catch (err) {
       // Normalize errors when possible (status/message)
       const status = err?.status;
       if (status === 401 || status === 403) {
-        setError("Please log in to view products.");
+        if (isMountedRef.current) {
+          setError("Please log in to view products.");
+        }
       } else {
-        setError(err?.message || "Failed to load products.");
+        if (isMountedRef.current) {
+          setError(err?.message || "Failed to load products.");
+        }
       }
-      setProducts([]);
+      if (isMountedRef.current) {
+        setProducts([]);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchProducts();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [fetchProducts]);
 
-  const openDetails = (product) => {
+  const openDetails = async (product) => {
     setSelectedProduct(null);
     setDetailProduct(product);
+
+    // Fetch latest/full product details for modal safety (category/name/image)
+    try {
+      const id = product?.id;
+      if (!id) return;
+
+      const res = await productsAPI.getProductById(id);
+      const apiProduct = res?.success ? res?.data : null;
+      if (!apiProduct) return;
+
+      const mapped = mapApiProductToCard(apiProduct, 0);
+
+      if (!isMountedRef.current) return;
+      setDetailProduct((prev) => {
+        if (!prev || String(prev.id) !== String(id)) return prev;
+        const nextImage = mapped.image || prev.image || null;
+        return { ...prev, ...mapped, image: nextImage };
+      });
+    } catch (e) {
+      console.warn("openDetails() hydrate failed:", e?.message || e);
+    }
   };
 
   const openReserve = (product) => {
@@ -99,23 +135,15 @@ export default function CustomerHome() {
     setSelectedProduct(product);
   };
 
-  // Reserve confirm = UI-only optimistic update (backend unchanged)
-  const handleReserveConfirm = (product, qty) => {
+  // Reserve confirm = persist to backend, then refresh products
+  const handleReserveConfirm = async (product, qty) => {
     const qNum = Math.max(1, Number(qty) || 1);
+    if (!product?.id) {
+      throw new Error("Missing product id");
+    }
 
-    setProducts((prev) => {
-      const updated = prev.map((p) => {
-        if (p.id !== product.id) return p;
-
-        const nextAvail = Math.max(0, p.available - qNum);
-        const stockLabel = nextAvail === 0 ? "Out of Stock" : nextAvail <= 5 ? "Low Stock" : "In Stock";
-        return { ...p, available: nextAvail, stockLabel };
-      });
-
-      return updated;
-    });
-
-    setSelectedProduct(null);
+    await reservationsAPI.createReservation(product.id, qNum);
+    await fetchProducts();
   };
 
   return (

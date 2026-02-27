@@ -1,6 +1,24 @@
 import axiosClient from "./axiosClient";
 
 export const customersAPI = {
+  // ===============================
+  // Customer portal (self-service)
+  // ===============================
+  getMe: async () => {
+    const res = await axiosClient.get("/customer/me");
+    return res.data;
+  },
+
+  updateMe: async (payload) => {
+    const res = await axiosClient.patch("/customer/me", payload);
+    return res.data;
+  },
+
+  changeMyPassword: async (payload) => {
+    const res = await axiosClient.post("/customer/change-password", payload);
+    return res.data;
+  },
+
   // Required by Admin User Management page
   // Must call axiosClient.get("/customers") and return res.data
   getAll: async () => {

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { FiPhone, FiHome, FiGrid, FiBookmark, FiUser, FiMail, FiLogIn, FiUserPlus, FiLogOut } from 'react-icons/fi'
 import { useAuth } from '../../context/AuthContext'
 import styles from './CustomerTopNav.module.css'
@@ -10,8 +10,8 @@ export default function CustomerTopNav() {
       <div className={styles.topStrip}>
         <div className={styles.topLeft}>Get JCB spare parts</div>
         <div className={styles.topRight}>
-          <a href="#" onClick={(e)=>e.preventDefault()}>About Us</a>
-          <a href="/customer/contact">Contact</a>
+          <Link to="/customer/home">About Us</Link>
+          <Link to="/customer/contact">Contact</Link>
           <span className={styles.phone}><FiPhone /> +94 755678900</span>
         </div>
       </div>

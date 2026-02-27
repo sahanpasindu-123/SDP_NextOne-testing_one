@@ -10,6 +10,7 @@ export default function AddNewProductModal({
   submitLabel = "Add Item",
 }) {
   const fileRef = useRef(null);
+  const safeCategories = Array.isArray(categories) ? categories : [];
 
   // =======================
   // STATE
@@ -30,13 +31,13 @@ export default function AddNewProductModal({
   // =======================
   const categoryById = useMemo(() => {
     const map = new Map();
-    categories.forEach((c) => {
+    safeCategories.forEach((c) => {
       if (c?.CategoryID != null) {
         map.set(String(c.CategoryID), c);
       }
     });
     return map;
-  }, [categories]);
+  }, [safeCategories]);
 
   const selectedCategory = useMemo(() => {
     return categoryById.get(String(categoryId)) || null;
@@ -48,6 +49,7 @@ export default function AddNewProductModal({
   useEffect(() => {
     if (!open) return;
 
+    if (preview) URL.revokeObjectURL(preview);
     setProductName("");
     setCategoryId("");
     setPrice("");
@@ -70,6 +72,7 @@ export default function AddNewProductModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (preview) URL.revokeObjectURL(preview);
     setImageFile(file);
     setPreview(URL.createObjectURL(file));
   };
@@ -80,6 +83,12 @@ export default function AddNewProductModal({
     setPreview("");
     if (fileRef.current) fileRef.current.value = "";
   };
+
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   // =======================
   // CATEGORY CHANGE
@@ -143,7 +152,7 @@ export default function AddNewProductModal({
             onClick={onClose}
             aria-label="Close"
           >
-            ×
+            x
           </button>
         </div>
 
@@ -169,7 +178,7 @@ export default function AddNewProductModal({
                 <option value="" disabled>
                   Select category
                 </option>
-                {categories.map((c) => (
+                {safeCategories.map((c) => (
                   <option key={c.CategoryID} value={c.CategoryID}>
                     {c.Name}
                   </option>

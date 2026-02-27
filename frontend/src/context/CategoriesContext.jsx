@@ -9,6 +9,7 @@ export function CategoriesProvider({ children }) {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const didInitialFetchRef = useRef(false);
   const lastTokenRef = useRef(null);
+  const isMountedRef = useRef(true);
   const { token } = useAuth();
 
   const refreshCategories = useCallback(async () => {
@@ -25,20 +26,25 @@ export function CategoriesProvider({ children }) {
       console.log("refreshCategories() response:", res?.success, res?.data?.length);
 
       if (res?.success) {
+        if (!isMountedRef.current) return;
         setCategories(res.data || []);
       } else {
         // optional: clear categories if backend says fail
+        if (!isMountedRef.current) return;
         setCategories([]);
       }
     } catch (err) {
       console.error("refreshCategories failed:", err?.response?.status, err?.response?.data || err?.message);
     } finally {
-      setLoadingCategories(false);
+      if (isMountedRef.current) {
+        setLoadingCategories(false);
+      }
     }
   }, [token]);
 
   // ✅ Load once on app start (ONLY if token exists)
   useEffect(() => {
+    isMountedRef.current = true;
     // React.StrictMode intentionally double-invokes effects in dev.
     // This guard prevents duplicate API calls (and duplicate 401 spam) on mount.
     if (!didInitialFetchRef.current) {
@@ -55,6 +61,9 @@ export function CategoriesProvider({ children }) {
     lastTokenRef.current = token;
 
     refreshCategories();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [token, refreshCategories]);
 
   const value = useMemo(

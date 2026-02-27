@@ -1,10 +1,23 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./AddProductImageModal.module.css";
 
 export default function AddProductImageModal({ open, onClose, onSubmit }) {
   const fileRef = useRef(null);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setFile(null);
+    setPreview("");
+    if (fileRef.current) fileRef.current.value = "";
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   if (!open) return null;
 
@@ -13,11 +26,13 @@ export default function AddProductImageModal({ open, onClose, onSubmit }) {
   const onFileChange = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    if (preview) URL.revokeObjectURL(preview);
     setFile(f);
     setPreview(URL.createObjectURL(f));
   };
 
   const remove = () => {
+    if (preview) URL.revokeObjectURL(preview);
     setFile(null);
     setPreview("");
     if (fileRef.current) fileRef.current.value = "";
@@ -33,7 +48,7 @@ export default function AddProductImageModal({ open, onClose, onSubmit }) {
         <div className={styles.top}>
           <div className={styles.title}>Add Product Image</div>
           <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            ×
+            x
           </button>
         </div>
 

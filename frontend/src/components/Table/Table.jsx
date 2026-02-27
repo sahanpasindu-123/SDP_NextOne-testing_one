@@ -1,26 +1,52 @@
 import styles from './Table.module.css'
 
-export default function Table({ columns, rows, rowClassName=null }) {
+export default function Table({ columns, rows, rowClassName = null }) {
+  const safeColumns = Array.isArray(columns) ? columns : []
+  const safeRows = Array.isArray(rows) ? rows : []
+  const resolveRowClass = typeof rowClassName === 'function' ? rowClassName : null
+
   return (
     <div className={styles.wrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            {columns.map((c) => (
-              <th key={c.key} style={c.width ? { width: c.width } : undefined}>{c.header}</th>
+            {safeColumns.map((c, idx) => (
+              <th
+                key={c?.key ?? idx}
+                style={c?.width ? { width: c.width } : undefined}
+              >
+                {c?.header ?? ''}
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, idx) => (
-            <tr key={idx} className={rowClassName ? rowClassName(r, idx) : undefined}>
-              {columns.map((c) => (
-                <td key={c.key}>
-                  {typeof c.render === 'function' ? c.render(r) : r[c.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {safeRows.map((r, idx) => {
+            const rowKey =
+              r?.id ??
+              r?.key ??
+              r?.ProductID ??
+              r?.ReservationID ??
+              r?.SaleID ??
+              r?.CustomerID ??
+              r?.raw?.id ??
+              r?.raw?.ProductID ??
+              r?.raw?.ReservationID ??
+              r?.raw?.SaleID ??
+              idx
+            return (
+              <tr
+                key={rowKey}
+                className={resolveRowClass ? resolveRowClass(r, idx) : undefined}
+              >
+                {safeColumns.map((c, cIdx) => (
+                  <td key={c?.key ?? cIdx}>
+                    {typeof c?.render === 'function' ? c.render(r) : r?.[c?.key]}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

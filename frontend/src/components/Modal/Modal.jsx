@@ -7,7 +7,7 @@ export default function Modal({ open, title, onClose, children, width=680 }) {
       <div className={styles.modal} style={{ width }} onMouseDown={(e)=>e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.title}>{title}</div>
-          <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
+          <button className={styles.close} onClick={onClose} aria-label="Close">x</button>
         </div>
         <div className={styles.body}>{children}</div>
       </div>

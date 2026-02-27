@@ -11,6 +11,7 @@ import {
   FiSettings,
   FiLogOut,
 } from 'react-icons/fi'
+import { useAuth } from '../../context/AuthContext'
 import styles from './EmployeeSidebar.module.css'
 
 const nav = [
@@ -26,15 +27,10 @@ const nav = [
 
 export default function EmployeeSidebar() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   const handleLogout = () => {
-    // Clear auth (clear everything used by route guards + axios client)
-    localStorage.removeItem('token')
-    localStorage.removeItem('role')
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('user')
-    localStorage.removeItem('userId')
-
+    logout()
     // Employee sidebar logout should ALWAYS go to employee login
     navigate('/employee/signin')
   }

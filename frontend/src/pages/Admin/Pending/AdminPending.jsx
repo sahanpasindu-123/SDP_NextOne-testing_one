@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { FiCheck, FiX } from "react-icons/fi";
 import Badge from "../../../components/Badge/Badge.jsx";
 import Table from "../../../components/Table/Table.jsx";
@@ -6,7 +6,7 @@ import styles from "./AdminPending.module.css";
 import { productRequestsAPI } from "../../../api/productRequests";
 
 function formatDate(iso) {
-  if (!iso) return "—";
+  if (!iso) return "N/A";
   try {
     return new Date(iso).toLocaleString();
   } catch {
@@ -15,14 +15,16 @@ function formatDate(iso) {
 }
 
 export default function AdminPending() {
+  const isMountedRef = useRef(true);
+  const pollRef = useRef(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
 
-  const fetchPending = async () => {
-    setLoading(true);
-    setError("");
+  const fetchPending = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
+    if (!silent) setError("");
 
     try {
       const res = await productRequestsAPI.list("PENDING");
@@ -31,6 +33,7 @@ export default function AdminPending() {
         throw new Error("Invalid server response");
       }
 
+      if (!isMountedRef.current) return;
       setRows(res.data);
     } catch (err) {
       console.error("load product requests failed:", err);
@@ -40,29 +43,62 @@ export default function AdminPending() {
         err?.message ||
         "Failed to load product requests";
 
-      setRows([]);
-      setError(msg);
+      if (isMountedRef.current) {
+        setRows([]);
+        setError(msg);
+      }
     } finally {
-      setLoading(false);
+      if (!silent && isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-  fetchPending();
+    isMountedRef.current = true;
 
-  const t = setInterval(() => {
-    fetchPending();
-  }, 5000); // 5 seconds
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
 
-  return () => clearInterval(t);
-}, []);
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        if (document.visibilityState !== "visible") return;
+        fetchPending({ silent: true });
+      }, 5000); // 5 seconds
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchPending();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      isMountedRef.current = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      stopPolling();
+    };
+  }, []);
 
 
   const handleApprove = async (r) => {
     if (!window.confirm(`Approve request #${r.RequestID}?`)) return;
 
     try {
-      setBusyId(r.RequestID);
+      if (isMountedRef.current) {
+        setBusyId(r.RequestID);
+      }
       await productRequestsAPI.approve(r.RequestID);
       await fetchPending();
       alert(`Approved request #${r.RequestID}`);
@@ -74,7 +110,9 @@ export default function AdminPending() {
           "Approve failed"
       );
     } finally {
-      setBusyId(null);
+      if (isMountedRef.current) {
+        setBusyId(null);
+      }
     }
   };
 
@@ -82,7 +120,9 @@ export default function AdminPending() {
     if (!window.confirm(`Reject request #${r.RequestID}?`)) return;
 
     try {
-      setBusyId(r.RequestID);
+      if (isMountedRef.current) {
+        setBusyId(r.RequestID);
+      }
       await productRequestsAPI.reject(r.RequestID);
       await fetchPending();
       alert(`Rejected request #${r.RequestID}`);
@@ -94,7 +134,9 @@ export default function AdminPending() {
           "Reject failed"
       );
     } finally {
-      setBusyId(null);
+      if (isMountedRef.current) {
+        setBusyId(null);
+      }
     }
   };
 
@@ -111,7 +153,7 @@ export default function AdminPending() {
         key: "Category",
         header: "Category",
         width: 160,
-        render: (r) => r.category?.Name || "—",
+        render: (r) => r.category?.Name || "N/A",
       },
       {
         key: "Price",
@@ -127,7 +169,7 @@ export default function AdminPending() {
         render: (r) =>
           r.employee?.name ||
           r.employee?.employeeId ||
-          "—",
+          "N/A",
       },
       {
         key: "CreatedAt",
@@ -189,7 +231,7 @@ export default function AdminPending() {
 
         {loading && (
           <div style={{ padding: 16, opacity: 0.8 }}>
-            Loading…
+            Loading...
           </div>
         )}
 

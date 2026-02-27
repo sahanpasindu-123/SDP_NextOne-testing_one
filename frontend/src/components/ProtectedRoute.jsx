@@ -43,10 +43,13 @@ export default function ProtectedRoute({ children, portal, allowedRoles = [] }) 
     : [];
 
   const signin = portalSigninPath(portal);
+  const atSignin = location.pathname === signin;
+  const authReady = !initializing && token !== undefined;
+  const normalizedRole = normalizeRole(role);
 
   // IMPORTANT: delay route decisions until auth initialization completes.
   // This prevents refresh from redirecting to login while we rehydrate role.
-  if (initializing) {
+  if (!authReady) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
         Loading...
@@ -56,11 +59,14 @@ export default function ProtectedRoute({ children, portal, allowedRoles = [] }) 
 
   // Not logged in -> redirect ONLY to the portal signin (no inference)
   if (!token) {
+    if (atSignin) {
+      return children;
+    }
     return <Navigate to={signin} state={{ from: location.pathname }} replace />;
   }
 
   // If route is role-gated, require a role. AuthContext will attempt rehydration.
-  if (allowed.length && !role) {
+  if (allowed.length && !normalizedRole) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
         Loading...
@@ -69,7 +75,10 @@ export default function ProtectedRoute({ children, portal, allowedRoles = [] }) 
   }
 
   // Role not allowed -> stay within this portal and go to this portal's signin
-  if (allowed.length && !allowed.includes(role)) {
+  if (allowed.length && normalizedRole && !allowed.includes(normalizedRole)) {
+    if (atSignin) {
+      return children;
+    }
     return <Navigate to={signin} state={{ from: location.pathname, reason: "ROLE_MISMATCH" }} replace />;
   }
 

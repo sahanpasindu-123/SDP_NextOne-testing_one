@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { FiCheck, FiFilter, FiBell, FiAlertTriangle, FiAlertCircle } from "react-icons/fi";
 import { alertsAPI } from "../../api/alerts";
 import StatCard from "../../components/StatCard/StatCard.jsx";
@@ -17,6 +17,7 @@ const tabs = [
 ];
 
 export default function AlertsAll() {
+  const isMountedRef = useRef(true);
   const [tab, setTab] = useState("all");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -63,8 +64,9 @@ export default function AlertsAll() {
       };
 
       const res = await alertsAPI.list(params);
+      const raw = Array.isArray(res?.data) ? res.data : [];
 
-      const list = (res?.data || []).map((a) => ({
+      const list = raw.map((a) => ({
         id: a.AlertID,
         alert: a.Message,
         detail: a.Message,
@@ -74,18 +76,27 @@ export default function AlertsAll() {
         status: (a.Status || "Unread") === "Read" ? "Read" : "Unread",
       }));
 
+      if (!isMountedRef.current) return;
       setRows(list);
     } catch (e) {
       console.error("alerts load failed:", e);
       alert("Failed to load alerts");
-      setRows([]);
+      if (isMountedRef.current) {
+        setRows([]);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     load();
+    return () => {
+      isMountedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, dateRange]);
 

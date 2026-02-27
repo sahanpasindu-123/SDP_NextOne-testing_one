@@ -22,6 +22,12 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('authToken')
     localStorage.removeItem('token')
     localStorage.removeItem('role')
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('employeeToken')
+    localStorage.removeItem('customerToken')
+    localStorage.removeItem('user')
+    localStorage.removeItem('admin')
+    localStorage.removeItem('employee')
   }, [])
 
   // Best-effort local JWT expiry check (works if token is a standard JWT)
@@ -47,7 +53,7 @@ export function AuthProvider({ children }) {
 
   // Optional: pass role if you have it (ADMIN / EMPLOYEE / CUSTOMER)
   const login = useCallback((token, userRole) => {
-    // ✅ keep both keys in sync to avoid intermittent 401s across legacy code
+    //  keep both keys in sync to avoid intermittent 401s across legacy code
     localStorage.setItem('authToken', token)
     localStorage.setItem('token', token)
     setToken(token)
@@ -83,7 +89,7 @@ export function AuthProvider({ children }) {
     async function initAuth() {
       setInitializing(true)
 
-      // ✅ accept both keys used across this repo (legacy + normalized)
+      //  accept both keys used across this repo (legacy + normalized)
       const storedToken = localStorage.getItem('authToken') || localStorage.getItem('token')
       const storedRole = normalizeRole(localStorage.getItem('role'))
 

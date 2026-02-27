@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   FiSearch,
   FiPlus,
@@ -18,6 +18,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import { useNavigate } from "react-router-dom";
 import { salesAPI } from "../../api/sales";
 import { productsAPI } from "../../api/products";
 import { customersAPI } from "../../api/customers";
@@ -38,6 +39,8 @@ const barData = [
 ];
 
 export default function SalesBilling() {
+  const navigate = useNavigate();
+  const isMountedRef = useRef(true);
   // keep if other UI parts depend on it later
   const [cartQty, setCartQty] = useState(1);
 
@@ -64,20 +67,24 @@ export default function SalesBilling() {
 
   const refreshSales = async () => {
     const salesResponse = await salesAPI.getSales();
+    const salesList = Array.isArray(salesResponse?.data) ? salesResponse.data : [];
     const mappedSales =
-      salesResponse.data?.map((s) => ({
+      salesList.map((s) => ({
         id: `INV-${s.SaleID}`,
         saleId: s.SaleID,
-        customer: s.customer?.Name || "—",
-        date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "—",
+        customer: s.customer?.Name || "N/A",
+        date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "N/A",
         amount: `Rs ${Number(s.TotalPrice || 0).toLocaleString("en-LK")}`,
         payment: s.Type === "CARD" ? "Credit Card" : "Cash",
         invoiceId: s.invoice?.InvoiceID || null,
       })) || [];
-    setSales(mappedSales);
+    if (isMountedRef.current) {
+      setSales(mappedSales);
+    }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     const fetchData = async () => {
       try {
         setError(null);
@@ -91,8 +98,9 @@ export default function SalesBilling() {
           ]);
 
         // productsResponse.data expected: [{ ProductID, Name, Price, Stock, ... }]
+        const productsList = Array.isArray(productsResponse?.data) ? productsResponse.data : [];
         const mappedProducts =
-          productsResponse.data?.map((p) => ({
+          productsList.map((p) => ({
             ProductID: p.ProductID,
             Name: p.Name,
             Price: p.Price,
@@ -100,36 +108,46 @@ export default function SalesBilling() {
             revenue: `Rs ${Number(p.Price || 0).toLocaleString("en-LK")}`,
           })) || [];
 
+        const customersList = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
         const mappedCustomers =
-          customersResponse?.data?.map((c) => ({
+          customersList.map((c) => ({
             CustomerID: c.CustomerID,
             Name: c.Name,
           })) || [];
 
+        const salesList = Array.isArray(salesResponse?.data) ? salesResponse.data : [];
         const mappedSales =
-          salesResponse.data?.map((s) => ({
+          salesList.map((s) => ({
             id: `INV-${s.SaleID}`,
             saleId: s.SaleID,
-            customer: s.customer?.Name || "—",
-            date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "—",
+            customer: s.customer?.Name || "N/A",
+            date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "N/A",
             amount: `Rs ${Number(s.TotalPrice || 0).toLocaleString("en-LK")}`,
             payment: s.Type === "CARD" ? "Credit Card" : "Cash",
             invoiceId: s.invoice?.InvoiceID || null,
           })) || [];
 
+        if (!isMountedRef.current) return;
         setProducts(mappedProducts);
         setCustomers(mappedCustomers);
         setCustomerId((prev) => prev ?? (mappedCustomers[0]?.CustomerID ?? null));
         setSales(mappedSales);
       } catch (err) {
         console.error("Error fetching data:", err);
-        setError("Failed to load data");
+        if (isMountedRef.current) {
+          setError("Failed to load data");
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const cols = [
@@ -144,7 +162,7 @@ export default function SalesBilling() {
       key: "date",
       header: "Date",
       width: 160,
-      render: (r) => <span className={styles.dateCell}>📅 {r.date}</span>,
+      render: (r) => <span className={styles.dateCell}>Date: {r.date}</span>,
     },
     { key: "amount", header: "Amount", width: 140 },
     {
@@ -227,7 +245,8 @@ export default function SalesBilling() {
   }, [products, searchText]);
 
   const addToCart = (p) => {
-    if (Number(p.Stock) <= 0) {
+    const maxStock = Number(p.Stock);
+    if (!Number.isFinite(maxStock) || maxStock <= 0) {
       alert("Out of stock");
       return;
     }
@@ -237,7 +256,13 @@ export default function SalesBilling() {
       if (found) {
         return prev.map((x) =>
           x.ProductID === p.ProductID
-            ? { ...x, qty: Math.min(Number(p.Stock), Number(x.qty) + 1) }
+            ? {
+                ...x,
+                qty: Math.min(
+                  maxStock,
+                  Math.max(1, Number(x.qty) || 1) + 1
+                ),
+              }
             : x
         );
       }
@@ -256,19 +281,25 @@ export default function SalesBilling() {
 
   const decQty = (productId) => {
     setCartItems((prev) =>
-      prev.map((x) =>
-        x.ProductID === productId ? { ...x, qty: Math.max(1, x.qty - 1) } : x
-      )
+      prev.map((x) => {
+        if (x.ProductID !== productId) return x;
+        const current = Math.max(1, Number(x.qty) || 1);
+        return { ...x, qty: Math.max(1, current - 1) };
+      })
     );
   };
 
   const incQty = (productId) => {
     setCartItems((prev) =>
-      prev.map((x) =>
-        x.ProductID === productId
-          ? { ...x, qty: Math.min(Number(x.Stock || 999999), x.qty + 1) }
-          : x
-      )
+      prev.map((x) => {
+        if (x.ProductID !== productId) return x;
+        const maxStock = Number(x.Stock);
+        const current = Math.max(1, Number(x.qty) || 1);
+        if (!Number.isFinite(maxStock) || maxStock <= 0) {
+          return { ...x, qty: current };
+        }
+        return { ...x, qty: Math.min(maxStock, current + 1) };
+      })
     );
   };
 
@@ -291,6 +322,7 @@ export default function SalesBilling() {
       }
 
       alert("Sale processed");
+      if (!isMountedRef.current) return;
       setCartItems([]);
       await refreshSales();
     } catch (e) {
@@ -419,7 +451,7 @@ export default function SalesBilling() {
                   </div>
 
                   <div className={styles.qty}>
-                    <button onClick={() => decQty(it.ProductID)}>−</button>
+                    <button onClick={() => decQty(it.ProductID)}>-</button>
                     <div>{it.qty}</div>
                     <button onClick={() => incQty(it.ProductID)}>+</button>
                   </div>
@@ -558,7 +590,14 @@ export default function SalesBilling() {
       <div className={`card ${styles.tableCard}`}>
         <div className={styles.tableHead}>
           <div>Recent Invoices</div>
-          <a className={styles.viewAll} href="#" onClick={(e) => e.preventDefault()}>
+          <a
+            className={styles.viewAll}
+            href="/employee/sales"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/employee/sales");
+            }}
+          >
             View All
           </a>
         </div>

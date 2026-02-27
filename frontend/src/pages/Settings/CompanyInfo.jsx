@@ -55,7 +55,7 @@ export default function CompanyInfo() {
 
       <div className={styles.logoRow}>
         <div className={styles.logoBox}>J</div>
-        <button type="button" className={styles.saveBtn}>
+        <button type="button" className={styles.saveBtn} onClick={handleSaveCompanyInfo}>
           <span className={styles.saveIco} />
           Save Changes
         </button>

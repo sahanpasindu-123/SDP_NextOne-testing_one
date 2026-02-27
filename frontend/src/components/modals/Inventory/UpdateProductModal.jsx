@@ -8,10 +8,10 @@ export default function UpdateProductModal({
   categories,
   initial, // {productName, category, price, stockQty, minQty, sku, desc, imageUrl}
 }) {
-  const categoryOptions = useMemo(
-    () => categories || ["Hydraulic", "Engine Parts", "Filters", "Electrical", "Accessories"],
-    [categories]
-  );
+  const categoryOptions = useMemo(() => {
+    if (Array.isArray(categories) && categories.length) return categories;
+    return ["Hydraulic", "Engine Parts", "Filters", "Electrical", "Accessories"];
+  }, [categories]);
 
   const fileRef = useRef(null);
 
@@ -26,9 +26,16 @@ export default function UpdateProductModal({
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState("");
 
+  const revokePreview = (url) => {
+    if (url && String(url).startsWith("blob:")) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
 
+    revokePreview(preview);
     setProductName(initial?.productName || "");
     setCategory(initial?.category || "");
     setPrice(initial?.price || "");
@@ -49,15 +56,23 @@ export default function UpdateProductModal({
   const onFileChange = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    revokePreview(preview);
     setImageFile(f);
     setPreview(URL.createObjectURL(f));
   };
 
   const removeImage = () => {
+    revokePreview(preview);
     setImageFile(null);
     setPreview("");
     if (fileRef.current) fileRef.current.value = "";
   };
+
+  useEffect(() => {
+    return () => {
+      revokePreview(preview);
+    };
+  }, [preview]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -80,7 +95,7 @@ export default function UpdateProductModal({
         <div className={styles.top}>
           <div className={styles.title}>Update Product</div>
           <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            ×
+            x
           </button>
         </div>
 

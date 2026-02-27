@@ -15,6 +15,8 @@ export default function AdminContactReply() {
   const [successMsg, setSuccessMsg] = useState("");
 
   const inFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const pollRef = useRef(null);
 
   // ---------- helpers ----------
   const unwrapOne = (res) => {
@@ -33,7 +35,7 @@ export default function AdminContactReply() {
   const isValidId = Number.isInteger(Number(id)) && Number(id) > 0;
 
   // ---------- load contact ----------
-  const load = async ({ silent = false } = {}) => {
+  const load = async ({ silent = false, syncReplyMessage = true } = {}) => {
     if (!isValidId) {
       setError("Invalid contact id");
       setContact(null);
@@ -51,20 +53,57 @@ export default function AdminContactReply() {
       const res = await adminContactsAPI.getById(id);
       const data = unwrapOne(res);
 
+      if (!isMountedRef.current) return;
       setContact(data || null);
-      setReplyMessage(data?.ReplyMessage || "");
+      if (syncReplyMessage) {
+        setReplyMessage(data?.ReplyMessage || "");
+      }
     } catch (err) {
       console.error(err);
-      setError(getErrMsg(err, "Failed to load contact message"));
-      setContact(null);
+      if (isMountedRef.current) {
+        setError(getErrMsg(err, "Failed to load contact message"));
+        setContact(null);
+      }
     } finally {
       inFlightRef.current = false;
-      if (!silent) setLoading(false);
+      if (!silent && isMountedRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    isMountedRef.current = true;
+
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        if (document.visibilityState !== "visible") return;
+        load({ silent: true, syncReplyMessage: false });
+      }, 15000);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        load();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      isMountedRef.current = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      stopPolling();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -86,13 +125,18 @@ export default function AdminContactReply() {
       setSending(true);
       await adminContactsAPI.reply(id, { replyMessage: msg });
 
+      if (!isMountedRef.current) return;
       setSuccessMsg("Reply sent successfully.");
-      await load({ silent: true });
+      await load({ silent: true, syncReplyMessage: true });
     } catch (err) {
       console.error(err);
-      setError(getErrMsg(err, "Failed to send reply"));
+      if (isMountedRef.current) {
+        setError(getErrMsg(err, "Failed to send reply"));
+      }
     } finally {
-      setSending(false);
+      if (isMountedRef.current) {
+        setSending(false);
+      }
     }
   };
 
@@ -144,14 +188,14 @@ export default function AdminContactReply() {
           <div style={{ padding: 12, border: "1px solid #e5e5e5", borderRadius: 10 }}>
             <div style={{ display: "grid", gap: 6 }}>
               <div><strong>ID:</strong> {contact.ContactID}</div>
-              <div><strong>Customer:</strong> {contact?.customer?.Name || "—"}</div>
-              <div><strong>Email:</strong> {contact?.customer?.Email || "—"}</div>
-              <div><strong>Subject:</strong> {contact?.Subject || "—"}</div>
+              <div><strong>Customer:</strong> {contact?.customer?.Name || "N/A"}</div>
+              <div><strong>Email:</strong> {contact?.customer?.Email || "N/A"}</div>
+              <div><strong>Subject:</strong> {contact?.Subject || "N/A"}</div>
               <div>
                 <strong>Received:</strong>{" "}
                 {contact?.CreatedAt
                   ? new Date(contact.CreatedAt).toLocaleString()
-                  : "—"}
+                  : "N/A"}
               </div>
             </div>
 
@@ -159,7 +203,7 @@ export default function AdminContactReply() {
 
             <strong>Message</strong>
             <div style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
-              {contact?.Message || "—"}
+              {contact?.Message || "N/A"}
             </div>
           </div>
 

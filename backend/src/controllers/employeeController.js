@@ -48,6 +48,7 @@ async function listEmployees(req, res) {
     // Frontend expects: { id, name, role, status, last }
     const data = employees.map((e) => ({
       id: e.id,
+      employeeId: e.employeeId,
       name: e.name || "",
       // keep what UI expects (lowercase string is usually safer)
       role: String(e.role || "EMPLOYEE").toLowerCase(),

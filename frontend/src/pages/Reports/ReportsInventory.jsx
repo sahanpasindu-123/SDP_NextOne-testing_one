@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import {
@@ -18,50 +18,64 @@ const COLORS = ["#E0AB00", "#4CE7FF", "#FF6B6B", "#FFD166", "#06D6A0", "#118AB2"
 export default function ReportsInventory() {
   const location = useLocation();
   const base = location.pathname.startsWith("/admin") ? "/admin" : "/employee";
+  const isMountedRef = useRef(true);
   const [range, setRange] = useState("This Month");
 
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState([]);
   const [pieData, setPieData] = useState([]);
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchInventoryReport();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    fetchInventoryReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range]);
 
   const fetchInventoryReport = async () => {
     try {
-const res = await reportsAPI.getInventoryReport();
-setRows(res.data);
-      const d = res.data.data;
+      const res = await reportsAPI.getInventoryReport();
+      const payload = res?.data?.data ?? res?.data ?? {};
+      const rawStats = payload?.stats || {};
 
+      if (!isMountedRef.current) return;
       setStats([
         {
           title: "Total Items",
-          value: d.stats.totalItems,
+          value: rawStats.totalItems ?? 0,
           metaLeft: "Across all categories",
           metaRight: "In Stock",
         },
         {
           title: "Low Stock",
-          value: d.stats.lowStock,
+          value: rawStats.lowStock ?? 0,
           metaLeft: "Needs reordering",
           metaRight: "Below Minimum",
         },
         {
           title: "Inventory Value",
-          value: `Rs ${Number(d.stats.inventoryValue).toLocaleString()}`,
+          value: `Rs ${Number(rawStats.inventoryValue || 0).toLocaleString()}`,
           metaLeft: "At selling price",
           metaRight: "Current Stock",
         },
       ]);
 
-      setPieData(d.pieData);
-      setMovements(d.movements);
+      setPieData(Array.isArray(payload?.pieData) ? payload.pieData : []);
+      setMovements(Array.isArray(payload?.movements) ? payload.movements : []);
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -82,6 +96,10 @@ setRows(res.data);
       .join("\n");
 
     downloadFile(`${header}\n${body}`, "inventory-report.csv", "text/csv");
+  };
+
+  const handleFilterClick = () => {
+    fetchInventoryReport();
   };
 
   if (loading) {
@@ -118,7 +136,7 @@ setRows(res.data);
         </div>
 
         <div className={styles.actions}>
-          <button className={styles.outlineBtn} type="button">
+          <button className={styles.outlineBtn} type="button" onClick={handleFilterClick}>
             <FiFilter /> Filter
           </button>
 

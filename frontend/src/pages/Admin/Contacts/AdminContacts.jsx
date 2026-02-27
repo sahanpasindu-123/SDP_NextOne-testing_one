@@ -15,6 +15,7 @@ export default function AdminContactReply() {
   const [successMsg, setSuccessMsg] = useState("");
 
   const inFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const unwrapOne = (res) => {
     // backend returns: { success: true, data: {...} }
@@ -32,6 +33,8 @@ export default function AdminContactReply() {
     );
   };
 
+  const isValidId = Number.isInteger(Number(id)) && Number(id) > 0;
+
   const load = async ({ silent = false } = {}) => {
     try {
       if (inFlightRef.current) return;
@@ -41,23 +44,40 @@ export default function AdminContactReply() {
       setError("");
       setSuccessMsg("");
 
+      if (!isValidId) {
+        if (isMountedRef.current) {
+          setContact(null);
+          setReplyMessage("");
+          setError("Select a contact message to view details.");
+          setLoading(false);
+        }
+        return;
+      }
+
       const res = await adminContactsAPI.getById(id);
       const data = unwrapOne(res);
 
+      if (!isMountedRef.current) return;
       setContact(data || null);
       setReplyMessage(data?.ReplyMessage || "");
     } catch (err) {
       console.error(err);
-      setError(getErrMsg(err, "Failed to load contact message"));
-      setContact(null);
+      if (isMountedRef.current) {
+        setError(getErrMsg(err, "Failed to load contact message"));
+        setContact(null);
+      }
     } finally {
       inFlightRef.current = false;
-      if (!silent) setLoading(false);
+      if (!silent && isMountedRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     load();
+    return () => {
+      isMountedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -79,13 +99,18 @@ export default function AdminContactReply() {
       setSending(true);
       await adminContactsAPI.reply(id, { replyMessage: msg });
 
+      if (!isMountedRef.current) return;
       setSuccessMsg("Reply sent successfully.");
       await load({ silent: true });
     } catch (err) {
       console.error(err);
-      setError(getErrMsg(err, "Failed to send reply"));
+      if (isMountedRef.current) {
+        setError(getErrMsg(err, "Failed to send reply"));
+      }
     } finally {
-      setSending(false);
+      if (isMountedRef.current) {
+        setSending(false);
+      }
     }
   };
 
@@ -160,19 +185,19 @@ export default function AdminContactReply() {
               </div>
               <div>
                 <strong>Customer:</strong>{" "}
-                {(contact?.customer?.Name || "—").trim()}
+                {(contact?.customer?.Name || "N/A").trim()}
               </div>
               <div>
-                <strong>Email:</strong> {contact?.customer?.Email || "—"}
+                <strong>Email:</strong> {contact?.customer?.Email || "N/A"}
               </div>
               <div>
-                <strong>Subject:</strong> {contact?.Subject || "—"}
+                <strong>Subject:</strong> {contact?.Subject || "N/A"}
               </div>
               <div>
                 <strong>Received:</strong>{" "}
                 {contact?.CreatedAt
                   ? new Date(contact.CreatedAt).toLocaleString()
-                  : "—"}
+                  : "N/A"}
               </div>
             </div>
 
@@ -181,7 +206,7 @@ export default function AdminContactReply() {
             <div>
               <strong>Message</strong>
               <div style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
-                {contact?.Message || "—"}
+                {contact?.Message || "N/A"}
               </div>
             </div>
           </div>

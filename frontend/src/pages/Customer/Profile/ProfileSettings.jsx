@@ -1,52 +1,117 @@
 import { useEffect, useState } from 'react'
 import styles from './ProfileSettings.module.css'
+import { customersAPI } from "../../../api/customers";
 
 export default function ProfileSettings() {
   // -------- Local state (implemented) --------
-  const [fullName, setFullName] = useState("Sahan Pasindu")
-  const [email, setEmail] = useState("sahanpasindu@gmail.com")
-  const [phone, setPhone] = useState("+94 77 123 4567")
-  const [address, setAddress] = useState("Sooriyawewa, Sri Lanka")
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [address, setAddress] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
 
   const [currentPw, setCurrentPw] = useState("")
   const [newPw, setNewPw] = useState("")
   const [confirmPw, setConfirmPw] = useState("")
 
-  // Load saved profile (if exists)
+  // Load saved address (local-only) + hydrate profile from backend
   useEffect(() => {
+    let cancelled = false
+
     try {
       const raw = localStorage.getItem("customerProfileSettings")
-      if (!raw) return
-      const data = JSON.parse(raw)
-      setFullName(data.fullName ?? fullName)
-      setEmail(data.email ?? email)
-      setPhone(data.phone ?? phone)
-      setAddress(data.address ?? address)
+      if (raw) {
+        const data = JSON.parse(raw)
+        if (!cancelled) {
+          setAddress(data?.address ?? "")
+        }
+      }
     } catch {
       // ignore invalid local storage
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    async function hydrate() {
+      try {
+        const res = await customersAPI.getMe()
+        if (!res?.success || !res?.data) return
+        if (cancelled) return
+
+        setFullName(String(res.data.Name || ""))
+        setEmail(String(res.data.Email || ""))
+        setPhone(String(res.data.Phone || ""))
+      } catch (e) {
+        // Keep page usable even if backend is temporarily unavailable
+        console.warn("Profile hydrate failed:", e?.message || e)
+      }
+    }
+
+    hydrate()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!fullName.trim()) return alert("Full Name is required.")
     if (!email.trim()) return alert("Email is required.")
 
-    const payload = { fullName, email, phone, address }
-    localStorage.setItem("customerProfileSettings", JSON.stringify(payload))
-    alert("Saved changes (stored locally).")
+    setSaving(true)
+    try {
+      const res = await customersAPI.updateMe({
+        name: fullName,
+        email,
+        phone,
+      })
+
+      if (!res?.success) {
+        alert(res?.message || "Failed to save changes.")
+        return
+      }
+
+      const updated = res?.data || {}
+      setFullName(String(updated.Name || fullName))
+      setEmail(String(updated.Email || email))
+      setPhone(String(updated.Phone || phone))
+
+      // Address is not persisted in the current backend schema; keep it local-only.
+      localStorage.setItem("customerProfileSettings", JSON.stringify({ address }))
+
+      alert(res?.message || "Saved changes.")
+    } catch (e) {
+      alert(e?.message || "Failed to save changes.")
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!currentPw || !newPw || !confirmPw) return alert("Please fill all password fields.")
-    if (newPw.length < 6) return alert("New password must be at least 6 characters.")
+    if (newPw.length < 8) return alert("New password must be at least 8 characters.")
     if (newPw !== confirmPw) return alert("New password and confirm password do not match.")
 
-    // No backend endpoint exists in this project yet — safe implementation for completion:
-    setCurrentPw("")
-    setNewPw("")
-    setConfirmPw("")
-    alert("Password updated (UI-only). Backend can be wired later.")
+    setPwSaving(true)
+    try {
+      const res = await customersAPI.changeMyPassword({
+        currentPassword: currentPw,
+        newPassword: newPw,
+      })
+
+      if (!res?.success) {
+        alert(res?.message || "Password update failed")
+        return
+      }
+
+      setCurrentPw("")
+      setNewPw("")
+      setConfirmPw("")
+      alert(res?.message || "Password updated successfully")
+    } catch (e) {
+      alert(e?.message || "Password update failed")
+    } finally {
+      setPwSaving(false)
+    }
   }
 
   return (
@@ -78,7 +143,7 @@ export default function ProfileSettings() {
               <input value={address} onChange={(e) => setAddress(e.target.value)} />
             </label>
 
-            <button className={styles.save} type="button" onClick={handleSaveProfile}>
+            <button className={styles.save} type="button" onClick={handleSaveProfile} disabled={saving}>
               Save Changes
             </button>
           </div>
@@ -116,7 +181,7 @@ export default function ProfileSettings() {
               />
             </label>
 
-            <button className={styles.save} type="button" onClick={handleUpdatePassword}>
+            <button className={styles.save} type="button" onClick={handleUpdatePassword} disabled={pwSaving}>
               Update Password
             </button>
           </div>

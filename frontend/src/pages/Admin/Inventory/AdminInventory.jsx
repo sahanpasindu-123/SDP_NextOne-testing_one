@@ -1,5 +1,5 @@
 import { FiPlus, FiSearch, FiEdit2, FiTrash2 } from "react-icons/fi";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCategories } from "../../../context/CategoriesContext";
 
@@ -31,31 +31,35 @@ export default function AdminInventory() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  const debouncedQRef = useRef("");
+  const isMountedRef = useRef(true);
+  const pollRef = useRef(null);
 
-  // ✅ React 18 StrictMode mounts effects twice in DEV.
-  // Guard to avoid duplicate polling intervals.
-  const didStartPollingRef = useRef(false);
 
-
-  // ✅ Shared categories (real-time)
+  //  Shared categories (real-time)
   const { categories: categoryList, refreshCategories } = useCategories();
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoadingProducts(true);
     setPageError("");
     try {
-      const p = await inventoryAPI.list(debouncedQ ? { q: debouncedQ } : {});
-      setProducts(p?.data || []);
+      const q = debouncedQRef.current;
+      const p = await inventoryAPI.list(q ? { q } : {});
+      if (!isMountedRef.current) return;
+      setProducts(Array.isArray(p?.data) ? p.data : []);
     } catch (e) {
       console.error("getProducts failed:", e);
+      if (!isMountedRef.current) return;
       setProducts([]);
       setPageError(e?.message || "Failed to load products");
     } finally {
-      setLoadingProducts(false);
+      if (isMountedRef.current) {
+        setLoadingProducts(false);
+      }
     }
-  };
+  }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedQ(searchText.trim());
     }, 350);
@@ -63,34 +67,55 @@ export default function AdminInventory() {
     return () => clearTimeout(t);
   }, [searchText]);
 
-
   useEffect(() => {
-    if (didStartPollingRef.current) {
-      // still allow debouncedQ-driven fetch, but avoid creating a second interval
-      fetchProducts();
-      refreshCategories().catch((e) => console.error("refreshCategories failed:", e));
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      return;
-    }
-    didStartPollingRef.current = true;
-
+    debouncedQRef.current = debouncedQ;
     fetchProducts();
     refreshCategories().catch((e) => console.error("refreshCategories failed:", e));
+  }, [debouncedQ, fetchProducts, refreshCategories]);
 
-    const interval = setInterval(() => {
-      fetchProducts().catch((e) => console.error("poll products failed:", e));
-    }, POLL_MS);
+  useEffect(() => {
+    isMountedRef.current = true;
 
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQ]);
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        if (document.visibilityState !== "visible") return;
+        fetchProducts().catch((e) => console.error("poll products failed:", e));
+      }, POLL_MS);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      isMountedRef.current = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      stopPolling();
+    };
+  }, [POLL_MS, fetchProducts]);
 
   const rows = useMemo(() => {
-    return (products || []).map((p) => ({
+    const safeProducts = Array.isArray(products) ? products : [];
+    return safeProducts.map((p) => ({
       id: p.ProductID,
       name: p.Name,
       sku: String(p.ProductID),
-      category: p.CategoryName || "—",
+      category: p.CategoryName || "N/A",
       stock: p.Stock,
       price: `Rs ${Number(p.Price).toLocaleString()}`,
       status: p.Stock <= (p.StockLimit ?? 0) ? "Low Stock" : "In Stock",
@@ -162,7 +187,7 @@ export default function AdminInventory() {
             disabled={isSubmitting}
             style={isSubmitting ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
           >
-            📷
+            Img
           </button>
         </div>
       ),
@@ -177,7 +202,7 @@ export default function AdminInventory() {
 
       fd.append("productName", data.productName);
 
-      // ✅ backend expects category name currently
+      //  backend expects category name currently
       fd.append("category", data.categoryName || "");
 
       // optional (if you later use CategoryID backend side)
@@ -187,7 +212,7 @@ export default function AdminInventory() {
       fd.append("stockQty", data.stockQty);
       fd.append("minQty", data.minQty);
 
-      // ✅ this will be CategoryCode (ENG-001) after select
+      //  this will be CategoryCode (ENG-001) after select
       fd.append("sku", data.sku || "");
 
       fd.append("desc", data.desc || "");
@@ -195,6 +220,7 @@ export default function AdminInventory() {
 
       await inventoryAPI.create(fd);
 
+      if (!isMountedRef.current) return;
       setAddOpen(false);
       await fetchProducts();
       toast.success("Product added");
@@ -206,7 +232,9 @@ export default function AdminInventory() {
         toast.error(e.errors[0]?.message || "Validation error");
       }
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -216,15 +244,24 @@ export default function AdminInventory() {
 
     try {
       setIsSubmitting(true);
+
+      const selectedCategoryName = data?.category || "";
+      const matchedCategory = (Array.isArray(categoriesForModal) ? categoriesForModal : []).find(
+        (c) => String(c?.Name || "").toLowerCase() === String(selectedCategoryName).toLowerCase()
+      );
+      const categoryId = matchedCategory?.CategoryID;
+
       await inventoryAPI.update(selectedProduct.ProductID, {
         productName: data.productName,
-        category: data.category,
+        category: selectedCategoryName,
+        categoryId: categoryId ?? undefined,
         price: data.price,
         stockQty: data.stockQty,
         minQty: data.minQty,
         desc: data.desc,
       });
 
+      if (!isMountedRef.current) return;
       setUpdateOpen(false);
       await fetchProducts();
       toast.success("Product updated");
@@ -232,7 +269,9 @@ export default function AdminInventory() {
       console.error("updateProduct failed:", e);
       toast.error(e?.message || "Update failed");
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -243,6 +282,7 @@ export default function AdminInventory() {
     try {
       setIsSubmitting(true);
       await inventoryAPI.updateImage(selectedProduct.ProductID, file);
+      if (!isMountedRef.current) return;
       setImageOpen(false);
       await fetchProducts();
       toast.success("Image updated");
@@ -250,7 +290,9 @@ export default function AdminInventory() {
       console.error("updateProductImage failed:", e);
       toast.error(e?.message || "Image update failed");
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -267,9 +309,9 @@ export default function AdminInventory() {
     refreshCategories().catch((e) => console.error("refreshCategories failed:", e));
   };
 
-  // ✅ IMPORTANT: modal needs objects: {CategoryID, Name, CategoryCode}
+  //  IMPORTANT: modal needs objects: {CategoryID, Name, CategoryCode}
   const categoriesForModal = useMemo(() => {
-    return Array.isArray(categoryList) ? categoryList : [];
+    return Array.isArray(categoryList) ? categoryList.filter(Boolean) : [];
   }, [categoryList]);
 
   return (
@@ -290,7 +332,7 @@ export default function AdminInventory() {
                               onClick={() => setSearchText("")}
                               title="Clear"
                               >
-                                ✕
+                                x
                              </button>
                               )}
 
@@ -307,7 +349,7 @@ export default function AdminInventory() {
         <div className={styles.tableHead}>All Products</div>
 
         {loadingProducts && (
-          <div style={{ padding: 16, opacity: 0.8 }}>Loading inventory…</div>
+          <div style={{ padding: 16, opacity: 0.8 }}>Loading inventory...</div>
         )}
 
         {pageError && !loadingProducts && (
@@ -329,7 +371,7 @@ export default function AdminInventory() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSubmit={handleAddSubmit}
-        categories={categoriesForModal} // ✅ PASS OBJECTS
+        categories={categoriesForModal} //  PASS OBJECTS
       />
 
       <UpdateProductModal
@@ -339,7 +381,7 @@ export default function AdminInventory() {
           setSelectedProduct(null);
         }}
         onSubmit={handleUpdateSubmit}
-        categories={categoriesForModal.map((c) => c.Name)}
+        categories={categoriesForModal.map((c) => c?.Name || "")}
         initial={{
           productName: selectedProduct?.Name,
           sku: selectedProduct?.ProductID,

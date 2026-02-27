@@ -52,11 +52,11 @@ export default function Security() {
       setNw("");
       setConf("");
     } catch (err) {
-      console.log("STATUS:", err?.response?.status);
-      console.log("DATA:", err?.response?.data);
+      console.log("STATUS:", err?.status ?? err?.response?.status);
+      console.log("DATA:", err?.data ?? err?.response?.data);
       console.log("FULL:", err);
 
-      alert(err?.response?.data?.message || "Password update failed");
+      alert(err?.message || err?.data?.message || err?.response?.data?.message || "Password update failed");
     }
   };
 

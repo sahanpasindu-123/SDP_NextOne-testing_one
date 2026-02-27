@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./AddUserModal.module.css";
 
 export default function AddUserModal({
@@ -19,6 +19,18 @@ export default function AddUserModal({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  useEffect(() => {
+    if (!open) return;
+    setType(defaultType);
+    setName("");
+    setEmpId("");
+    setJobRole("");
+    setEmail("");
+    setContactNumber("");
+    setPassword("");
+    setConfirmPassword("");
+  }, [open, defaultType]);
+
   if (!open) return null;
 
   const handleSubmit = (e) => {
@@ -38,7 +50,7 @@ export default function AddUserModal({
         <div className={styles.top}>
           <div className={styles.title}>Add New User</div>
           <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            ×
+            x
           </button>
         </div>
 
