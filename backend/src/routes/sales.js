@@ -3,6 +3,53 @@ const router = express.Router();
 
 const prisma = require("../utils/prisma");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
+const bcrypt = require("bcryptjs");
+
+const WALK_IN_CUSTOMER_EMAIL = "walkin.pos@system.invalid";
+const WALK_IN_CUSTOMER_PHONE = "WALKIN000000000"; // 15 chars (fits @db.VarChar(15))
+
+async function getOrCreateWalkInCustomerId(tx) {
+  const existing = await tx.customer.findUnique({
+    where: { Email: WALK_IN_CUSTOMER_EMAIL },
+    select: { CustomerID: true },
+  });
+  if (existing?.CustomerID) return existing.CustomerID;
+
+  const baseCreateData = {
+    Name: "Walk-in",
+    Email: WALK_IN_CUSTOMER_EMAIL,
+    PasswordHash: bcrypt.hashSync(`walk-in-${Date.now()}`, 10),
+    isActive: true,
+  };
+
+  try {
+    const created = await tx.customer.create({
+      data: {
+        ...baseCreateData,
+        Phone: WALK_IN_CUSTOMER_PHONE,
+      },
+      select: { CustomerID: true },
+    });
+    return created.CustomerID;
+  } catch (err) {
+    const again = await tx.customer.findUnique({
+      where: { Email: WALK_IN_CUSTOMER_EMAIL },
+      select: { CustomerID: true },
+    });
+    if (again?.CustomerID) return again.CustomerID;
+
+    if (err?.code === "P2002" && Array.isArray(err?.meta?.target) && err.meta.target.includes("Phone")) {
+      const suffix = String(Date.now()).replace(/\D/g, "").slice(-9).padStart(9, "0");
+      const created = await tx.customer.create({
+        data: { ...baseCreateData, Phone: `WALKIN${suffix}` },
+        select: { CustomerID: true },
+      });
+      return created.CustomerID;
+    }
+
+    throw err;
+  }
+}
 
 // ------------------------------------
 // GET /api/sales (ADMIN/EMPLOYEE)
@@ -72,7 +119,7 @@ router.get(
 
 // ------------------------------------
 // POST /api/sales (EMPLOYEE)
-// body: { CustomerID, ProductID, Quantity, Type? }
+// body: { CustomerID?, ProductID, Quantity, Type? }
 // ------------------------------------
 router.post(
   "/",
@@ -80,7 +127,12 @@ router.post(
   authorizeRoles("EMPLOYEE"),
   async (req, res) => {
     try {
-      const CustomerID = Number(req.body.CustomerID);
+      const customerRaw = req.body.CustomerID;
+      const hasCustomerId =
+        customerRaw !== undefined &&
+        customerRaw !== null &&
+        String(customerRaw).trim() !== "";
+      const CustomerID = hasCustomerId ? Number(customerRaw) : null;
       const ProductID = Number(req.body.ProductID);
       const Quantity = Number(req.body.Quantity);
       const Type = req.body.Type ? String(req.body.Type).trim().toUpperCase() : "CASH";
@@ -92,25 +144,29 @@ router.post(
         return res.status(401).json({ success: false, message: "Authentication required" });
       }
 
-      if (
-        !Number.isFinite(CustomerID) ||
-        !Number.isFinite(ProductID) ||
-        !Number.isFinite(Quantity) ||
-        Quantity <= 0
-      ) {
+      if (!Number.isFinite(ProductID) || !Number.isFinite(Quantity) || Quantity <= 0) {
+        return res.status(400).json({ success: false, message: "Invalid payload" });
+      }
+      if (hasCustomerId && (!Number.isFinite(CustomerID) || CustomerID <= 0)) {
         return res.status(400).json({ success: false, message: "Invalid payload" });
       }
 
       const created = await prisma.$transaction(async (tx) => {
-        // ✅ Validate customer exists (data integrity)
-        const customer = await tx.customer.findUnique({
-          where: { CustomerID },
-          select: { CustomerID: true },
-        });
-        if (!customer) {
-          const e = new Error("Customer not found");
-          e.status = 404;
-          throw e;
+        const resolvedCustomerId = hasCustomerId
+          ? CustomerID
+          : await getOrCreateWalkInCustomerId(tx);
+
+        if (hasCustomerId) {
+          // ✅ Validate customer exists (data integrity)
+          const customer = await tx.customer.findUnique({
+            where: { CustomerID: resolvedCustomerId },
+            select: { CustomerID: true },
+          });
+          if (!customer) {
+            const e = new Error("Customer not found");
+            e.status = 404;
+            throw e;
+          }
         }
 
         const p = await tx.product.findUnique({ where: { ProductID } });
@@ -145,7 +201,7 @@ router.post(
         // create sale
         const sale = await tx.sale.create({
           data: {
-            CustomerID,
+            CustomerID: resolvedCustomerId,
             ProductID,
             EmployeeID,
             Quantity,

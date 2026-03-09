@@ -21,7 +21,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { salesAPI } from "../../api/sales";
 import { productsAPI } from "../../api/products";
-import { customersAPI } from "../../api/customers";
 
 import StatCard from "../../components/StatCard/StatCard.jsx";
 import Badge from "../../components/Badge/Badge.jsx";
@@ -46,8 +45,6 @@ export default function SalesBilling() {
 
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [customerId, setCustomerId] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,12 +87,10 @@ export default function SalesBilling() {
         setError(null);
         setLoading(true);
 
-        const [productsResponse, salesResponse, customersResponse] =
-          await Promise.all([
-            productsAPI.getProducts(),
-            salesAPI.getSales(),
-            customersAPI.getAll(),
-          ]);
+        const [productsResponse, salesResponse] = await Promise.all([
+          productsAPI.getProducts(),
+          salesAPI.getSales(),
+        ]);
 
         // productsResponse.data expected: [{ ProductID, Name, Price, Stock, ... }]
         const productsList = Array.isArray(productsResponse?.data) ? productsResponse.data : [];
@@ -106,13 +101,6 @@ export default function SalesBilling() {
             Price: p.Price,
             Stock: p.Stock,
             revenue: `Rs ${Number(p.Price || 0).toLocaleString("en-LK")}`,
-          })) || [];
-
-        const customersList = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
-        const mappedCustomers =
-          customersList.map((c) => ({
-            CustomerID: c.CustomerID,
-            Name: c.Name,
           })) || [];
 
         const salesList = Array.isArray(salesResponse?.data) ? salesResponse.data : [];
@@ -129,8 +117,6 @@ export default function SalesBilling() {
 
         if (!isMountedRef.current) return;
         setProducts(mappedProducts);
-        setCustomers(mappedCustomers);
-        setCustomerId((prev) => prev ?? (mappedCustomers[0]?.CustomerID ?? null));
         setSales(mappedSales);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -309,12 +295,10 @@ export default function SalesBilling() {
 
   const processSale = async () => {
     try {
-      if (!customerId) return alert("Select a customer");
       if (cartItems.length === 0) return alert("Cart is empty");
 
       for (const it of cartItems) {
         await salesAPI.createSale({
-          CustomerID: customerId,
           ProductID: it.ProductID,
           Quantity: it.qty,
           Type: paymentMethod,
@@ -478,27 +462,7 @@ export default function SalesBilling() {
           <div className={`card ${styles.checkout}`}>
             <div className={styles.cartTitle}>Checkout</div>
 
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>
-                Customer
-              </div>
-              <select
-                value={customerId ?? ""}
-                onChange={(e) => setCustomerId(Number(e.target.value))}
-                style={{
-                  width: "100%",
-                  height: 40,
-                  borderRadius: 10,
-                  padding: "0 10px",
-                }}
-              >
-                {customers.map((c) => (
-                  <option key={c.CustomerID} value={c.CustomerID}>
-                    {c.Name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div style={{ marginBottom: 10 }} />
 
             <div className={styles.pm}>Payment Method</div>
             <div className={styles.pmRow}>
@@ -557,7 +521,7 @@ export default function SalesBilling() {
         />
         <StatCard
           label="New Customers"
-          value={String(customers.length)}
+          value="0"
           icon={<FiUser />}
           iconTone="green"
         />
