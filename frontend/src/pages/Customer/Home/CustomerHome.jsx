@@ -32,7 +32,7 @@ export default function CustomerHome() {
     return products.filter((p) => {
       return (
         String(p?.name || "").toLowerCase().includes(query) ||
-        (p.partNo || "").toLowerCase().includes(query)
+        String(p?.partNo || "").toLowerCase().includes(query)
       );
     });
   }, [products, q]);
@@ -47,6 +47,7 @@ export default function CustomerHome() {
         if (a.createdAt && b.createdAt) {
           return new Date(b.createdAt) - new Date(a.createdAt);
         }
+
         // fallback: larger id = newer (approx)
         const ai = Number(a.id) || 0;
         const bi = Number(b.id) || 0;
@@ -55,14 +56,20 @@ export default function CustomerHome() {
       .slice(0, 6);
   }, [filteredProducts]);
 
+  // Remove New Arrivals items from All Products
+  const allProductsOnly = useMemo(() => {
+    const arrivalIds = new Set(newArrivals.map((p) => String(p.id)));
+    return filteredProducts.filter((p) => !arrivalIds.has(String(p.id)));
+  }, [filteredProducts, newArrivals]);
+
   const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
-  }, [filteredProducts.length]);
+    return Math.max(1, Math.ceil(allProductsOnly.length / PAGE_SIZE));
+  }, [allProductsOnly.length]);
 
   const pagedProducts = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return filteredProducts.slice(start, start + PAGE_SIZE);
-  }, [filteredProducts, page]);
+    return allProductsOnly.slice(start, start + PAGE_SIZE);
+  }, [allProductsOnly, page]);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -72,11 +79,12 @@ export default function CustomerHome() {
       const res = await productsAPI.getProducts();
       const list = res?.data || [];
       const mapped = Array.isArray(list) ? list.map(mapApiProductToCard) : [];
+
       if (!isMountedRef.current) return;
       setProducts(mapped);
     } catch (err) {
-      // Normalize errors when possible (status/message)
       const status = err?.status;
+
       if (status === 401 || status === 403) {
         if (isMountedRef.current) {
           setError("Please log in to view products.");
@@ -86,6 +94,7 @@ export default function CustomerHome() {
           setError(err?.message || "Failed to load products.");
         }
       }
+
       if (isMountedRef.current) {
         setProducts([]);
       }
@@ -99,6 +108,7 @@ export default function CustomerHome() {
   useEffect(() => {
     isMountedRef.current = true;
     fetchProducts();
+
     return () => {
       isMountedRef.current = false;
     };
@@ -108,7 +118,7 @@ export default function CustomerHome() {
     setSelectedProduct(null);
     setDetailProduct(product);
 
-    // Fetch latest/full product details for modal safety (category/name/image)
+    // Fetch latest/full product details for modal safety
     try {
       const id = product?.id;
       if (!id) return;
@@ -120,6 +130,7 @@ export default function CustomerHome() {
       const mapped = mapApiProductToCard(apiProduct, 0);
 
       if (!isMountedRef.current) return;
+
       setDetailProduct((prev) => {
         if (!prev || String(prev.id) !== String(id)) return prev;
         const nextImage = mapped.image || prev.image || null;
@@ -135,9 +146,9 @@ export default function CustomerHome() {
     setSelectedProduct(product);
   };
 
-  // Reserve confirm = persist to backend, then refresh products
   const handleReserveConfirm = async (product, qty) => {
     const qNum = Math.max(1, Number(qty) || 1);
+
     if (!product?.id) {
       throw new Error("Missing product id");
     }
@@ -164,10 +175,24 @@ export default function CustomerHome() {
 
         {/* SEARCH */}
         <section className={styles.section}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <h2 style={{ margin: 0 }}>Browse and reserve genuine JCB parts</h2>
 
-            <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+            <div
+              style={{
+                marginLeft: "auto",
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+              }}
+            >
               <input
                 value={q}
                 onChange={(e) => {
@@ -184,8 +209,12 @@ export default function CustomerHome() {
                   minWidth: 240,
                 }}
               />
+
               <button
-                onClick={fetchProducts}
+                onClick={() => {
+                  setPage(1);
+                  fetchProducts();
+                }}
                 style={{
                   padding: "10px 12px",
                   borderRadius: 10,
@@ -229,7 +258,7 @@ export default function CustomerHome() {
           )}
 
           {/* ALL PRODUCTS */}
-          {!loading && !error && pagedProducts.length > 0 && (
+          {!loading && !error && allProductsOnly.length > 0 && (
             <>
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>All Products</h3>
               <div className={styles.grid}>
@@ -243,9 +272,15 @@ export default function CustomerHome() {
                 ))}
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
-                <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 16 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                    marginTop: 16,
+                  }}
+                >
                   <button
                     disabled={page <= 1}
                     onClick={() => setPage((v) => Math.max(1, v - 1))}
@@ -307,14 +342,3 @@ export default function CustomerHome() {
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
