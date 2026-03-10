@@ -22,16 +22,16 @@ export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/a
 
 export function buildImageUrl(imageUrl) {
   if (!imageUrl) return null;
-  
+
   // If already a full URL, return as-is
   if (String(imageUrl).startsWith("http")) return imageUrl;
-  
+
   // Get the base URL without the /api suffix
   const baseUrl = String(API_BASE).replace(/\/api\/?$/, "");
-  
-  // Ensure the image URL starts with /uploads
+
+  // Ensure the image URL starts with /
   const cleanImageUrl = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
-  
+
   // Construct the full URL
   return `${baseUrl}${cleanImageUrl}`;
 }
@@ -53,6 +53,7 @@ export function mapApiProductToCard(p, i) {
     src.category?.Name ??
     src.category ??
     null;
+
   return {
     id,
     name: String(name || ""),
@@ -60,7 +61,7 @@ export function mapApiProductToCard(p, i) {
     desc: String(desc || "") || "—",
     price,
     available: stock,
-    stockLabel: stock <= 5 ? "Low Stock" : "In Stock",
+    stockLabel: stock <= 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock",
     image: buildImageUrl(imageUrl) || productImages[(Number(i) || 0) % productImages.length],
     categoryId,
     category: categoryName ? String(categoryName) : null,
@@ -72,6 +73,7 @@ export default function PartsCatalog() {
   const isMountedRef = useRef(true);
   const [searchParams] = useSearchParams();
   const { categories, loadingCategories, refreshCategories } = useCategories();
+
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -79,24 +81,16 @@ export default function PartsCatalog() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ new controls
+  // controls
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("featured");
-  const [filterMode, setFilterMode] = useState("all"); // all | in | low
-
-  const handleFilterClick = () => {
-    // Cycle: all -> in -> low -> all
-    setFilterMode((m) => (m === "all" ? "in" : m === "in" ? "low" : "all"));
-  };
-
-  const filterLabel =
-    filterMode === "all" ? "Filter" : filterMode === "in" ? "In Stock" : "Low Stock";
+  const [stockFilter, setStockFilter] = useState("all");
 
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = products;
 
-    // search
+    // Search
     if (q) {
       list = list.filter(
         (p) =>
@@ -106,21 +100,27 @@ export default function PartsCatalog() {
       );
     }
 
-    // category
+    // Category filter
     if (category !== "all") {
       list = list.filter((p) => String(p?.categoryId ?? "") === String(category));
     }
 
-    // filterMode
-    if (filterMode === "in") list = list.filter((p) => p.stockLabel === "In Stock");
-    if (filterMode === "low") list = list.filter((p) => p.stockLabel === "Low Stock");
+    // Stock filter
+    if (stockFilter !== "all") {
+      list = list.filter((p) => p.stockLabel === stockFilter);
+    }
 
-    // sort
-    if (sort === "priceAsc") list = [...list].sort((a, b) => a.price - b.price);
-    if (sort === "priceDesc") list = [...list].sort((a, b) => b.price - a.price);
+    // Sort
+    if (sort === "priceAsc") {
+      list = [...list].sort((a, b) => a.price - b.price);
+    }
+
+    if (sort === "priceDesc") {
+      list = [...list].sort((a, b) => b.price - a.price);
+    }
 
     return list;
-  }, [query, products, filterMode, sort, category]);
+  }, [query, products, category, sort, stockFilter]);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -128,7 +128,9 @@ export default function PartsCatalog() {
       setLoading(true);
       const res = await productsAPI.getProducts();
       const list = Array.isArray(res?.data) ? res.data : [];
+
       if (!isMountedRef.current) return;
+
       setProducts(list.map(mapApiProductToCard));
     } catch (e) {
       console.error("load products failed:", e);
@@ -143,7 +145,7 @@ export default function PartsCatalog() {
     }
   }, []);
 
-  // Ensure categories load for dropdown (token-protected endpoint)
+  // Ensure categories load for dropdown
   useEffect(() => {
     const safeCategories = Array.isArray(categories) ? categories : [];
     if (!loadingCategories && safeCategories.length === 0) {
@@ -151,14 +153,16 @@ export default function PartsCatalog() {
     }
   }, [categories, loadingCategories, refreshCategories]);
 
-  // Apply category from URL (Footer category links)
+  // Apply category from URL
   useEffect(() => {
     const safeCategories = Array.isArray(categories) ? categories : [];
     const categoryIdParam = searchParams.get("categoryId");
     const categoryNameParam = searchParams.get("category");
 
     if (categoryIdParam) {
-      const exists = safeCategories.some((c) => String(c?.CategoryID) === String(categoryIdParam));
+      const exists = safeCategories.some(
+        (c) => String(c?.CategoryID) === String(categoryIdParam)
+      );
       if (exists) setCategory(String(categoryIdParam));
       return;
     }
@@ -169,13 +173,19 @@ export default function PartsCatalog() {
     const wanted = String(categoryNameParam).trim().toLowerCase();
     if (!wanted) return;
 
-    const match = safeCategories.find((c) => String(c?.Name || "").trim().toLowerCase() === wanted);
-    if (match?.CategoryID != null) setCategory(String(match.CategoryID));
+    const match = safeCategories.find(
+      (c) => String(c?.Name || "").trim().toLowerCase() === wanted
+    );
+
+    if (match?.CategoryID != null) {
+      setCategory(String(match.CategoryID));
+    }
   }, [categories, searchParams]);
 
   useEffect(() => {
     isMountedRef.current = true;
     loadProducts();
+
     return () => {
       isMountedRef.current = false;
     };
@@ -185,7 +195,6 @@ export default function PartsCatalog() {
     setSelectedProduct(null);
     setDetailProduct(product);
 
-    // Fetch latest/full product details for modal safety (handles missing fields gracefully)
     try {
       const id = product?.id;
       if (!id) return;
@@ -197,6 +206,7 @@ export default function PartsCatalog() {
       const mapped = mapApiProductToCard(apiProduct, 0);
 
       if (!isMountedRef.current) return;
+
       setDetailProduct((prev) => {
         if (!prev || String(prev.id) !== String(id)) return prev;
         const nextImage = mapped.image || prev.image || null;
@@ -233,7 +243,6 @@ export default function PartsCatalog() {
             onChange={(e) => setQuery(e.target.value)}
           />
 
-          {/* ✅ Controlled category select */}
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="all">All Categories</option>
             {(Array.isArray(categories) ? categories : []).map((c) => (
@@ -243,17 +252,18 @@ export default function PartsCatalog() {
             ))}
           </select>
 
-          {/* ✅ Controlled sort select */}
           <select value={sort} onChange={(e) => setSort(e.target.value)}>
             <option value="featured">Sort: Featured</option>
             <option value="priceAsc">Sort: Price (Low → High)</option>
             <option value="priceDesc">Sort: Price (High → Low)</option>
           </select>
 
-          {/* ✅ Implemented filter button */}
-          <button type="button" onClick={handleFilterClick}>
-            {filterLabel}
-          </button>
+          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}>
+            <option value="all">All Stock Status</option>
+            <option value="In Stock">In Stock</option>
+            <option value="Low Stock">Low Stock</option>
+            <option value="Out of Stock">Out of Stock</option>
+          </select>
         </div>
 
         {loading ? (
