@@ -40,9 +40,12 @@
 }
 .id{font-weight: 900}
 .amount{text-align:right; font-weight:900}
-.part{font-weight:700}
+.part{font-weight:700; display:flex; flex-direction:column; gap:4px}
+.pName{font-weight:900; color:#111827}
+.pMeta{font-size:11px; color:#64748b; font-weight:800; display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.dot{opacity:.7; font-size:0; line-height:0}
+.dot::before{content:"|"; font-size:11px; line-height:1}
 .actions{display:flex; justify-content:flex-end}
-.btnDanger{ background: #ef4444; border-color: #ef4444; color:#fff; }
 .btn{
   border: 1px solid rgba(230,233,238,.9);
   background: #fff;
@@ -51,6 +54,7 @@
   font-weight: 800;
   cursor: pointer;
 }
+.btn.btnDanger{ background: #ef4444; border-color: #ef4444; color:#fff; }
 .btnPrimary{ background: var(--accent); border-color: var(--accent); color:#fff; }
 .btn:disabled{ opacity:.6; cursor:not-allowed; }
 @media (max-width: 980px){

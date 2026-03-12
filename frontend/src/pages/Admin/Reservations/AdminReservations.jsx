@@ -4,6 +4,14 @@ import Badge from "../../../components/Badge/Badge.jsx";
 import styles from "./AdminReservations.module.css";
 import { reservationsAPI } from "../../../api/reservations";
 
+const formatReservationId = (id) => {
+  const raw = String(id ?? "").trim();
+  if (!raw) return "-";
+  if (raw.toUpperCase().startsWith("RES-")) return raw;
+  const clean = raw.replace(/^#\s*/, "");
+  return `RES-${clean}`;
+};
+
 const normalizeStatusLabel = (rawStatus) => {
   const s = String(rawStatus || "").toUpperCase();
   if (s === "PENDING") return "Pending";
@@ -114,7 +122,12 @@ export default function AdminReservations() {
   };
 
   const cols = [
-    { key: "id", header: "ID", width: 80, render: (r) => <span className={styles.id}>#{r.id}</span> },
+    {
+      key: "id",
+      header: "ID",
+      width: 110,
+      render: (r) => <span className={styles.id}>{formatReservationId(r.id)}</span>,
+    },
     {
       key: "customer",
       header: "Customer",

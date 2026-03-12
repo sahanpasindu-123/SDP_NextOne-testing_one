@@ -43,12 +43,16 @@ async function createLowStockAlertIfNeeded(product) {
 // ?categoryId=1
 // ?placeId=2
 // ?q=search
+// ?limit=8
 // --------------------
 exports.getProducts = async (req, res) => {
   try {
     const categoryId = toNumberOrNull(req.query.categoryId);
     const placeId = toNumberOrNull(req.query.placeId);
     const q = req.query.q ? String(req.query.q).trim() : null;
+    const limitRaw = toNumberOrNull(req.query.limit);
+    const limit =
+      limitRaw !== null ? Math.min(Math.max(limitRaw, 1), 500) : null;
 
     const where = {};
     if (categoryId !== null) where.CategoryID = categoryId;
@@ -69,6 +73,7 @@ exports.getProducts = async (req, res) => {
         place: true,
       },
       orderBy: { CreatedAt: "desc" },
+      ...(limit ? { take: limit } : {}),
     });
 
     return res.json({

@@ -63,8 +63,6 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
             <h4>{product?.name || "Unnamed Product"}</h4>
 
             <div className={styles.meta}>
-              <div>Product ID: {product?.id || "N/A"}</div>
-              <div>Part No: {product?.partNo || product?.id || "N/A"}</div>
               <div className={styles.price}>
                 LKR {price.toLocaleString("en-LK")}.00
               </div>

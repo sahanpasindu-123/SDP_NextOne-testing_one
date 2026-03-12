@@ -53,16 +53,6 @@ const ProductModal = ({ isOpen, onClose, product, onReserve }) => {
             <h3>{safeName}</h3>
 
             <div className="info-row">
-              <span>Product ID:</span>
-              <span>{product?.partNo || product?.id || "N/A"}</span>
-            </div>
-
-            <div className="info-row">
-              <span>Category:</span>
-              <span>{product?.category || "N/A"}</span>
-            </div>
-
-            <div className="info-row">
               <span>Price:</span>
               <span className="price">
                 LKR {price.toLocaleString("en-LK")}.00

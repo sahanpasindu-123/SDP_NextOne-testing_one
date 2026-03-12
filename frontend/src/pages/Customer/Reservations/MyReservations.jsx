@@ -3,10 +3,19 @@ import styles from "./MyReservations.module.css";
 import Badge from "../../../components/Badge/Badge.jsx";
 import { reservationsAPI } from "../../../api/reservations";
 
+const formatReservationId = (id) => {
+  const raw = String(id ?? "").trim();
+  if (!raw) return "—";
+  if (raw.toUpperCase().startsWith("RES-")) return raw;
+  const clean = raw.replace(/^#\s*/, "");
+  return `RES-${clean}`;
+};
+
 const normalizeStatusLabel = (rawStatus) => {
   const s = String(rawStatus || "").toUpperCase();
   if (s === "PENDING") return "Pending";
-  if (s === "CONFIRMED") return "Approved";
+  if (s === "RESERVED") return "Reserved";
+  if (s === "CONFIRMED") return "Reserved";
   if (s === "COMPLETED") return "Completed";
   if (s === "REJECTED") return "Rejected";
   if (s === "CANCELLED") return "Cancelled";
@@ -42,6 +51,13 @@ export default function MyReservations() {
       setRows(
         list.map((r) => ({
           id: r.ReservationID,
+          productId: r.product?.ProductID ?? r.ProductID ?? r.productId ?? r.product?.productId ?? "-",
+          categoryCode:
+            r.product?.CategoryCode ??
+            r.product?.categoryCode ??
+            r.product?.category?.CategoryCode ??
+            r.product?.category?.categoryCode ??
+            "-",
           part: r.product?.Name ?? "—",
           qty: r.Quantity,
           date: formatDate(r.ReservedAt),
@@ -87,7 +103,7 @@ export default function MyReservations() {
       await reservationsAPI.cancelReservation(reservationId);
 
       if (!isMountedRef.current) return;
-      setMessage({ type: "success", text: "Reservation cancelled" });
+      setMessage({ type: "success", text: `Reservation ${formatReservationId(reservationId)} cancelled` });
       await load(); // re-fetch
     } catch (e) {
       console.error("cancel failed:", e);
@@ -105,7 +121,7 @@ export default function MyReservations() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1>My Reservations</h1>
-        <p>Track your reserved parts and status updates.</p>
+        <p>Track your reserved parts and reservation updates.</p>
       </div>
 
       {message ? (
@@ -117,7 +133,7 @@ export default function MyReservations() {
       <div className={styles.card}>
         <div className={styles.tHead}>
           <div>Reservation</div>
-          <div>Part</div>
+          <div>Product</div>
           <div>Qty</div>
           <div>Date</div>
           <div>Status</div>
@@ -136,15 +152,22 @@ export default function MyReservations() {
         ) : (
           rows.map((r) => (
             <div key={r.id} className={styles.tRow}>
-              <div className={styles.id}>#{r.id}</div>
-              <div className={styles.part}>{r.part}</div>
+              <div className={styles.id}>{formatReservationId(r.id)}</div>
+              <div className={styles.part}>
+                <div className={styles.pName}>{r.part}</div>
+                <div className={styles.pMeta}>
+                  <span>Product ID: {r.productId}</span>
+                  <span className={styles.dot}>•</span>
+                  <span>Category: {r.categoryCode}</span>
+                </div>
+              </div>
               <div>{r.qty}</div>
               <div>{r.date}</div>
               <div>
                 {r.status === "Pending" ? (
                   <Badge tone="warn">Pending</Badge>
-                ) : r.status === "Approved" ? (
-                  <Badge tone="info">Approved</Badge>
+                ) : r.status === "Reserved" ? (
+                  <Badge tone="info">Reserved</Badge>
                 ) : r.status === "Completed" ? (
                   <Badge tone="success">Completed</Badge>
                 ) : r.status === "Rejected" ? (
@@ -156,7 +179,7 @@ export default function MyReservations() {
               <div className={styles.amount}>{r.amount}</div>
 
               <div className={styles.actions}>
-                {r.rawStatus === "PENDING" ? (
+                {r.rawStatus === "PENDING" || r.rawStatus === "RESERVED" || r.rawStatus === "CONFIRMED" ? (
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button
                       type="button"

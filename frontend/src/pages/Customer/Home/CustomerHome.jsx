@@ -11,7 +11,8 @@ import heroBg from "../../../assets/JCB_IMG/img5.jpg";
 
 export default function CustomerHome() {
   const isMountedRef = useRef(true);
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [newArrivalsProducts, setNewArrivalsProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -22,62 +23,63 @@ export default function CustomerHome() {
   const PAGE_SIZE = 12;
 
   const [q, setQ] = useState("");
+  const NEW_ARRIVALS_LIMIT = 8;
 
-  const filteredProducts = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    if (!query) return products;
+  const filterByQuery = useCallback((list, query) => {
+    const qText = String(query || "").trim().toLowerCase();
+    if (!qText) return Array.isArray(list) ? list : [];
 
-    return products.filter((p) => {
+    return (Array.isArray(list) ? list : []).filter((p) => {
       return (
-        String(p?.name || "").toLowerCase().includes(query) ||
-        String(p?.productCode || "").toLowerCase().includes(query) ||
-        String(p?.category || "").toLowerCase().includes(query)
+        String(p?.productId || p?.id || "").toLowerCase().includes(qText) ||
+        String(p?.name || p?.productName || "").toLowerCase().includes(qText) ||
+        String(p?.categoryCode || p?.CategoryCode || p?.category || "").toLowerCase().includes(qText) ||
+        String(p?.productCode || "").toLowerCase().includes(qText)
       );
     });
-  }, [products, q]);
+  }, []);
 
-  const newArrivals = useMemo(() => {
-    const withCreated = filteredProducts.filter((p) => p.createdAt);
-    const base = withCreated.length > 0 ? withCreated : filteredProducts;
+  const filteredAllProducts = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    return filterByQuery(allProducts, query);
+  }, [allProducts, filterByQuery, q]);
 
-    return [...base]
-      .sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        }
-
-        const ai = Number(a.id) || 0;
-        const bi = Number(b.id) || 0;
-        return bi - ai;
-      })
-      .slice(0, 6);
-  }, [filteredProducts]);
-
-  const allProductsOnly = useMemo(() => {
-    const arrivalIds = new Set(newArrivals.map((p) => String(p.id)));
-    return filteredProducts.filter((p) => !arrivalIds.has(String(p.id)));
-  }, [filteredProducts, newArrivals]);
+  const filteredNewArrivals = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    return filterByQuery(newArrivalsProducts, query);
+  }, [newArrivalsProducts, filterByQuery, q]);
 
   const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(allProductsOnly.length / PAGE_SIZE));
-  }, [allProductsOnly.length]);
+    return Math.max(1, Math.ceil(filteredAllProducts.length / PAGE_SIZE));
+  }, [filteredAllProducts.length]);
 
   const pagedProducts = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return allProductsOnly.slice(start, start + PAGE_SIZE);
-  }, [allProductsOnly, page]);
+    return filteredAllProducts.slice(start, start + PAGE_SIZE);
+  }, [filteredAllProducts, page]);
 
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      const res = await productsAPI.getProducts();
-      const list = res?.data || [];
-      const mapped = Array.isArray(list) ? list.map(mapApiProductToCard) : [];
+      const [allRes, newRes] = await Promise.all([
+        productsAPI.getProducts(),
+        productsAPI.getProducts({ limit: NEW_ARRIVALS_LIMIT }),
+      ]);
+
+      const allList = allRes?.data || [];
+      const newList = newRes?.data || [];
+      const mappedAll = Array.isArray(allList)
+        ? allList.map((item, index) => mapApiProductToCard(item, index))
+        : [];
+      const mappedNew = Array.isArray(newList)
+        ? newList.map((item, index) => mapApiProductToCard(item, index))
+        : [];
 
       if (!isMountedRef.current) return;
-      setProducts(mapped);
+      setAllProducts(mappedAll);
+      setNewArrivalsProducts(mappedNew);
     } catch (err) {
       const status = err?.status;
 
@@ -92,14 +94,15 @@ export default function CustomerHome() {
       }
 
       if (isMountedRef.current) {
-        setProducts([]);
+        setAllProducts([]);
+        setNewArrivalsProducts([]);
       }
     } finally {
       if (isMountedRef.current) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [NEW_ARRIVALS_LIMIT]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -115,10 +118,10 @@ export default function CustomerHome() {
     setDetailProduct(product);
 
     try {
-      const id = product?.id;
-      if (!id) return;
+      const productId = product?.productId ?? product?.id;
+      if (!productId) return;
 
-      const res = await productsAPI.getProductById(id);
+      const res = await productsAPI.getProductById(productId);
       const apiProduct = res?.success ? res?.data : null;
       if (!apiProduct) return;
 
@@ -127,7 +130,8 @@ export default function CustomerHome() {
       if (!isMountedRef.current) return;
 
       setDetailProduct((prev) => {
-        if (!prev || String(prev.id) !== String(id)) return prev;
+        const prevId = prev?.productId ?? prev?.id;
+        if (!prev || String(prevId) !== String(productId)) return prev;
         const nextImage = mapped.image || prev.image || null;
         return { ...prev, ...mapped, image: nextImage };
       });
@@ -144,11 +148,12 @@ export default function CustomerHome() {
   const handleReserveConfirm = async (product, qty) => {
     const qNum = Math.max(1, Number(qty) || 1);
 
-    if (!product?.id) {
-      throw new Error("Missing product id");
+    const productId = product?.productId ?? product?.id;
+    if (!productId) {
+      throw new Error("Missing productId");
     }
 
-    await reservationsAPI.createReservation(product.id, qNum);
+    await reservationsAPI.createReservation(productId, qNum);
     await fetchProducts();
   };
 
@@ -228,17 +233,17 @@ export default function CustomerHome() {
             <p style={{ marginTop: 12, color: "crimson" }}>{error}</p>
           )}
 
-          {!loading && !error && filteredProducts.length === 0 && (
+          {!loading && !error && filteredAllProducts.length === 0 && (
             <p style={{ marginTop: 12 }}>No products available.</p>
           )}
 
-          {!loading && !error && newArrivals.length > 0 && (
+          {!loading && !error && filteredNewArrivals.length > 0 && (
             <>
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>New Arrivals</h3>
               <div className={styles.grid}>
-                {newArrivals.map((p) => (
+                {filteredNewArrivals.map((p) => (
                   <ProductCard
-                    key={`new-${p.id}`}
+                    key={`new-${p.productId || p.id}`}
                     product={p}
                     onReserve={openReserve}
                     onViewDetails={openDetails}
@@ -248,13 +253,13 @@ export default function CustomerHome() {
             </>
           )}
 
-          {!loading && !error && allProductsOnly.length > 0 && (
+          {!loading && !error && filteredAllProducts.length > 0 && (
             <>
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>All Products</h3>
               <div className={styles.grid}>
                 {pagedProducts.map((p) => (
                   <ProductCard
-                    key={p.id}
+                    key={p.productId || p.id}
                     product={p}
                     onReserve={openReserve}
                     onViewDetails={openDetails}

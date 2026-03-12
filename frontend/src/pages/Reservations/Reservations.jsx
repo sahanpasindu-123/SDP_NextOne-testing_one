@@ -7,6 +7,14 @@ import Badge from "../../components/Badge/Badge.jsx";
 import Table from "../../components/Table/Table.jsx";
 import styles from "./Reservations.module.css";
 
+const formatReservationId = (id) => {
+  const raw = String(id ?? "").trim();
+  if (!raw) return "-";
+  if (raw.toUpperCase().startsWith("RES-")) return raw;
+  const clean = raw.replace(/^#\s*/, "");
+  return `RES-${clean}`;
+};
+
 export default function Reservations() {
   const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");
@@ -155,8 +163,8 @@ export default function Reservations() {
     {
       key: "id",
       header: "ID",
-      width: 70,
-      render: (r) => <span className={styles.id}>{r.id}</span>,
+      width: 110,
+      render: (r) => <span className={styles.id}>{formatReservationId(r.id)}</span>,
     },
     {
       key: "customer",

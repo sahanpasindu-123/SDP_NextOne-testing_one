@@ -40,6 +40,25 @@
   font-size: 14px;
 }
 
+.stockStatusFilter{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.stockStatusLabel{
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.stockStatusFilter select{
+  flex: 1;
+  width: 100%;
+}
+
 .grid{
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -3,22 +3,62 @@ import styles from "./ProductCard.module.css";
 import Badge from "../Badge/Badge.jsx";
 import { FiEye, FiShoppingCart } from "react-icons/fi";
 
+function isMeaningfulValue(value) {
+  if (value == null) return false;
+
+  const text = String(value).trim();
+  if (!text) return false;
+
+  const normalized = text.toLowerCase();
+  if (normalized === "n/a") return false;
+  if (normalized === "na") return false;
+  if (normalized === "null") return false;
+  if (normalized === "undefined") return false;
+  if (normalized === "-") return false;
+
+  return true;
+}
+
+function firstMeaningful(...candidates) {
+  for (const candidate of candidates) {
+    if (isMeaningfulValue(candidate)) return String(candidate).trim();
+  }
+  return "";
+}
+
 export default function ProductCard({ product, onReserve, onViewDetails }) {
   const safeProduct = product || {};
-  const isLow = safeProduct.stockLabel === "Low Stock";
   const available = Number(safeProduct.available ?? 0);
+  const lowThreshold = Number(safeProduct.lowStockThreshold ?? safeProduct.stockLimit ?? 0) || 5;
+  const stockLabel =
+    safeProduct.stockLabel ||
+    (available <= 0 ? "Out of Stock" : available <= lowThreshold ? "Low Stock" : "In Stock");
   const [imageError, setImageError] = useState(false);
+  const displayName = firstMeaningful(safeProduct.productName, safeProduct.name) || "Unnamed Product";
+  const effectiveId = firstMeaningful(
+    safeProduct.productId,
+    safeProduct.id,
+    safeProduct.partId,
+    safeProduct.partNo,
+    safeProduct.ProductID,
+    safeProduct.PartID
+  );
+  const stockText = `${stockLabel}${Number.isFinite(available) ? ` (${available} available)` : ""}`;
 
   const handleReserve = () => {
     console.log("[ProductCard] Reserve click", safeProduct);
     if (!onReserve) return;
-    onReserve(safeProduct);
+    onReserve(
+      effectiveId
+        ? { ...safeProduct, productId: effectiveId, id: effectiveId }
+        : safeProduct
+    );
   };
 
   const handleViewDetails = () => {
     if (!onViewDetails) return;
-    if (!safeProduct?.id) return;
-    onViewDetails(safeProduct);
+    if (!effectiveId) return;
+    onViewDetails({ ...safeProduct, productId: effectiveId, id: effectiveId });
   };
 
   const handleImageError = () => {
@@ -59,10 +99,12 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
 
       <div className={styles.body}>
         <div className={styles.row1}>
-          <div className={styles.name}>{safeProduct.name || "Unnamed Product"}</div>
+          <div className={styles.name}>{displayName}</div>
 
           <div className={styles.stock}>
-            {isLow ? (
+            {stockLabel === "Out of Stock" ? (
+              <Badge tone="danger">Out of Stock</Badge>
+            ) : stockLabel === "Low Stock" ? (
               <Badge tone="danger">Low Stock</Badge>
             ) : (
               <Badge tone="success">In Stock</Badge>
@@ -70,25 +112,19 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
           </div>
         </div>
 
-        <div className={styles.metaWrap}>
-          <div className={styles.metaRow}>
-            <span className={styles.metaLabel}>Product ID:</span>
-            <span>{safeProduct.productCode || "N/A"}</span>
-          </div>
-
-          <div className={styles.metaRow}>
-            <span className={styles.metaLabel}>Category:</span>
-            <span>{safeProduct.category || "Uncategorized"}</span>
-          </div>
-        </div>
-
         <div className={styles.desc}>{safeProduct.desc || "No description available."}</div>
 
         <div className={styles.priceRow}>
-          <div className={styles.price}>
-            LKR {Number(safeProduct.price || 0).toLocaleString("en-LK")}.00
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Price:</span>
+            <span className={styles.price}>
+              LKR {Number(safeProduct.price || 0).toLocaleString("en-LK")}.00
+            </span>
           </div>
-          <div className={styles.avail}>{available} available</div>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Stock:</span>
+            <span className={styles.avail}>{stockText}</span>
+          </div>
         </div>
 
         <div className={styles.btnRow}>

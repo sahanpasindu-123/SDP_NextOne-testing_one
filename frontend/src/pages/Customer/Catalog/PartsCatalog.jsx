@@ -17,6 +17,7 @@ import prodImg5 from "../../../assets/JCB_IMG/img5.jpg";
 import prodImg6 from "../../../assets/JCB_IMG/img6.jpg";
 
 const productImages = [prodImg1, prodImg2, prodImg3, prodImg4, prodImg5, prodImg6];
+const FALLBACK_LOW_STOCK_THRESHOLD = 5;
 
 export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -34,9 +35,35 @@ export function buildImageUrl(imageUrl) {
 export function mapApiProductToCard(p, i = 0) {
   const src = p || {};
 
-  const id = src.ProductID ?? src.id ?? src.productId ?? null;
-  const stockRaw = Number(src.Stock ?? src.stock ?? 0);
+  const rawId = src.productId ?? src.ProductID ?? src.id ?? null;
+  const id = rawId != null ? String(rawId) : "";
+
+  const stockRaw = Number(
+    src.Stock ??
+      src.stock ??
+      src.quantity ??
+      src.qty ??
+      src.availableStock ??
+      src.inventoryCount ??
+      src.InventoryCount ??
+      0
+  );
   const stock = Number.isFinite(stockRaw) ? stockRaw : 0;
+
+  const stockLimitRaw = Number(
+    src.StockLimit ??
+      src.stockLimit ??
+      src.minQty ??
+      src.MinQty ??
+      src.minimumStock ??
+      src.reorderLevel ??
+      0
+  );
+  const stockLimit =
+    Number.isFinite(stockLimitRaw) && stockLimitRaw > 0 ? stockLimitRaw : 0;
+
+  const lowStockThreshold =
+    stockLimit > 0 ? stockLimit : FALLBACK_LOW_STOCK_THRESHOLD;
 
   const name = src.Name ?? src.name ?? "";
   const desc = src.Description ?? src.desc ?? "";
@@ -46,12 +73,20 @@ export function mapApiProductToCard(p, i = 0) {
   const imageUrl = src.ImageURL ?? src.imageUrl ?? src.image ?? null;
   const categoryId = src.CategoryID ?? src.categoryId ?? null;
 
+  const categoryCode =
+    src.CategoryCode ??
+    src.categoryCode ??
+    src.category?.CategoryCode ??
+    src.category?.categoryCode ??
+    "";
+
   const categoryName =
     src.CategoryName ??
     src.categoryName ??
     src.category?.Name ??
+    src.category?.name ??
     src.category ??
-    "Uncategorized";
+    "";
 
   const productCode =
     src.ProductCode ??
@@ -60,18 +95,33 @@ export function mapApiProductToCard(p, i = 0) {
     src.sku ??
     "";
 
+  const createdAt = src.CreatedAt ?? src.createdAt ?? null;
+
   return {
     id,
+    productId: id,
+    partNo: id, // Reserve/details modal ekedi Product ID widihata use karanna
+    productName: String(name || ""),
     name: String(name || ""),
     productCode: String(productCode || ""),
-    category: String(categoryName || "Uncategorized"),
-    categoryId,
+    CategoryCode: String(categoryCode || ""),
+    categoryCode: String(categoryCode || ""),
+    categoryName: String(categoryName || ""),
+    category: String(categoryCode || categoryName || "Uncategorized"),
+    categoryId: categoryId != null ? String(categoryId) : "",
     desc: String(desc || "") || "—",
     price,
     available: stock,
-    stockLabel: stock <= 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock",
+    stockLimit,
+    lowStockThreshold,
+    stockLabel:
+      stock <= 0
+        ? "Out of Stock"
+        : stock <= lowStockThreshold
+          ? "Low Stock"
+          : "In Stock",
     image: buildImageUrl(imageUrl) || productImages[(Number(i) || 0) % productImages.length],
-    createdAt: src.CreatedAt ?? src.createdAt ?? null,
+    createdAt,
   };
 }
 
@@ -80,49 +130,76 @@ export default function PartsCatalog() {
   const [searchParams] = useSearchParams();
   const { categories, loadingCategories, refreshCategories } = useCategories();
 
-  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({
+    query: "",
+    category: "all",
+    sort: "featured",
+    stockStatus: "all", // all | in | low | out
+  });
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [detailProduct, setDetailProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [category, setCategory] = useState("all");
-  const [sort, setSort] = useState("featured");
-  const [stockFilter, setStockFilter] = useState("all");
-
   const filteredProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = products;
+    const q = String(filters.query || "").trim().toLowerCase();
+    let list = [...products];
 
     if (q) {
-      list = list.filter(
-        (p) =>
+      list = list.filter((p) => {
+        return (
           String(p?.name || "").toLowerCase().includes(q) ||
+          String(p?.productId || "").toLowerCase().includes(q) ||
           String(p?.productCode || "").toLowerCase().includes(q) ||
-          String(p?.category || "").toLowerCase().includes(q) ||
+          String(p?.CategoryCode || p?.categoryCode || p?.category || "")
+            .toLowerCase()
+            .includes(q) ||
           String(p?.desc || "").toLowerCase().includes(q)
-      );
+        );
+      });
     }
 
-    if (category !== "all") {
-      list = list.filter((p) => String(p?.categoryId ?? "") === String(category));
+    if (filters.category !== "all") {
+      list = list.filter((p) => {
+        const productCategoryCode = String(p?.CategoryCode ?? p?.categoryCode ?? "").trim();
+        if (productCategoryCode) return productCategoryCode === String(filters.category);
+
+        // Back-compat: some payloads still rely on CategoryID-based filtering.
+        const productCategoryId = String(p?.categoryId ?? p?.CategoryID ?? "").trim();
+        return productCategoryId === String(filters.category);
+      });
     }
 
-    if (stockFilter !== "all") {
-      list = list.filter((p) => p.stockLabel === stockFilter);
+    if (filters.stockStatus !== "all") {
+      list = list.filter((p) => {
+        const available = Number(p?.available ?? p?.stock ?? 0) || 0;
+        const lowThreshold =
+          Number(p?.lowStockThreshold ?? p?.stockLimit ?? 0) ||
+          FALLBACK_LOW_STOCK_THRESHOLD;
+
+        if (filters.stockStatus === "in") return available > lowThreshold;
+        if (filters.stockStatus === "low")
+          return available > 0 && available <= lowThreshold;
+        if (filters.stockStatus === "out") return available === 0;
+        return true;
+      });
     }
 
-    if (sort === "priceAsc") {
-      list = [...list].sort((a, b) => a.price - b.price);
-    }
-
-    if (sort === "priceDesc") {
-      list = [...list].sort((a, b) => b.price - a.price);
+    if (filters.sort === "priceAsc") {
+      list.sort((a, b) => a.price - b.price);
+    } else if (filters.sort === "priceDesc") {
+      list.sort((a, b) => b.price - a.price);
+    } else if (filters.sort === "featured") {
+      list.sort((a, b) => {
+        const aDate = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bDate = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bDate - aDate;
+      });
     }
 
     return list;
-  }, [query, products, category, sort, stockFilter]);
+  }, [filters, products]);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -150,6 +227,7 @@ export default function PartsCatalog() {
 
   useEffect(() => {
     const safeCategories = Array.isArray(categories) ? categories : [];
+
     if (!loadingCategories && safeCategories.length === 0) {
       refreshCategories().catch(() => {});
     }
@@ -161,10 +239,17 @@ export default function PartsCatalog() {
     const categoryNameParam = searchParams.get("category");
 
     if (categoryIdParam) {
-      const exists = safeCategories.some(
+      const match = safeCategories.find(
         (c) => String(c?.CategoryID) === String(categoryIdParam)
       );
-      if (exists) setCategory(String(categoryIdParam));
+
+      if (match) {
+        setFilters((prev) => ({
+          ...prev,
+          category: String(match?.CategoryCode ?? match?.CategoryID ?? categoryIdParam),
+        }));
+      }
+
       return;
     }
 
@@ -174,12 +259,19 @@ export default function PartsCatalog() {
     const wanted = String(categoryNameParam).trim().toLowerCase();
     if (!wanted) return;
 
-    const match = safeCategories.find(
-      (c) => String(c?.Name || "").trim().toLowerCase() === wanted
-    );
+    const match =
+      safeCategories.find(
+        (c) => String(c?.CategoryCode || "").trim().toLowerCase() === wanted
+      ) ||
+      safeCategories.find(
+        (c) => String(c?.Name || "").trim().toLowerCase() === wanted
+      );
 
-    if (match?.CategoryID != null) {
-      setCategory(String(match.CategoryID));
+    if (match?.CategoryCode || match?.CategoryID != null) {
+      setFilters((prev) => ({
+        ...prev,
+        category: String(match?.CategoryCode ?? match?.CategoryID),
+      }));
     }
   }, [categories, searchParams]);
 
@@ -197,7 +289,7 @@ export default function PartsCatalog() {
     setDetailProduct(product);
 
     try {
-      const id = product?.id;
+      const id = product?.productId;
       if (!id) return;
 
       const res = await productsAPI.getProductById(id);
@@ -209,9 +301,13 @@ export default function PartsCatalog() {
       if (!isMountedRef.current) return;
 
       setDetailProduct((prev) => {
-        if (!prev || String(prev.id) !== String(id)) return prev;
-        const nextImage = mapped.image || prev.image || null;
-        return { ...prev, ...mapped, image: nextImage };
+        if (!prev || String(prev.productId) !== String(id)) return prev;
+
+        return {
+          ...prev,
+          ...mapped,
+          image: mapped.image || prev.image || null,
+        };
       });
     } catch (e) {
       console.warn("openDetails() hydrate failed:", e?.message || e);
@@ -224,8 +320,10 @@ export default function PartsCatalog() {
   };
 
   const handleReserveConfirm = async (product, qty) => {
-    if (!product?.id) return;
-    await reservationsAPI.createReservation(product.id, qty);
+    const id = product?.productId;
+    if (!id) return;
+
+    await reservationsAPI.createReservation(id, qty);
     await loadProducts();
   };
 
@@ -240,31 +338,56 @@ export default function PartsCatalog() {
         <div className={styles.filters}>
           <input
             placeholder="Search by name, product ID, category..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={filters.query}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, query: e.target.value }))
+            }
           />
 
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select
+            value={filters.category}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, category: e.target.value }))
+            }
+          >
             <option value="all">All Categories</option>
             {(Array.isArray(categories) ? categories : []).map((c) => (
-              <option key={c?.CategoryID} value={String(c?.CategoryID)}>
+              <option
+                key={String(c?.CategoryCode ?? c?.CategoryID)}
+                value={String(c?.CategoryCode ?? c?.CategoryID)}
+              >
                 {c?.Name || `Category ${c?.CategoryID}`}
               </option>
             ))}
           </select>
 
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
+          <select
+            value={filters.sort}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, sort: e.target.value }))
+            }
+          >
             <option value="featured">Sort: Featured</option>
             <option value="priceAsc">Sort: Price (Low → High)</option>
             <option value="priceDesc">Sort: Price (High → Low)</option>
           </select>
 
-          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}>
-            <option value="all">All Stock Status</option>
-            <option value="In Stock">In Stock</option>
-            <option value="Low Stock">Low Stock</option>
-            <option value="Out of Stock">Out of Stock</option>
-          </select>
+          <label className={styles.stockStatusFilter}>
+            <span className={styles.stockStatusLabel}>Stock Status</span>
+            <select
+              value={filters.stockStatus}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, stockStatus: e.target.value }))
+              }
+              aria-label="Stock Status"
+              title="Stock Status"
+            >
+              <option value="all">All</option>
+              <option value="in">In Stock</option>
+              <option value="low">Low Stock</option>
+              <option value="out">Out of Stock</option>
+            </select>
+          </label>
         </div>
 
         {loading ? (
@@ -280,7 +403,7 @@ export default function PartsCatalog() {
           <div className={styles.grid}>
             {filteredProducts.map((p) => (
               <ProductCard
-                key={p.id}
+                key={p.productId}
                 product={p}
                 onReserve={openReserve}
                 onViewDetails={openDetails}
