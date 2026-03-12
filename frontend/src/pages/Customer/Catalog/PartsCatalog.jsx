@@ -23,48 +23,54 @@ export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/a
 export function buildImageUrl(imageUrl) {
   if (!imageUrl) return null;
 
-  // If already a full URL, return as-is
   if (String(imageUrl).startsWith("http")) return imageUrl;
 
-  // Get the base URL without the /api suffix
   const baseUrl = String(API_BASE).replace(/\/api\/?$/, "");
-
-  // Ensure the image URL starts with /
   const cleanImageUrl = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
 
-  // Construct the full URL
   return `${baseUrl}${cleanImageUrl}`;
 }
 
-export function mapApiProductToCard(p, i) {
+export function mapApiProductToCard(p, i = 0) {
   const src = p || {};
+
   const id = src.ProductID ?? src.id ?? src.productId ?? null;
   const stockRaw = Number(src.Stock ?? src.stock ?? 0);
   const stock = Number.isFinite(stockRaw) ? stockRaw : 0;
+
   const name = src.Name ?? src.name ?? "";
   const desc = src.Description ?? src.desc ?? "";
   const priceRaw = Number(src.Price ?? src.price ?? 0);
   const price = Number.isFinite(priceRaw) ? priceRaw : 0;
+
   const imageUrl = src.ImageURL ?? src.imageUrl ?? src.image ?? null;
   const categoryId = src.CategoryID ?? src.categoryId ?? null;
+
   const categoryName =
     src.CategoryName ??
     src.categoryName ??
     src.category?.Name ??
     src.category ??
-    null;
+    "Uncategorized";
+
+  const productCode =
+    src.ProductCode ??
+    src.productCode ??
+    src.SKU ??
+    src.sku ??
+    "";
 
   return {
     id,
     name: String(name || ""),
-    partNo: id != null ? `#${id}` : "#",
+    productCode: String(productCode || ""),
+    category: String(categoryName || "Uncategorized"),
+    categoryId,
     desc: String(desc || "") || "—",
     price,
     available: stock,
     stockLabel: stock <= 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock",
     image: buildImageUrl(imageUrl) || productImages[(Number(i) || 0) % productImages.length],
-    categoryId,
-    category: categoryName ? String(categoryName) : null,
     createdAt: src.CreatedAt ?? src.createdAt ?? null,
   };
 }
@@ -81,7 +87,6 @@ export default function PartsCatalog() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // controls
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("featured");
   const [stockFilter, setStockFilter] = useState("all");
@@ -90,27 +95,24 @@ export default function PartsCatalog() {
     const q = query.trim().toLowerCase();
     let list = products;
 
-    // Search
     if (q) {
       list = list.filter(
         (p) =>
           String(p?.name || "").toLowerCase().includes(q) ||
-          String(p?.partNo || "").toLowerCase().includes(q) ||
+          String(p?.productCode || "").toLowerCase().includes(q) ||
+          String(p?.category || "").toLowerCase().includes(q) ||
           String(p?.desc || "").toLowerCase().includes(q)
       );
     }
 
-    // Category filter
     if (category !== "all") {
       list = list.filter((p) => String(p?.categoryId ?? "") === String(category));
     }
 
-    // Stock filter
     if (stockFilter !== "all") {
       list = list.filter((p) => p.stockLabel === stockFilter);
     }
 
-    // Sort
     if (sort === "priceAsc") {
       list = [...list].sort((a, b) => a.price - b.price);
     }
@@ -126,12 +128,13 @@ export default function PartsCatalog() {
     try {
       setError(null);
       setLoading(true);
+
       const res = await productsAPI.getProducts();
       const list = Array.isArray(res?.data) ? res.data : [];
 
       if (!isMountedRef.current) return;
 
-      setProducts(list.map(mapApiProductToCard));
+      setProducts(list.map((item, index) => mapApiProductToCard(item, index)));
     } catch (e) {
       console.error("load products failed:", e);
       if (isMountedRef.current) {
@@ -145,7 +148,6 @@ export default function PartsCatalog() {
     }
   }, []);
 
-  // Ensure categories load for dropdown
   useEffect(() => {
     const safeCategories = Array.isArray(categories) ? categories : [];
     if (!loadingCategories && safeCategories.length === 0) {
@@ -153,7 +155,6 @@ export default function PartsCatalog() {
     }
   }, [categories, loadingCategories, refreshCategories]);
 
-  // Apply category from URL
   useEffect(() => {
     const safeCategories = Array.isArray(categories) ? categories : [];
     const categoryIdParam = searchParams.get("categoryId");
@@ -238,7 +239,7 @@ export default function PartsCatalog() {
 
         <div className={styles.filters}>
           <input
-            placeholder="Search parts..."
+            placeholder="Search by name, product ID, category..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

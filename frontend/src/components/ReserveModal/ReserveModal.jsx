@@ -14,16 +14,17 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
 
   if (!product) return null;
 
-  const price = Number(product.price);
+  const price = Number(product?.price) || 0;
+  const available = Number(product?.available) || 0;
   const subtotal = qty * price;
   const handleClose = () => onClose?.();
 
   const handleConfirm = () => {
     if (typeof onConfirm !== "function") return;
-    const max = Number(product?.available);
+
     const safeQty = Math.max(1, Number(qty) || 1);
 
-    if (Number.isFinite(max) && safeQty > max) {
+    if (Number.isFinite(available) && safeQty > available) {
       alert("Not enough stock available");
       return;
     }
@@ -35,7 +36,6 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
         onClose?.();
       })
       .catch((e) => {
-        // onConfirm should throw normalized error from axiosClient
         alert(e?.message || "Reservation failed");
       })
       .finally(() => setSubmitting(false));
@@ -44,7 +44,6 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
   return (
     <div className={styles.overlay} onClick={handleClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {/* HEADER */}
         <div className={styles.header}>
           <h3>Reserve Part</h3>
           <button className={styles.closeBtn} onClick={handleClose}>
@@ -52,17 +51,20 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
           </button>
         </div>
 
-        {/* CONTENT */}
         <div className={styles.content}>
           <div className={styles.left}>
-            <img src={product?.image || undefined} alt={product.name} />
+            <img
+              src={product?.image || undefined}
+              alt={product?.name || "Product image"}
+            />
           </div>
 
           <div className={styles.right}>
-            <h4>{product.name}</h4>
+            <h4>{product?.name || "Unnamed Product"}</h4>
 
             <div className={styles.meta}>
-              <div>Part No: {product.partNo}</div>
+              <div>Product ID: {product?.id || "N/A"}</div>
+              <div>Part No: {product?.partNo || product?.id || "N/A"}</div>
               <div className={styles.price}>
                 LKR {price.toLocaleString("en-LK")}.00
               </div>
@@ -72,6 +74,7 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
               <div className={styles.label}>Reserve Quantity</div>
               <div className={styles.qty}>
                 <button
+                  type="button"
                   onClick={() =>
                     setQty((q) => {
                       const current = Number(q);
@@ -82,15 +85,21 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
                 >
                   <FiMinus />
                 </button>
+
                 <span>{qty}</span>
+
                 <button
+                  type="button"
                   onClick={() =>
                     setQty((q) => {
                       const current = Number(q);
                       const safeCurrent = Number.isFinite(current) ? current : 1;
-                      const max = Number(product?.available);
-                      if (!Number.isFinite(max) || max <= 0) return safeCurrent;
-                      return Math.min(max, safeCurrent + 1);
+
+                      if (!Number.isFinite(available) || available <= 0) {
+                        return safeCurrent;
+                      }
+
+                      return Math.min(available, safeCurrent + 1);
                     })
                   }
                 >
@@ -101,29 +110,29 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
 
             <div className={styles.section}>
               <div className={styles.label}>Available Stock</div>
-              <div className={styles.stock}>
-                {product.available} units
-              </div>
+              <div className={styles.stock}>{available} units</div>
             </div>
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className={styles.footer}>
           <div className={styles.totals}>
             <div>
               <span>Subtotal</span>
-              <span>
-                LKR {subtotal.toLocaleString("en-LK")}.00
-              </span>
+              <span>LKR {subtotal.toLocaleString("en-LK")}.00</span>
             </div>
           </div>
 
           <div className={styles.actions}>
-            <button className={styles.cancel} onClick={handleClose}>
+            <button
+              type="button"
+              className={styles.cancel}
+              onClick={handleClose}
+            >
               Cancel
             </button>
             <button
+              type="button"
               className={styles.confirm}
               onClick={handleConfirm}
               disabled={submitting}

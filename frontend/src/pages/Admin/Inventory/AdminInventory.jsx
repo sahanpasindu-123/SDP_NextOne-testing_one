@@ -35,8 +35,6 @@ export default function AdminInventory() {
   const isMountedRef = useRef(true);
   const pollRef = useRef(null);
 
-
-  //  Shared categories (real-time)
   const { categories: categoryList, refreshCategories } = useCategories();
 
   const fetchProducts = useCallback(async () => {
@@ -70,7 +68,9 @@ export default function AdminInventory() {
   useEffect(() => {
     debouncedQRef.current = debouncedQ;
     fetchProducts();
-    refreshCategories().catch((e) => console.error("refreshCategories failed:", e));
+    refreshCategories().catch((e) =>
+      console.error("refreshCategories failed:", e)
+    );
   }, [debouncedQ, fetchProducts, refreshCategories]);
 
   useEffect(() => {
@@ -87,7 +87,9 @@ export default function AdminInventory() {
       if (pollRef.current) return;
       pollRef.current = setInterval(() => {
         if (document.visibilityState !== "visible") return;
-        fetchProducts().catch((e) => console.error("poll products failed:", e));
+        fetchProducts().catch((e) =>
+          console.error("poll products failed:", e)
+        );
       }, POLL_MS);
     };
 
@@ -107,14 +109,14 @@ export default function AdminInventory() {
       document.removeEventListener("visibilitychange", handleVisibility);
       stopPolling();
     };
-  }, [POLL_MS, fetchProducts]);
+  }, [fetchProducts]);
 
   const rows = useMemo(() => {
     const safeProducts = Array.isArray(products) ? products : [];
     return safeProducts.map((p) => ({
       id: p.ProductID,
       name: p.Name,
-      sku: String(p.ProductID),
+      sku: p.ProductCode || "N/A",
       category: p.CategoryName || "N/A",
       stock: p.Stock,
       price: `Rs ${Number(p.Price).toLocaleString()}`,
@@ -128,7 +130,7 @@ export default function AdminInventory() {
 
   const cols = [
     { key: "name", header: "Item Name" },
-    { key: "sku", header: "SKU", width: 140 },
+    { key: "sku", header: "Product ID", width: 140 },
     { key: "category", header: "Category", width: 180 },
     { key: "stock", header: "Stock", width: 110 },
     { key: "price", header: "Price", width: 140 },
@@ -158,7 +160,11 @@ export default function AdminInventory() {
             }}
             title="Edit"
             disabled={isSubmitting}
-            style={isSubmitting ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+            style={
+              isSubmitting
+                ? { opacity: 0.6, cursor: "not-allowed" }
+                : undefined
+            }
           >
             <FiEdit2 />
           </button>
@@ -166,12 +172,15 @@ export default function AdminInventory() {
           <button
             className={`${styles.iconBtn} ${styles.trash}`}
             onClick={() => {
-            navigate(`${base}/inventory/delete/${r.id}`);
+              navigate(`${base}/inventory/delete/${r.id}`);
             }}
-
             title="Delete"
             disabled={isSubmitting}
-            style={isSubmitting ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+            style={
+              isSubmitting
+                ? { opacity: 0.6, cursor: "not-allowed" }
+                : undefined
+            }
           >
             <FiTrash2 />
           </button>
@@ -185,7 +194,11 @@ export default function AdminInventory() {
             }}
             title="Update image"
             disabled={isSubmitting}
-            style={isSubmitting ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+            style={
+              isSubmitting
+                ? { opacity: 0.6, cursor: "not-allowed" }
+                : undefined
+            }
           >
             Img
           </button>
@@ -196,27 +209,27 @@ export default function AdminInventory() {
 
   const handleAddSubmit = async (data) => {
     if (isSubmitting) return;
+
     try {
       setIsSubmitting(true);
       const fd = new FormData();
 
       fd.append("productName", data.productName);
-
-      //  backend expects category name currently
       fd.append("category", data.categoryName || "");
 
-      // optional (if you later use CategoryID backend side)
-      if (data.categoryId) fd.append("categoryId", String(data.categoryId));
+      if (data.categoryId) {
+        fd.append("categoryId", String(data.categoryId));
+      }
 
+      fd.append("productCode", data.productCode || "");
       fd.append("price", data.price);
       fd.append("stockQty", data.stockQty);
       fd.append("minQty", data.minQty);
-
-      //  this will be CategoryCode (ENG-001) after select
-      fd.append("sku", data.sku || "");
-
       fd.append("desc", data.desc || "");
-      if (data.imageFile) fd.append("image", data.imageFile);
+
+      if (data.imageFile) {
+        fd.append("image", data.imageFile);
+      }
 
       await inventoryAPI.create(fd);
 
@@ -227,8 +240,8 @@ export default function AdminInventory() {
     } catch (e) {
       console.error("createProduct failed:", e);
       toast.error(e?.message || "Add product failed");
+
       if (Array.isArray(e?.errors) && e.errors.length) {
-        // Show first validation error to keep UI concise
         toast.error(e.errors[0]?.message || "Validation error");
       }
     } finally {
@@ -246,9 +259,14 @@ export default function AdminInventory() {
       setIsSubmitting(true);
 
       const selectedCategoryName = data?.category || "";
-      const matchedCategory = (Array.isArray(categoriesForModal) ? categoriesForModal : []).find(
-        (c) => String(c?.Name || "").toLowerCase() === String(selectedCategoryName).toLowerCase()
+      const matchedCategory = (
+        Array.isArray(categoriesForModal) ? categoriesForModal : []
+      ).find(
+        (c) =>
+          String(c?.Name || "").toLowerCase() ===
+          String(selectedCategoryName).toLowerCase()
       );
+
       const categoryId = matchedCategory?.CategoryID;
 
       await inventoryAPI.update(selectedProduct.ProductID, {
@@ -282,6 +300,7 @@ export default function AdminInventory() {
     try {
       setIsSubmitting(true);
       await inventoryAPI.updateImage(selectedProduct.ProductID, file);
+
       if (!isMountedRef.current) return;
       setImageOpen(false);
       await fetchProducts();
@@ -306,10 +325,11 @@ export default function AdminInventory() {
     closeInventoryModals();
     setSelectedProduct(null);
     setAddOpen(true);
-    refreshCategories().catch((e) => console.error("refreshCategories failed:", e));
+    refreshCategories().catch((e) =>
+      console.error("refreshCategories failed:", e)
+    );
   };
 
-  //  IMPORTANT: modal needs objects: {CategoryID, Name, CategoryCode}
   const categoriesForModal = useMemo(() => {
     return Array.isArray(categoryList) ? categoryList.filter(Boolean) : [];
   }, [categoryList]);
@@ -326,22 +346,22 @@ export default function AdminInventory() {
 
         <div className={styles.search}>
           {searchText && (
-                            <button
-                              type="button"
-                              className={styles.clearBtn}
-                              onClick={() => setSearchText("")}
-                              title="Clear"
-                              >
-                                x
-                             </button>
-                              )}
+            <button
+              type="button"
+              className={styles.clearBtn}
+              onClick={() => setSearchText("")}
+              title="Clear"
+            >
+              x
+            </button>
+          )}
 
           <FiSearch className={styles.sIcon} />
           <input
-             placeholder="Search inventory..."
-             value={searchText}
-             onChange={(e) => setSearchText(e.target.value)}
-             />
+            placeholder="Search inventory..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
         </div>
       </div>
 
@@ -371,7 +391,7 @@ export default function AdminInventory() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSubmit={handleAddSubmit}
-        categories={categoriesForModal} //  PASS OBJECTS
+        categories={categoriesForModal}
       />
 
       <UpdateProductModal
@@ -384,7 +404,7 @@ export default function AdminInventory() {
         categories={categoriesForModal.map((c) => c?.Name || "")}
         initial={{
           productName: selectedProduct?.Name,
-          sku: selectedProduct?.ProductID,
+          sku: selectedProduct?.ProductCode,
           category: selectedProduct?.CategoryName,
           stockQty: selectedProduct?.Stock,
           price: selectedProduct?.Price,

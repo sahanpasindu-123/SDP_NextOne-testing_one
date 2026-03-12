@@ -37,6 +37,7 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
     img.onload = () => setImageError(false);
     img.onerror = () => setImageError(true);
     img.src = src;
+
     return () => {
       img.onload = null;
       img.onerror = null;
@@ -48,16 +49,17 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
       <div
         className={styles.img}
         style={{
-          backgroundImage: safeProduct?.image && !imageError
-            ? `url(${safeProduct.image})`
-            : "none",
+          backgroundImage:
+            safeProduct?.image && !imageError
+              ? `url(${safeProduct.image})`
+              : "none",
         }}
         onError={handleImageError}
       />
 
       <div className={styles.body}>
         <div className={styles.row1}>
-          <div className={styles.name}>{safeProduct.name}</div>
+          <div className={styles.name}>{safeProduct.name || "Unnamed Product"}</div>
 
           <div className={styles.stock}>
             {isLow ? (
@@ -68,15 +70,23 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
           </div>
         </div>
 
-        <div className={styles.meta}>
-          Part # : {safeProduct.partNo || "N/A"}
+        <div className={styles.metaWrap}>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Product ID:</span>
+            <span>{safeProduct.productCode || "N/A"}</span>
+          </div>
+
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Category:</span>
+            <span>{safeProduct.category || "Uncategorized"}</span>
+          </div>
         </div>
 
-        <div className={styles.desc}>{safeProduct.desc}</div>
+        <div className={styles.desc}>{safeProduct.desc || "No description available."}</div>
 
         <div className={styles.priceRow}>
           <div className={styles.price}>
-            LKR {Number(safeProduct.price).toLocaleString("en-LK")}.00
+            LKR {Number(safeProduct.price || 0).toLocaleString("en-LK")}.00
           </div>
           <div className={styles.avail}>{available} available</div>
         </div>

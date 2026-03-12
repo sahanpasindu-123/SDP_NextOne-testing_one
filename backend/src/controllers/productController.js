@@ -10,13 +10,20 @@ function toNumberOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function normalizeProductCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isValidProductCode(value) {
+  return /^[A-Z]{3}-\d{3}$/.test(value);
+}
+
 /**
  * Create LOW_STOCK alert when product stock is at/below stock limit.
  * Uses Prisma Alert model fields exactly as in schema.prisma:
  *  - Message, Type, Status, IsActive, CustomerID?, UserID?
  */
 async function createLowStockAlertIfNeeded(product) {
-  // StockLimit is optional in schema (Int?), so only trigger if it's set
   if (product.StockLimit === null || product.StockLimit === undefined) return;
 
   if (Number(product.Stock) <= Number(product.StockLimit)) {
@@ -51,6 +58,7 @@ exports.getProducts = async (req, res) => {
       where.OR = [
         { Name: { contains: q } },
         { Description: { contains: q } },
+        { ProductCode: { contains: q } },
       ];
     }
 
@@ -67,6 +75,7 @@ exports.getProducts = async (req, res) => {
       success: true,
       data: products.map((p) => ({
         ProductID: p.ProductID,
+        ProductCode: p.ProductCode,
         Name: p.Name,
         Description: p.Description,
         Price: p.Price,
@@ -114,6 +123,7 @@ exports.getProductById = async (req, res) => {
       success: true,
       data: {
         ProductID: p.ProductID,
+        ProductCode: p.ProductCode,
         Name: p.Name,
         Description: p.Description,
         Price: p.Price,
@@ -130,6 +140,7 @@ exports.getProductById = async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("getProductById error:", err);
     return res.status(500).json({ success: false, message: err.message || "Server error" });
   }
 };
@@ -166,6 +177,7 @@ exports.createProduct = async (req, res) => {
   try {
     const {
       productName,
+      productCode,
       categoryId,
       category,
       price,
@@ -175,9 +187,9 @@ exports.createProduct = async (req, res) => {
       placeId,
     } = req.body;
 
-    // ✅ Required fields
     if (
       !productName ||
+      !productCode ||
       (!categoryId && !category) ||
       price === undefined ||
       stockQty === undefined ||
@@ -189,18 +201,30 @@ exports.createProduct = async (req, res) => {
       });
     }
 
+    const cleanProductCode = normalizeProductCode(productCode);
+
+    if (!isValidProductCode(cleanProductCode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID must be like COO-001",
+      });
+    }
+
     const Price = Number(price);
     const Stock = Number(stockQty);
     const StockLimit = Number(minQty);
 
-    if (!Number.isFinite(Price) || Price < 0)
+    if (!Number.isFinite(Price) || Price < 0) {
       return res.status(400).json({ success: false, message: "Invalid price" });
+    }
 
-    if (!Number.isFinite(Stock) || Stock < 0)
+    if (!Number.isFinite(Stock) || Stock < 0) {
       return res.status(400).json({ success: false, message: "Invalid stockQty" });
+    }
 
-    if (!Number.isFinite(StockLimit) || StockLimit < 0)
+    if (!Number.isFinite(StockLimit) || StockLimit < 0) {
       return res.status(400).json({ success: false, message: "Invalid minQty" });
+    }
 
     // --------------------
     // Resolve CategoryID
@@ -209,21 +233,42 @@ exports.createProduct = async (req, res) => {
 
     if (categoryId) {
       CategoryID = Number(categoryId);
-      if (!Number.isFinite(CategoryID))
+      if (!Number.isFinite(CategoryID)) {
         return res.status(400).json({ success: false, message: "Invalid categoryId" });
+      }
 
       const cat = await prisma.category.findUnique({
         where: { CategoryID },
       });
-      if (!cat)
+
+      if (!cat) {
         return res.status(400).json({ success: false, message: "Category not found" });
+      }
     } else {
       const cat = await prisma.category.findFirst({
-        where: { Name: String(category) },
+        where: { Name: String(category).trim() },
       });
-      if (!cat)
+
+      if (!cat) {
         return res.status(400).json({ success: false, message: "Category not found" });
+      }
+
       CategoryID = cat.CategoryID;
+    }
+
+    // --------------------
+    // Check ProductCode duplicate
+    // --------------------
+    const existingProductCode = await prisma.product.findFirst({
+      where: { ProductCode: cleanProductCode },
+      select: { ProductID: true },
+    });
+
+    if (existingProductCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID already exists",
+      });
     }
 
     // --------------------
@@ -232,29 +277,34 @@ exports.createProduct = async (req, res) => {
     let PlaceID = null;
     if (placeId !== undefined && placeId !== "") {
       PlaceID = Number(placeId);
-      if (!Number.isFinite(PlaceID))
+
+      if (!Number.isFinite(PlaceID)) {
         return res.status(400).json({ success: false, message: "Invalid placeId" });
+      }
 
       const place = await prisma.place.findUnique({
         where: { PlaceID },
       });
-      if (!place)
+
+      if (!place) {
         return res.status(400).json({ success: false, message: "Place not found" });
-      if (place.IsActive === false)
+      }
+
+      if (place.IsActive === false) {
         return res.status(400).json({ success: false, message: "Place is inactive" });
+      }
     }
 
-    const imagePath = req.file
-      ? `/uploads/products/${req.file.filename}`
-      : null;
+    const imagePath = req.file ? `/uploads/products/${req.file.filename}` : null;
 
     const created = await prisma.product.create({
       data: {
+        ProductCode: cleanProductCode,
         Name: String(productName).trim(),
-        Description: desc ? String(desc) : null,
-        Price,
-        Stock,
-        StockLimit,
+        Description: desc ? String(desc).trim() : null,
+        Price: Price,
+        Stock: Stock,
+        StockLimit: StockLimit,
         CategoryID,
         PlaceID,
         ImageURL: imagePath,
@@ -262,12 +312,8 @@ exports.createProduct = async (req, res) => {
       include: { category: true, place: true },
     });
 
-    // ✅ ALERT: LOW_STOCK (only if StockLimit exists & Stock <= StockLimit)
     await createLowStockAlertIfNeeded(created);
 
-    // --------------------
-    // AUDIT: PRODUCT_CREATE
-    // --------------------
     await writeAuditLog(req, {
       action: "PRODUCT_CREATE",
       entityType: "product",
@@ -275,6 +321,7 @@ exports.createProduct = async (req, res) => {
       before: null,
       after: {
         ProductID: created.ProductID,
+        ProductCode: created.ProductCode,
         Name: created.Name,
         Price: created.Price,
         Stock: created.Stock,
@@ -310,11 +357,13 @@ exports.createProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id))
+    if (!Number.isFinite(id)) {
       return res.status(400).json({ success: false, message: "Invalid id" });
+    }
 
     const {
       productName,
+      productCode,
       categoryId,
       category,
       price,
@@ -324,13 +373,11 @@ exports.updateProduct = async (req, res) => {
       placeId,
     } = req.body;
 
-    // --------------------
-    // BEFORE snapshot (for audit + 404)
-    // --------------------
     const before = await prisma.product.findUnique({
       where: { ProductID: id },
       select: {
         ProductID: true,
+        ProductCode: true,
         Name: true,
         Description: true,
         Price: true,
@@ -348,53 +395,99 @@ exports.updateProduct = async (req, res) => {
 
     const data = {};
 
-    if (productName !== undefined)
+    if (productName !== undefined) {
       data.Name = productName ? String(productName).trim() : null;
+    }
 
-    if (desc !== undefined)
-      data.Description = desc ? String(desc) : null;
+    if (productCode !== undefined) {
+      const cleanProductCode = normalizeProductCode(productCode);
+
+      if (!cleanProductCode) {
+        return res.status(400).json({ success: false, message: "Product ID is required" });
+      }
+
+      if (!isValidProductCode(cleanProductCode)) {
+        return res.status(400).json({
+          success: false,
+          message: "Product ID must be like COO-001",
+        });
+      }
+
+      const existingProductCode = await prisma.product.findFirst({
+        where: {
+          ProductCode: cleanProductCode,
+          NOT: { ProductID: id },
+        },
+        select: { ProductID: true },
+      });
+
+      if (existingProductCode) {
+        return res.status(400).json({
+          success: false,
+          message: "Product ID already exists",
+        });
+      }
+
+      data.ProductCode = cleanProductCode;
+    }
+
+    if (desc !== undefined) {
+      data.Description = desc ? String(desc).trim() : null;
+    }
 
     if (price !== undefined) {
       const Price = Number(price);
-      if (!Number.isFinite(Price) || Price < 0)
+      if (!Number.isFinite(Price) || Price < 0) {
         return res.status(400).json({ success: false, message: "Invalid price" });
+      }
       data.Price = Price;
     }
 
     if (stockQty !== undefined) {
       const Stock = Number(stockQty);
-      if (!Number.isFinite(Stock) || Stock < 0)
+      if (!Number.isFinite(Stock) || Stock < 0) {
         return res.status(400).json({ success: false, message: "Invalid stockQty" });
+      }
       data.Stock = Stock;
     }
 
     if (minQty !== undefined) {
       const StockLimit = Number(minQty);
-      if (!Number.isFinite(StockLimit) || StockLimit < 0)
+      if (!Number.isFinite(StockLimit) || StockLimit < 0) {
         return res.status(400).json({ success: false, message: "Invalid minQty" });
+      }
       data.StockLimit = StockLimit;
     }
 
     // Category
     if (categoryId || category) {
       let CategoryID;
+
       if (categoryId) {
         CategoryID = Number(categoryId);
-        if (!Number.isFinite(CategoryID))
+        if (!Number.isFinite(CategoryID)) {
           return res.status(400).json({ success: false, message: "Invalid categoryId" });
+        }
 
-        // optional: validate category exists
-        const cat = await prisma.category.findUnique({ where: { CategoryID } });
-        if (!cat)
+        const cat = await prisma.category.findUnique({
+          where: { CategoryID },
+        });
+
+        if (!cat) {
           return res.status(400).json({ success: false, message: "Category not found" });
+        }
       } else {
         const cat = await prisma.category.findFirst({
-          where: { Name: String(category) },
+          where: { Name: String(category).trim() },
         });
-        if (!cat)
+
+        if (!cat) {
           return res.status(400).json({ success: false, message: "Category not found" });
+        }
+
         CategoryID = cat.CategoryID;
       }
+
       data.CategoryID = CategoryID;
     }
 
@@ -404,16 +497,22 @@ exports.updateProduct = async (req, res) => {
         data.PlaceID = null;
       } else {
         const pid = Number(placeId);
-        if (!Number.isFinite(pid))
+
+        if (!Number.isFinite(pid)) {
           return res.status(400).json({ success: false, message: "Invalid placeId" });
+        }
 
         const place = await prisma.place.findUnique({
           where: { PlaceID: pid },
         });
-        if (!place)
+
+        if (!place) {
           return res.status(400).json({ success: false, message: "Place not found" });
-        if (place.IsActive === false)
+        }
+
+        if (place.IsActive === false) {
           return res.status(400).json({ success: false, message: "Place is inactive" });
+        }
 
         data.PlaceID = pid;
       }
@@ -425,10 +524,6 @@ exports.updateProduct = async (req, res) => {
       include: { category: true, place: true },
     });
 
-    // ✅ ALERT: LOW_STOCK — only when crossing threshold (avoid spam)
-    // Trigger if:
-    //  - after has StockLimit set AND Stock <= StockLimit
-    //  - and before was either above limit or had no limit
     const beforeHasLimit =
       before.StockLimit !== null && before.StockLimit !== undefined;
     const afterHasLimit =
@@ -444,9 +539,6 @@ exports.updateProduct = async (req, res) => {
       await createLowStockAlertIfNeeded(updated);
     }
 
-    // --------------------
-    // AUDIT: PRODUCT_UPDATE (before/after)
-    // --------------------
     await writeAuditLog(req, {
       action: "PRODUCT_UPDATE",
       entityType: "product",
@@ -454,6 +546,7 @@ exports.updateProduct = async (req, res) => {
       before,
       after: {
         ProductID: updated.ProductID,
+        ProductCode: updated.ProductCode,
         Name: updated.Name,
         Description: updated.Description,
         Price: updated.Price,
@@ -479,6 +572,7 @@ exports.updateProduct = async (req, res) => {
     if (err.code === "P2025") {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
+
     console.error("updateProduct error:", err);
     return res.status(500).json({
       success: false,
@@ -493,16 +587,15 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id))
+    if (!Number.isFinite(id)) {
       return res.status(400).json({ success: false, message: "Invalid id" });
+    }
 
-    // --------------------
-    // BEFORE snapshot (for audit + 404)
-    // --------------------
     const before = await prisma.product.findUnique({
       where: { ProductID: id },
       select: {
         ProductID: true,
+        ProductCode: true,
         Name: true,
         Price: true,
         Stock: true,
@@ -521,9 +614,6 @@ exports.deleteProduct = async (req, res) => {
       where: { ProductID: id },
     });
 
-    // --------------------
-    // AUDIT: PRODUCT_DELETE
-    // --------------------
     await writeAuditLog(req, {
       action: "PRODUCT_DELETE",
       entityType: "product",
@@ -538,6 +628,7 @@ exports.deleteProduct = async (req, res) => {
     if (err.code === "P2025") {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
+
     console.error("deleteProduct error:", err);
     return res.status(500).json({
       success: false,
@@ -552,16 +643,17 @@ exports.deleteProduct = async (req, res) => {
 exports.updateProductImage = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id))
+    if (!Number.isFinite(id)) {
       return res.status(400).json({ success: false, message: "Invalid id" });
+    }
 
-    if (!req.file)
+    if (!req.file) {
       return res.status(400).json({ success: false, message: "Image required" });
+    }
 
-    // BEFORE snapshot
     const before = await prisma.product.findUnique({
       where: { ProductID: id },
-      select: { ProductID: true, ImageURL: true, Name: true },
+      select: { ProductID: true, ProductCode: true, ImageURL: true, Name: true },
     });
 
     if (!before) {
@@ -575,13 +667,16 @@ exports.updateProductImage = async (req, res) => {
       data: { ImageURL: imagePath },
     });
 
-    // AUDIT: PRODUCT_IMAGE_UPDATE
     await writeAuditLog(req, {
       action: "PRODUCT_IMAGE_UPDATE",
       entityType: "product",
       entityId: updated.ProductID,
       before,
-      after: { ProductID: updated.ProductID, ImageURL: updated.ImageURL },
+      after: {
+        ProductID: updated.ProductID,
+        ProductCode: before.ProductCode,
+        ImageURL: updated.ImageURL,
+      },
       meta: { note: "image changed" },
     });
 
@@ -590,6 +685,7 @@ exports.updateProductImage = async (req, res) => {
     if (err.code === "P2025") {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
+
     console.error("updateProductImage error:", err);
     return res.status(500).json({
       success: false,

@@ -33,40 +33,33 @@ export default function InventoryAll() {
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   const [items, setItems] = useState([]);
-  const [categories, setCategories] = useState([]); //  objects from DB
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const isMountedRef = useRef(true);
 
-  //  Dynamic tabs from DB categories
   const tabs = useMemo(() => {
     const baseTabs = [{ label: "All", value: "all" }];
     const safeCategories = Array.isArray(categories) ? categories : [];
     const dynamicTabs = safeCategories.map((c) => ({
       label: c.Name,
-      value: String(c.CategoryID), // tab value = CategoryID
+      value: String(c.CategoryID),
     }));
     return baseTabs.concat(dynamicTabs);
   }, [categories]);
 
-  //  Load products + categories
   useEffect(() => {
     isMountedRef.current = true;
 
     const fetchAll = async () => {
       try {
         setLoading(true);
-        console.log("[Inventory] Fetching products and categories");
 
         const [pRes, cRes] = await Promise.all([
           productsAPI.getProducts(),
           productsAPI.getCategories(),
         ]);
 
-        console.log("[Inventory] Products response:", pRes);
-        console.log("[Inventory] Categories response:", cRes);
-
-        // Handle categories response format
         let categoriesData = [];
         if (cRes?.success && cRes?.data) {
           categoriesData = cRes.data;
@@ -79,7 +72,6 @@ export default function InventoryAll() {
         if (!isMountedRef.current) return;
         setCategories(Array.isArray(categoriesData) ? categoriesData : []);
 
-        // Handle products response format
         let productsData = [];
         if (pRes?.success && pRes?.data) {
           productsData = pRes.data;
@@ -89,21 +81,31 @@ export default function InventoryAll() {
           productsData = pRes?.data || [];
         }
 
-        // Products mapping (align with your backend)
         const safeProducts = Array.isArray(productsData) ? productsData : [];
-        const mappedItems = safeProducts.map((p) => ({
-          id: p.ProductID,
-          name: p.Name || "Unknown Product",
-          categoryId: p.CategoryID,
-          category: p.CategoryName || p.category?.Name || "Uncategorized",
-          sku: String(p.ProductID),
-          stock: Number(p.Stock ?? 0),
-          price: `Rs ${Number(p.Price || 0).toLocaleString()}`,
-          status: Number(p.Stock ?? 0) <= Number(p.StockLimit ?? 0) ? "Low Stock" : "In Stock",
-          raw: p,
-        }));
+        const mappedItems = safeProducts.map((p) => {
+          const stock = Number(p.Stock ?? 0);
+          const stockLimit = Number(p.StockLimit ?? 0);
 
-        console.log("[Inventory] Mapped items:", mappedItems);
+          let status = "In Stock";
+          if (stock === 0) {
+            status = "Out of Stock";
+          } else if (stock <= stockLimit) {
+            status = "Low Stock";
+          }
+
+          return {
+            id: p.ProductID,
+            name: p.Name || "Unknown Product",
+            categoryId: p.CategoryID,
+            category: p.CategoryName || p.category?.Name || "Uncategorized",
+            productCode: p.ProductCode || "N/A",
+            stock,
+            price: `Rs ${Number(p.Price || 0).toLocaleString()}`,
+            status,
+            raw: p,
+          };
+        });
+
         if (!isMountedRef.current) return;
         setItems(mappedItems);
         setError(null);
@@ -131,7 +133,7 @@ export default function InventoryAll() {
     };
   }, []);
 
-  const handleDelete = (row) => navigate(`${base}/inventory/delete/${row.sku}`);
+  const handleDelete = (row) => navigate(`${base}/inventory/delete/${row.id}`);
 
   const handleUpdateOpen = (row) => {
     closeInventoryModals();
@@ -151,26 +153,27 @@ export default function InventoryAll() {
     setImageOpen(false);
   };
 
-  //  EMPLOYEE: Add product -> Send request to admin (PENDING)
   const handleAddSubmit = async (data) => {
     try {
       const fd = new FormData();
       fd.append("productName", data.productName);
-      fd.append("categoryId", String(data.categoryId)); //  required
+      fd.append("productCode", data.productCode || "");
+      fd.append("categoryId", String(data.categoryId));
       fd.append("price", data.price);
       fd.append("stockQty", data.stockQty);
       fd.append("minQty", data.minQty);
       fd.append("desc", data.desc || "");
-      if (data.imageFile) fd.append("image", data.imageFile);
+
+      if (data.imageFile) {
+        fd.append("image", data.imageFile);
+      }
 
       await productRequestsAPI.createRequest(fd);
 
       if (!isMountedRef.current) return;
       setAddOpen(false);
-      alert("Product request sent to Admin  (Pending approval)");
+      alert("Product request sent to Admin (Pending approval)");
     } catch (e) {
-      console.error("createRequest failed:", e);
-      alert("Failed to submit product request (check backend / token)");
       console.error("createRequest failed:", e);
       console.log("URL:", e?.config?.url);
       console.log("STATUS:", e?.response?.status);
@@ -180,7 +183,6 @@ export default function InventoryAll() {
     }
   };
 
-  // (Optional) If you want employee updates also pending, we can do later.
   const handleUpdateSubmit = (data) => {
     console.log("Update Product:", { id: selectedProduct?.ProductID, data });
     setUpdateOpen(false);
@@ -194,7 +196,7 @@ export default function InventoryAll() {
   const cols = [
     { key: "name", header: "Item Name" },
     { key: "category", header: "Category", width: 160 },
-    { key: "sku", header: "SKU", width: 140 },
+    { key: "productCode", header: "Product ID", width: 140 },
     { key: "stock", header: "Stock", width: 110 },
     { key: "price", header: "Price", width: 120 },
     {
@@ -204,6 +206,8 @@ export default function InventoryAll() {
       render: (r) =>
         r.status === "Low Stock" ? (
           <Badge tone="danger">Low Stock</Badge>
+        ) : r.status === "Out of Stock" ? (
+          <Badge tone="danger">Out of Stock</Badge>
         ) : (
           <Badge tone="success">In Stock</Badge>
         ),
@@ -212,50 +216,48 @@ export default function InventoryAll() {
       key: "actions",
       header: "Actions",
       width: 180,
-      render: (r) => (
+      render: (r) =>
         isEmployeePortal ? (
           <span style={{ opacity: 0.7 }}>N/A</span>
         ) : (
-        <div className={styles.actions}>
-          <button
-            className={`${styles.iconBtn} ${styles.edit}`}
-            aria-label="Edit"
-            onClick={() => handleUpdateOpen(r)}
-          >
-            <FiEdit2 />
-          </button>
-          <button
-            className={`${styles.iconBtn} ${styles.trash}`}
-            aria-label="Delete"
-            onClick={() => handleDelete(r)}
-          >
-            <FiTrash2 />
-          </button>
-          <button
-            className={`${styles.iconBtn} ${styles.image}`}
-            aria-label="Add Image"
-            onClick={() => handleImageOpen(r)}
-          >
-            Img
-          </button>
-        </div>
-        )
-      ),
+          <div className={styles.actions}>
+            <button
+              className={`${styles.iconBtn} ${styles.edit}`}
+              aria-label="Edit"
+              onClick={() => handleUpdateOpen(r)}
+            >
+              <FiEdit2 />
+            </button>
+            <button
+              className={`${styles.iconBtn} ${styles.trash}`}
+              aria-label="Delete"
+              onClick={() => handleDelete(r)}
+            >
+              <FiTrash2 />
+            </button>
+            <button
+              className={`${styles.iconBtn} ${styles.image}`}
+              aria-label="Add Image"
+              onClick={() => handleImageOpen(r)}
+            >
+              Img
+            </button>
+          </div>
+        ),
     },
   ];
 
-  // ---------------- Toolbar actions (implemented) ----------------
   const handleToolbarFilter = () => {
-    // cycle: all -> low -> out -> all
-    setStockFilter((p) => (p === "all" ? "low" : p === "low" ? "out" : "all"));
+    setStockFilter((prev) => (prev === "all" ? "low" : prev === "low" ? "out" : "all"));
   };
 
   const exportToCSV = (rows) => {
-    const header = "ProductID,Name,Category,Stock,Price,Status";
+    const header = "ProductID,ProductCode,Name,Category,Stock,Price,Status";
     const body = rows
       .map((r) =>
         [
           r.id,
+          `"${String(r.productCode).replaceAll('"', '""')}"`,
           `"${String(r.name).replaceAll('"', '""')}"`,
           `"${String(r.category).replaceAll('"', '""')}"`,
           r.stock,
@@ -279,17 +281,19 @@ export default function InventoryAll() {
     alert("Exported: inventory-export.csv");
   };
 
-  const stockFilterLabel =
-    stockFilter === "all" ? "Filter" : stockFilter === "low" ? "Low Stock" : "Out of Stock";
-
-
-  //  Filter by CategoryID (tab value)
-  //  Filter by CategoryID (tab) + stockFilter + searchTerm
   const filtered = useMemo(() => {
-    let list = tab === "all" ? items : items.filter((i) => String(i.categoryId) === String(tab));
+    let list =
+      tab === "all"
+        ? items
+        : items.filter((i) => String(i.categoryId) === String(tab));
 
-    if (stockFilter === "low") list = list.filter((i) => i.status === "Low Stock");
-    if (stockFilter === "out") list = list.filter((i) => (i.raw?.Stock ?? 0) === 0);
+    if (stockFilter === "low") {
+      list = list.filter((i) => i.status === "Low Stock");
+    }
+
+    if (stockFilter === "out") {
+      list = list.filter((i) => i.status === "Out of Stock");
+    }
 
     const q = searchTerm.trim().toLowerCase();
     if (q) {
@@ -297,17 +301,16 @@ export default function InventoryAll() {
         (i) =>
           String(i.name).toLowerCase().includes(q) ||
           String(i.category).toLowerCase().includes(q) ||
-          String(i.sku).toLowerCase().includes(q)
+          String(i.productCode).toLowerCase().includes(q)
       );
     }
 
     return list;
   }, [tab, items, stockFilter, searchTerm]);
 
-
   const totalItems = items.length;
   const lowStockCount = items.filter((x) => x.status === "Low Stock").length;
-  const outOfStockCount = items.filter((x) => (x.raw?.Stock ?? 0) === 0).length;
+  const outOfStockCount = items.filter((x) => x.status === "Out of Stock").length;
 
   return (
     <div className={styles.page}>
@@ -330,9 +333,11 @@ export default function InventoryAll() {
           >
             {isEmployeePortal ? "Request Product" : "Add New Item"}
           </Button>
+
           <Button variant="secondary" leftIcon={<FiFilter />} onClick={handleToolbarFilter}>
             Filter
           </Button>
+
           <Button variant="secondary" leftIcon={<FiDownload />} onClick={handleToolbarExport}>
             Export
           </Button>
@@ -348,8 +353,10 @@ export default function InventoryAll() {
         </div>
       </div>
 
-      {/*  Dynamic tabs */}
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
+
+      {loading && <div className={styles.infoText}>Loading inventory...</div>}
+      {error && <div className={styles.errorText}>{error}</div>}
 
       <div className={styles.stats}>
         <StatCard
@@ -377,12 +384,11 @@ export default function InventoryAll() {
         <Table columns={cols} rows={filtered} />
       </div>
 
-      {/*  Employee add -> PENDING request */}
       <AddNewProductModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSubmit={handleAddSubmit}
-        categories={categories} //  objects from DB
+        categories={categories}
         title={isEmployeePortal ? "Request Product" : "Add New Product"}
         submitLabel={isEmployeePortal ? "Submit Request" : "Add Item"}
       />
@@ -397,7 +403,7 @@ export default function InventoryAll() {
         categories={categories.map((c) => c.Name)}
         initial={{
           name: selectedProduct?.Name,
-          sku: selectedProduct?.ProductID,
+          sku: selectedProduct?.ProductCode || "",
           category: selectedProduct?.category?.Name || selectedProduct?.CategoryName,
           stock: selectedProduct?.Stock,
           price: selectedProduct?.Price,

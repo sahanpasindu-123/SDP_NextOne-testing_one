@@ -20,7 +20,7 @@ export default function AddNewProductModal({
   const [price, setPrice] = useState("");
   const [stockQty, setStockQty] = useState("");
   const [minQty, setMinQty] = useState("");
-  const [sku, setSku] = useState("");
+  const [productCode, setProductCode] = useState("");
   const [desc, setDesc] = useState("");
 
   const [imageFile, setImageFile] = useState(null);
@@ -55,7 +55,7 @@ export default function AddNewProductModal({
     setPrice("");
     setStockQty("");
     setMinQty("");
-    setSku("");
+    setProductCode("");
     setDesc("");
     setImageFile(null);
     setPreview("");
@@ -96,11 +96,6 @@ export default function AddNewProductModal({
   const handleCategoryChange = (e) => {
     const id = e.target.value;
     setCategoryId(id);
-
-    const cat = categoryById.get(String(id));
-    if (cat?.CategoryCode) {
-      setSku(cat.CategoryCode); // auto SKU
-    }
   };
 
   // =======================
@@ -109,26 +104,30 @@ export default function AddNewProductModal({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Basic validation
     if (!productName.trim()) return alert("Product Name is required");
+    if (!productCode.trim()) return alert("Product ID is required");
+    if (!/^COO-\d{3}$/.test(productCode.trim())) {
+      return alert("Product ID must be like COO-001");
+    }
     if (!categoryId) return alert("Category is required");
     if (!price || Number(price) <= 0) return alert("Valid price required");
-    if (!stockQty || Number(stockQty) < 0)
+    if (stockQty === "" || Number(stockQty) < 0) {
       return alert("Valid stock quantity required");
-    if (!minQty || Number(minQty) < 0)
+    }
+    if (minQty === "" || Number(minQty) < 0) {
       return alert("Valid minimum quantity required");
+    }
 
-    // Prepare payload (parent decides FormData or JSON)
     onSubmit?.({
       productName: productName.trim(),
+      productCode: productCode.trim().toUpperCase(),
       categoryId: Number(categoryId),
       categoryName: selectedCategory?.Name || "",
-      sku,
       price: Number(price),
       stockQty: Number(stockQty),
       minQty: Number(minQty),
       desc: desc.trim(),
-      imageFile, // File object
+      imageFile,
     });
   };
 
@@ -139,11 +138,7 @@ export default function AddNewProductModal({
   // =======================
   return (
     <div className={styles.overlay} onMouseDown={onClose}>
-      <div
-        className={styles.modal}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {/* HEADER */}
+      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.top}>
           <div className={styles.title}>{title}</div>
           <button
@@ -156,7 +151,6 @@ export default function AddNewProductModal({
           </button>
         </div>
 
-        {/* FORM */}
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.grid}>
             <div className={styles.block}>
@@ -217,12 +211,12 @@ export default function AddNewProductModal({
             </div>
 
             <div className={styles.block}>
-              <div className={styles.label}>SKU / Product ID</div>
+              <div className={styles.label}>Product ID *</div>
               <input
                 className={styles.input}
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                placeholder="Auto from Category Code"
+                value={productCode}
+                onChange={(e) => setProductCode(e.target.value.toUpperCase())}
+                placeholder="COO-001"
               />
             </div>
 
@@ -284,7 +278,6 @@ export default function AddNewProductModal({
             </div>
           </div>
 
-          {/* ACTIONS */}
           <div className={styles.actions}>
             <button
               type="button"

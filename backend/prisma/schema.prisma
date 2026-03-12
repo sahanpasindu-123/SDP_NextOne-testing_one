@@ -79,6 +79,7 @@ model Category {
 
 model Product {
   ProductID        Int               @id @default(autoincrement())
+  ProductCode      String?           @unique
   Name             String
   Description      String?
   Status           ProductStatus     @default(ACTIVE)
@@ -97,6 +98,7 @@ model Product {
   sales            Sale[]
 
   @@index([CategoryID], map: "products_CategoryID_fkey")
+  @@index([ProductCode], map: "products_ProductCode_idx")
   @@map("products")
 }
 

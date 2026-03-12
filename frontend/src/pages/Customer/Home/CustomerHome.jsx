@@ -18,11 +18,9 @@ export default function CustomerHome() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [detailProduct, setDetailProduct] = useState(null);
 
-  // Simple client-side pagination (backend unchanged)
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
 
-  // Optional: simple search (frontend only)
   const [q, setQ] = useState("");
 
   const filteredProducts = useMemo(() => {
@@ -32,13 +30,13 @@ export default function CustomerHome() {
     return products.filter((p) => {
       return (
         String(p?.name || "").toLowerCase().includes(query) ||
-        String(p?.partNo || "").toLowerCase().includes(query)
+        String(p?.productCode || "").toLowerCase().includes(query) ||
+        String(p?.category || "").toLowerCase().includes(query)
       );
     });
   }, [products, q]);
 
   const newArrivals = useMemo(() => {
-    // Prefer createdAt, else fallback to numeric id
     const withCreated = filteredProducts.filter((p) => p.createdAt);
     const base = withCreated.length > 0 ? withCreated : filteredProducts;
 
@@ -48,7 +46,6 @@ export default function CustomerHome() {
           return new Date(b.createdAt) - new Date(a.createdAt);
         }
 
-        // fallback: larger id = newer (approx)
         const ai = Number(a.id) || 0;
         const bi = Number(b.id) || 0;
         return bi - ai;
@@ -56,7 +53,6 @@ export default function CustomerHome() {
       .slice(0, 6);
   }, [filteredProducts]);
 
-  // Remove New Arrivals items from All Products
   const allProductsOnly = useMemo(() => {
     const arrivalIds = new Set(newArrivals.map((p) => String(p.id)));
     return filteredProducts.filter((p) => !arrivalIds.has(String(p.id)));
@@ -118,7 +114,6 @@ export default function CustomerHome() {
     setSelectedProduct(null);
     setDetailProduct(product);
 
-    // Fetch latest/full product details for modal safety
     try {
       const id = product?.id;
       if (!id) return;
@@ -160,7 +155,6 @@ export default function CustomerHome() {
   return (
     <>
       <div className={styles.page}>
-        {/* HERO */}
         <section
           className={styles.hero}
           style={{
@@ -173,7 +167,6 @@ export default function CustomerHome() {
           </div>
         </section>
 
-        {/* SEARCH */}
         <section className={styles.section}>
           <div
             style={{
@@ -199,7 +192,7 @@ export default function CustomerHome() {
                   setQ(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Search by part no or name..."
+                placeholder="Search by Product ID, name, or category..."
                 style={{
                   padding: "10px 12px",
                   borderRadius: 10,
@@ -229,7 +222,6 @@ export default function CustomerHome() {
             </div>
           </div>
 
-          {/* STATES */}
           {loading && <p style={{ marginTop: 12 }}>Loading products...</p>}
 
           {!loading && error && (
@@ -240,7 +232,6 @@ export default function CustomerHome() {
             <p style={{ marginTop: 12 }}>No products available.</p>
           )}
 
-          {/* NEW ARRIVALS */}
           {!loading && !error && newArrivals.length > 0 && (
             <>
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>New Arrivals</h3>
@@ -257,7 +248,6 @@ export default function CustomerHome() {
             </>
           )}
 
-          {/* ALL PRODUCTS */}
           {!loading && !error && allProductsOnly.length > 0 && (
             <>
               <h3 style={{ marginTop: 18, marginBottom: 10 }}>All Products</h3>
