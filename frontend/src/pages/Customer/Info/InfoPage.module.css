@@ -1,0 +1,39 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 28px 16px 40px;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-size: 28px;
+  letter-spacing: 0.2px;
+}
+
+.subtitle {
+  margin: 0 0 22px;
+  opacity: 0.85;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.card p {
+  margin: 0 0 10px;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.card p:last-child {
+  margin-bottom: 0;
+}
+

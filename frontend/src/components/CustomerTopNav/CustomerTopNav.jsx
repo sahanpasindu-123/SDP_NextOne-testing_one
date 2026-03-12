@@ -10,7 +10,7 @@ export default function CustomerTopNav() {
       <div className={styles.topStrip}>
         <div className={styles.topLeft}>Get JCB spare parts</div>
         <div className={styles.topRight}>
-          <Link to="/customer/home">About Us</Link>
+          <Link to="/customer/about">About Us</Link>
           <Link to="/customer/contact">Contact</Link>
           <span className={styles.phone}><FiPhone /> +94 755678900</span>
         </div>

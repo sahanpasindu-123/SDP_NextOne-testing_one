@@ -45,6 +45,9 @@ import PartsCatalog from "../pages/Customer/Catalog/PartsCatalog.jsx";
 import MyReservations from "../pages/Customer/Reservations/MyReservations.jsx";
 import ProfileSettings from "../pages/Customer/Profile/ProfileSettings.jsx";
 import ContactUs from "../pages/Customer/Contact/ContactUs.jsx";
+import AboutUs from "../pages/Customer/Info/AboutUs.jsx";
+import PrivacyPolicy from "../pages/Customer/Info/PrivacyPolicy.jsx";
+import TermsOfService from "../pages/Customer/Info/TermsOfService.jsx";
 
 /** Auth pages */
 import SignIn from "../pages/Customer/Auth/SignIn.jsx";
@@ -158,6 +161,9 @@ export default function AppRoutes() {
         <Route path="reservations" element={<MyReservations />} />
         <Route path="profile" element={<ProfileSettings />} />
         <Route path="contact" element={<ContactUs />} />
+        <Route path="about" element={<AboutUs />} />
+        <Route path="privacy" element={<PrivacyPolicy />} />
+        <Route path="terms" element={<TermsOfService />} />
         <Route index element={<Navigate to="/customer/home" replace />} />
       </Route>
 

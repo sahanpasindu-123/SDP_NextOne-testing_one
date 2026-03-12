@@ -162,12 +162,10 @@ export default function PartsCatalog() {
 
     if (filters.category !== "all") {
       list = list.filter((p) => {
-        const productCategoryCode = String(p?.CategoryCode ?? p?.categoryCode ?? "").trim();
-        if (productCategoryCode) return productCategoryCode === String(filters.category);
-
-        // Back-compat: some payloads still rely on CategoryID-based filtering.
-        const productCategoryId = String(p?.categoryId ?? p?.CategoryID ?? "").trim();
-        return productCategoryId === String(filters.category);
+        const productCategoryCode = String(
+          p?.CategoryCode ?? p?.categoryCode ?? ""
+        ).trim();
+        return productCategoryCode === String(filters.category);
       });
     }
 
@@ -235,8 +233,24 @@ export default function PartsCatalog() {
 
   useEffect(() => {
     const safeCategories = Array.isArray(categories) ? categories : [];
-    const categoryIdParam = searchParams.get("categoryId");
-    const categoryNameParam = searchParams.get("category");
+    const categoryCodeParam = searchParams.get("categoryCode");
+    const categoryIdParam = searchParams.get("categoryId"); // legacy
+    const categoryNameParam = searchParams.get("category"); // legacy
+
+    if (categoryCodeParam) {
+      const codeWanted = String(categoryCodeParam).trim();
+      if (!codeWanted) return;
+      const match = safeCategories.find(
+        (c) => String(c?.CategoryCode || "").trim() === codeWanted
+      );
+
+      setFilters((prev) => ({
+        ...prev,
+        category: String(match?.CategoryCode || codeWanted),
+      }));
+
+      return;
+    }
 
     if (categoryIdParam) {
       const match = safeCategories.find(
@@ -246,7 +260,7 @@ export default function PartsCatalog() {
       if (match) {
         setFilters((prev) => ({
           ...prev,
-          category: String(match?.CategoryCode ?? match?.CategoryID ?? categoryIdParam),
+          category: String(match?.CategoryCode),
         }));
       }
 
@@ -267,10 +281,10 @@ export default function PartsCatalog() {
         (c) => String(c?.Name || "").trim().toLowerCase() === wanted
       );
 
-    if (match?.CategoryCode || match?.CategoryID != null) {
+    if (match?.CategoryCode) {
       setFilters((prev) => ({
         ...prev,
-        category: String(match?.CategoryCode ?? match?.CategoryID),
+        category: String(match?.CategoryCode),
       }));
     }
   }, [categories, searchParams]);
@@ -351,14 +365,16 @@ export default function PartsCatalog() {
             }
           >
             <option value="all">All Categories</option>
-            {(Array.isArray(categories) ? categories : []).map((c) => (
-              <option
-                key={String(c?.CategoryCode ?? c?.CategoryID)}
-                value={String(c?.CategoryCode ?? c?.CategoryID)}
-              >
-                {c?.Name || `Category ${c?.CategoryID}`}
-              </option>
-            ))}
+            {(Array.isArray(categories) ? categories : [])
+              .filter((c) => String(c?.CategoryCode || "").trim())
+              .map((c) => (
+                <option
+                  key={String(c?.CategoryCode)}
+                  value={String(c?.CategoryCode)}
+                >
+                  {c?.Name || String(c?.CategoryCode)}
+                </option>
+              ))}
           </select>
 
           <select

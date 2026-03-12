@@ -7,20 +7,51 @@ import { useCategories } from "../../context/CategoriesContext.jsx";
 export default function CustomerFooter() {
   const { categories } = useCategories();
 
-  const nameToId = useMemo(() => {
-    const map = new Map();
-    (Array.isArray(categories) ? categories : []).forEach((c) => {
-      const n = String(c?.Name || "").trim().toLowerCase();
-      if (n && c?.CategoryID != null) map.set(n, c.CategoryID);
+  const featuredCategories = useMemo(() => {
+    const safeCategories = Array.isArray(categories) ? categories : [];
+
+    const preferredNames = [
+      "Engine Parts",
+      "Hydraulic Systems",
+      "Electrical Components",
+      "Filters",
+      "Attachments",
+    ];
+
+    const byNameLower = new Map(
+      safeCategories.map((c) => [String(c?.Name || "").trim().toLowerCase(), c])
+    );
+
+    const picked = [];
+    const pickedCodes = new Set();
+
+    preferredNames.forEach((name) => {
+      const match = byNameLower.get(String(name).trim().toLowerCase());
+      const code = String(match?.CategoryCode || "").trim();
+      if (match && code && !pickedCodes.has(code)) {
+        picked.push(match);
+        pickedCodes.add(code);
+      }
     });
-    return map;
+
+    const rest = safeCategories
+      .filter((c) => {
+        const code = String(c?.CategoryCode || "").trim();
+        return code && !pickedCodes.has(code);
+      })
+      .sort((a, b) =>
+        String(a?.Name || "").localeCompare(String(b?.Name || ""), undefined, {
+          sensitivity: "base",
+        })
+      );
+
+    return [...picked, ...rest].slice(0, 5);
   }, [categories]);
 
-  const categoryLink = (name) => {
-    const cleanName = String(name || "").trim();
-    const id = nameToId.get(cleanName.toLowerCase());
-    if (id != null) return `/customer/catalog?categoryId=${encodeURIComponent(String(id))}`;
-    return `/customer/catalog?category=${encodeURIComponent(cleanName)}`;
+  const categoryLink = (category) => {
+    const code = String(category?.CategoryCode || "").trim();
+    if (!code) return "/customer/catalog";
+    return `/customer/catalog?categoryCode=${encodeURIComponent(code)}`;
   };
 
   return (
@@ -44,7 +75,7 @@ export default function CustomerFooter() {
           <div className={styles.links}>
             <Link to="/customer/home">Home</Link>
             <Link to="/customer/catalog">Products</Link>
-            <Link to="/customer/home">About Us</Link>
+            <Link to="/customer/about">About Us</Link>
             <Link to="/customer/contact">Contact</Link>
           </div>
         </div>
@@ -52,11 +83,15 @@ export default function CustomerFooter() {
         <div>
           <div className={styles.title}>Categories</div>
           <div className={styles.links}>
-            <Link to={categoryLink("Engine Parts")}>Engine Parts</Link>
-            <Link to={categoryLink("Hydraulic Systems")}>Hydraulic Systems</Link>
-            <Link to={categoryLink("Electrical Components")}>Electrical Components</Link>
-            <Link to={categoryLink("Filters")}>Filters</Link>
-            <Link to={categoryLink("Attachments")}>Attachments</Link>
+            {featuredCategories.length ? (
+              featuredCategories.map((c) => (
+                <Link key={String(c?.CategoryCode)} to={categoryLink(c)}>
+                  {c?.Name || String(c?.CategoryCode)}
+                </Link>
+              ))
+            ) : (
+              <Link to="/customer/catalog">Browse Catalog</Link>
+            )}
           </div>
         </div>
 
@@ -73,8 +108,8 @@ export default function CustomerFooter() {
       <div className={styles.bottom}>
         <div>(c) 2025 JCB Parts. All rights reserved.</div>
         <div className={styles.bottomRight}>
-          <Link to="/customer/home">Privacy Policy</Link>
-          <Link to="/customer/home">Terms of Service</Link>
+          <Link to="/customer/privacy">Privacy Policy</Link>
+          <Link to="/customer/terms">Terms of Service</Link>
         </div>
       </div>
     </footer>
