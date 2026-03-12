@@ -75,7 +75,7 @@ export default function CustomerFooter() {
           <div className={styles.links}>
             <Link to="/customer/home">Home</Link>
             <Link to="/customer/catalog">Products</Link>
-            <Link to="/customer/about">About Us</Link>
+            <Link to="/about">About Us</Link>
             <Link to="/customer/contact">Contact</Link>
           </div>
         </div>
@@ -108,8 +108,8 @@ export default function CustomerFooter() {
       <div className={styles.bottom}>
         <div>(c) 2025 JCB Parts. All rights reserved.</div>
         <div className={styles.bottomRight}>
-          <Link to="/customer/privacy">Privacy Policy</Link>
-          <Link to="/customer/terms">Terms of Service</Link>
+          <Link to="/privacy">Privacy Policy</Link>
+          <Link to="/terms">Terms of Service</Link>
         </div>
       </div>
     </footer>

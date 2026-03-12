@@ -65,6 +65,15 @@ export default function AppRoutes() {
       <Route path="/" element={<Navigate to="/customer/home" replace />} />
 
       {/* =============================== */}
+      {/* Public customer info pages      */}
+      {/* =============================== */}
+      <Route element={<CustomerLayout />}>
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+      </Route>
+
+      {/* =============================== */}
       {/* Portal sign-in routes (public)  */}
       {/* =============================== */}
       <Route path="/customer/signin" element={<SignIn />} />
@@ -161,9 +170,9 @@ export default function AppRoutes() {
         <Route path="reservations" element={<MyReservations />} />
         <Route path="profile" element={<ProfileSettings />} />
         <Route path="contact" element={<ContactUs />} />
-        <Route path="about" element={<AboutUs />} />
-        <Route path="privacy" element={<PrivacyPolicy />} />
-        <Route path="terms" element={<TermsOfService />} />
+        <Route path="about" element={<Navigate to="/about" replace />} />
+        <Route path="privacy" element={<Navigate to="/privacy" replace />} />
+        <Route path="terms" element={<Navigate to="/terms" replace />} />
         <Route index element={<Navigate to="/customer/home" replace />} />
       </Route>
 
