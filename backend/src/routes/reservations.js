@@ -15,6 +15,8 @@ const {
 const {
   createReservation: createReservationTx,
   ReservationError,
+  expireReservationsForCustomer,
+  expireReservationIfNeededTx,
 } = require("../services/reservationService");
 
 /**
@@ -40,6 +42,11 @@ const isFinal = (s) =>
 const parseId = (raw) => {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+const expireIfNeededTx = async (tx, reservationId) => {
+  const exp = await expireReservationIfNeededTx(tx, reservationId);
+  return !!exp?.expired;
 };
 
 // Transaction-safe audit log helper (so audit + stock changes are atomic)
@@ -91,6 +98,9 @@ router.get(
   async (req, res) => {
     try {
       const customerId = Number(req.user.dbId);
+
+      // Enforce expiry (3-day rule) so customers see up-to-date status and stock is restored.
+      await expireReservationsForCustomer(customerId).catch(() => {});
 
       const items = await prisma.reservation.findMany({
         where: { CustomerID: customerId },
@@ -304,43 +314,55 @@ router.patch(
 
       const adminId = Number(req.user.dbId);
 
-      const r = await prisma.reservation.findUnique({
-        where: { ReservationID: reservationId },
-      });
+      const txRes = await prisma.$transaction(async (tx) => {
+        const expired = await expireIfNeededTx(tx, reservationId);
+        if (expired) return { expired: true };
 
-      if (!r) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Reservation not found" });
-      }
-
-      const current = normStatus(r.Status);
-
-      if (!isPendingLike(current)) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot approve a ${current.toLowerCase()} reservation`,
+        const r = await tx.reservation.findUnique({
+          where: { ReservationID: reservationId },
         });
+
+        if (!r) {
+          const e = new Error("Reservation not found");
+          e.status = 404;
+          throw e;
+        }
+
+        const current = normStatus(r.Status);
+
+        if (!isPendingLike(current)) {
+          const e = new Error(`Cannot approve a ${current.toLowerCase()} reservation`);
+          e.status = 400;
+          throw e;
+        }
+
+        const u = await tx.reservation.update({
+          where: { ReservationID: reservationId },
+          data: {
+            Status: STATUS.CONFIRMED,
+            ApprovedBy: adminId,
+          },
+        });
+
+        return { expired: false, before: { current, ApprovedBy: r.ApprovedBy }, updated: u };
+      });
+
+      if (txRes?.expired) {
+        return res.status(400).json({ success: false, message: "Reservation has expired" });
       }
 
-      const updated = await prisma.reservation.update({
-        where: { ReservationID: reservationId },
-        data: {
-          Status: STATUS.CONFIRMED,
-          ApprovedBy: adminId,
-        },
-      });
+      const { before, updated } = txRes;
 
       await writeAuditLog(req, {
         action: "RESERVATION_APPROVE",
         entityType: "reservation",
         entityId: reservationId,
-        before: { Status: current, ApprovedBy: r.ApprovedBy },
+        before: { Status: before.current, ApprovedBy: before.ApprovedBy },
         after: { Status: updated.Status, ApprovedBy: updated.ApprovedBy },
       });
 
       console.log(
-        `AUDIT: admin ${adminId} approved reservation ${reservationId} (${current} -> ${STATUS.CONFIRMED})`
+        `AUDIT: admin ${adminId} approved reservation ${reservationId} (${before.current} -> ${STATUS.CONFIRMED})`
       );
 
       return res.json({
@@ -350,7 +372,7 @@ router.patch(
       });
     } catch (err) {
       return res
-        .status(500)
+        .status(err.status || 500)
         .json({ success: false, message: err.message || "Server error" });
     }
   }
@@ -382,7 +404,10 @@ router.patch(
 
       const adminId = Number(req.user.dbId);
 
-      const updated = await prisma.$transaction(async (tx) => {
+      const txRes = await prisma.$transaction(async (tx) => {
+        const expired = await expireIfNeededTx(tx, reservationId);
+        if (expired) return { expired: true };
+
         const r = await tx.reservation.findUnique({
           where: { ReservationID: reservationId },
         });
@@ -450,8 +475,14 @@ router.patch(
           meta: { reservationId, quantity: r.Quantity },
         });
 
-        return reservationUpdated;
+        return { expired: false, data: reservationUpdated };
       });
+
+      if (txRes?.expired) {
+        return res.status(400).json({ success: false, message: "Reservation has expired" });
+      }
+
+      const updated = txRes?.data;
 
       console.log(
         `AUDIT: admin ${adminId} rejected reservation ${reservationId} (-> ${STATUS.REJECTED})`
@@ -495,7 +526,10 @@ router.patch(
 
       const adminId = Number(req.user.dbId);
 
-      const updated = await prisma.$transaction(async (tx) => {
+      const txRes = await prisma.$transaction(async (tx) => {
+        const expired = await expireIfNeededTx(tx, reservationId);
+        if (expired) return { expired: true };
+
         const r = await tx.reservation.findUnique({
           where: { ReservationID: reservationId },
         });
@@ -532,8 +566,14 @@ router.patch(
           after: { Status: reservationUpdated.Status, ApprovedBy: reservationUpdated.ApprovedBy },
         });
 
-        return reservationUpdated;
+        return { expired: false, data: reservationUpdated };
       });
+
+      if (txRes?.expired) {
+        return res.status(400).json({ success: false, message: "Reservation has expired" });
+      }
+
+      const updated = txRes?.data;
 
       console.log(
         `AUDIT: admin ${adminId} completed reservation ${reservationId} (${STATUS.CONFIRMED} -> ${STATUS.COMPLETED})`
@@ -579,7 +619,10 @@ router.patch(
 
       const adminId = Number(req.user.dbId);
 
-      const updated = await prisma.$transaction(async (tx) => {
+      const txRes = await prisma.$transaction(async (tx) => {
+        const expired = await expireIfNeededTx(tx, reservationId);
+        if (expired) return { expired: true };
+
         const r = await tx.reservation.findUnique({
           where: { ReservationID: reservationId },
         });
@@ -662,8 +705,14 @@ router.patch(
           meta: { reservationId, quantity: r.Quantity },
         });
 
-        return reservationUpdated;
+        return { expired: false, data: reservationUpdated };
       });
+
+      if (txRes?.expired) {
+        return res.status(400).json({ success: false, message: "Reservation has expired" });
+      }
+
+      const updated = txRes?.data;
 
       console.log(
         `AUDIT: admin ${adminId} cancelled reservation ${reservationId} (-> ${STATUS.CANCELLED})`

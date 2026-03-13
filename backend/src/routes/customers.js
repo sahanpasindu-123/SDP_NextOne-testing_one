@@ -89,10 +89,15 @@ router.post("/", authenticateToken, authorizeRoles("ADMIN"), async (req, res) =>
 
     const cleanName = typeof name === "string" ? name.trim() : "";
     const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    const cleanPhone = typeof phone === "string" ? phone.trim() : "";
     const rawPassword = typeof password === "string" ? password : "";
 
-    if (!cleanName || !cleanEmail) {
-      return res.status(400).json({ success: false, message: "Name and email are required" });
+    if (!cleanName || !cleanEmail || !cleanPhone) {
+      return res.status(400).json({ success: false, message: "Name, email, and phone are required" });
+    }
+
+    if (cleanPhone.length > 15) {
+      return res.status(400).json({ success: false, message: "Phone number is too long" });
     }
 
     // Prisma requires PasswordHash (non-null). We must accept a password and store only its hash.
@@ -112,9 +117,13 @@ router.post("/", authenticateToken, authorizeRoles("ADMIN"), async (req, res) =>
       data: {
         Name: cleanName,
         Email: cleanEmail,
-        Phone: phone || null,
+        Phone: cleanPhone,
         PasswordHash: passwordHash,
-        isActive: true
+        isActive: true,
+        // Admin-created accounts must be usable with the existing login policy.
+        emailVerified: true,
+        emailVerifyCode: null,
+        emailVerifyExpires: null,
       }
     });
 
@@ -135,9 +144,10 @@ router.post("/", authenticateToken, authorizeRoles("ADMIN"), async (req, res) =>
 
     // Prisma: unique constraint failed
     if (error?.code === "P2002") {
+      const targets = Array.isArray(error?.meta?.target) ? error.meta.target : [];
       return res.status(409).json({
         success: false,
-        message: "Email already exists",
+        message: targets.includes("Phone") ? "Phone already exists" : "Email already exists",
       });
     }
 
@@ -155,12 +165,19 @@ router.put("/:id", authenticateToken, authorizeRoles("ADMIN"), async (req, res) 
 
     const { name, email, phone, address, status } = req.body;
 
+    if (name !== undefined && !String(name || "").trim()) {
+      return res.status(400).json({ success: false, message: "Name is required" });
+    }
+    if (phone !== undefined && !String(phone || "").trim()) {
+      return res.status(400).json({ success: false, message: "Phone is required" });
+    }
+
     const customer = await prisma.customer.update({
       where: { CustomerID: customerId },
       data: {
-        Name: name || undefined,
-        Email: email || undefined,
-        Phone: phone || undefined,
+        Name: name !== undefined ? String(name).trim() : undefined,
+        Email: email !== undefined ? String(email).trim().toLowerCase() : undefined,
+        Phone: phone !== undefined ? String(phone).trim() : undefined,
         isActive: status === "Active" ? true : false
       }
     });
@@ -179,6 +196,15 @@ router.put("/:id", authenticateToken, authorizeRoles("ADMIN"), async (req, res) 
     });
   } catch (error) {
     console.error("PUT /api/customers/:id error:", error);
+
+    if (error?.code === "P2002") {
+      const targets = Array.isArray(error?.meta?.target) ? error.meta.target : [];
+      return res.status(409).json({
+        success: false,
+        message: targets.includes("Phone") ? "Phone already exists" : "Email already exists",
+      });
+    }
+
     res.status(500).json({ success: false, message: "Failed to update customer" });
   }
 });

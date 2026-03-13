@@ -10,6 +10,8 @@ export default function AddNewProductModal({
   categories = [],
   title = "Add New Product",
   submitLabel = "Add Item",
+  showProductCode = true,
+  requireProductCode = true,
 }) {
   const fileRef = useRef(null);
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -107,9 +109,13 @@ export default function AddNewProductModal({
     e.preventDefault();
 
     if (!productName.trim()) return toast.error("Product Name is required");
-    if (!productCode.trim()) return toast.error("Product ID is required");
-    if (!/^COO-\d{3}$/.test(productCode.trim())) {
-      return toast.error("Product ID must be like COO-001");
+
+    if (showProductCode) {
+      const code = productCode.trim();
+      if (requireProductCode && !code) return toast.error("Product ID is required");
+      if (code && !/^COO-\d{3}$/.test(code)) {
+        return toast.error("Product ID must be like COO-001");
+      }
     }
     if (!categoryId) return toast.error("Category is required");
     if (!price || Number(price) <= 0) return toast.error("Valid price required");
@@ -122,7 +128,7 @@ export default function AddNewProductModal({
 
     onSubmit?.({
       productName: productName.trim(),
-      productCode: productCode.trim().toUpperCase(),
+      productCode: showProductCode ? productCode.trim().toUpperCase() : null,
       categoryId: Number(categoryId),
       categoryName: selectedCategory?.Name || "",
       price: Number(price),
@@ -199,15 +205,17 @@ export default function AddNewProductModal({
               />
             </div>
 
-            <div className={styles.block}>
-              <div className={styles.label}>Product ID *</div>
-              <input
-                className={styles.input}
-                value={productCode}
-                onChange={(e) => setProductCode(e.target.value.toUpperCase())}
-                placeholder="COO-001"
-              />
-            </div>
+            {!showProductCode ? null : (
+              <div className={styles.block}>
+                <div className={styles.label}>Product ID {requireProductCode ? "*" : ""}</div>
+                <input
+                  className={styles.input}
+                  value={productCode}
+                  onChange={(e) => setProductCode(e.target.value.toUpperCase())}
+                  placeholder="COO-001"
+                />
+              </div>
+            )}
 
             <div className={`${styles.block} ${styles.full}`}>
               <div className={styles.label}>Description</div>

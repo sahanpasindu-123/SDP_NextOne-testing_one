@@ -55,7 +55,7 @@ async function main() {
         UnitPrice: Number(product.Price || 0),
         Total: Number(product.Price || 0) * qty,
         Status: "PENDING",
-        ExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        ExpiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
       },
       select: { ReservationID: true, Status: true },
     });

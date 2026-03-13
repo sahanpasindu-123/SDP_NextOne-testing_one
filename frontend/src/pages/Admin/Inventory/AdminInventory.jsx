@@ -120,7 +120,13 @@ export default function AdminInventory() {
       category: p.CategoryName || "N/A",
       stock: p.Stock,
       price: `Rs ${Number(p.Price).toLocaleString()}`,
-      status: p.Stock <= (p.StockLimit ?? 0) ? "Low Stock" : "In Stock",
+      status: (() => {
+        const stock = Number(p.Stock ?? 0);
+        const limit = p.StockLimit == null ? 5 : Number(p.StockLimit);
+        if (stock <= 0) return "Out of Stock";
+        if (Number.isFinite(limit) && stock <= limit) return "Low Stock";
+        return "In Stock";
+      })(),
       imageUrl: p.ImageURL,
       raw: p,
     }));
@@ -139,7 +145,9 @@ export default function AdminInventory() {
       header: "Status",
       width: 140,
       render: (r) =>
-        r.status === "Low Stock" ? (
+        r.status === "Out of Stock" ? (
+          <Badge tone="danger">Out of Stock</Badge>
+        ) : r.status === "Low Stock" ? (
           <Badge tone="danger">Low Stock</Badge>
         ) : (
           <Badge tone="success">In Stock</Badge>
@@ -271,6 +279,7 @@ export default function AdminInventory() {
 
       await inventoryAPI.update(selectedProduct.ProductID, {
         productName: data.productName,
+        productCode: data.sku,
         category: selectedCategoryName,
         categoryId: categoryId ?? undefined,
         price: data.price,

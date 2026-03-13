@@ -19,6 +19,8 @@ export default function Sidebar() {
   const { logout } = useAuth()
 
   const handleLogout = () => {
+    const ok = window.confirm('Log out now?')
+    if (!ok) return
     logout()
     navigate('/employee/signin')
   }

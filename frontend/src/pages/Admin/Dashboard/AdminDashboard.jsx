@@ -104,7 +104,7 @@ export default function AdminDashboard() {
       const dash = dashRes?.data?.data ?? dashRes?.data ?? {}
       const counts = dash?.counts ?? {}
       const lowStock = Array.isArray(dash?.lowStockProducts) ? dash.lowStockProducts : []
-      const criticalCount = lowStock.filter((p) => Number(p?.stock ?? p?.Stock ?? 0) <= 0).length
+      const outOfStockCount = lowStock.filter((p) => Number(p?.stock ?? p?.Stock ?? 0) <= 0).length
 
       const salesRowsRaw = salesRes?.data?.data ?? salesRes?.data ?? []
       const salesRows = Array.isArray(salesRowsRaw) ? salesRowsRaw : []
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
         totalUsers: String(Number(counts?.customers ?? 0) || 0),
         totalProducts: String(Number(counts?.products ?? 0) || 0),
         revenueThisWeek: `Rs ${Math.round(weekRevenue).toLocaleString()}`,
-        criticalAlerts: String(criticalCount || lowStock.length || 0),
+        criticalAlerts: String(outOfStockCount || 0),
       })
       setChartData(computedChart)
       setOrderRows(mappedOrders)
@@ -234,10 +234,10 @@ export default function AdminDashboard() {
       <div className="pageSub">Overview of system activity and operational metrics.</div>
 
       <div className={styles.stats}>
-        <StatCard label="Total Users" value={stats.totalUsers} icon={<FiUsers />} iconTone="blue" />
+        <StatCard label="Total Customers" value={stats.totalUsers} icon={<FiUsers />} iconTone="blue" />
         <StatCard label="Total Products" value={stats.totalProducts} icon={<FiBox />} iconTone="purple" />
         <StatCard label="Revenue (This Week)" value={stats.revenueThisWeek} icon={<FiDollarSign />} iconTone="accent" />
-        <StatCard label="Critical Alerts" value={stats.criticalAlerts} icon={<FiAlertCircle />} iconTone="red" />
+        <StatCard label="Out of Stock Items" value={stats.criticalAlerts} icon={<FiAlertCircle />} iconTone="red" />
       </div>
 
       <div className={styles.grid}>

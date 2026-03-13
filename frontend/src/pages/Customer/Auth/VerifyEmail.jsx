@@ -44,9 +44,6 @@ export default function VerifyEmail() {
       const token = res?.token || res?.data?.token || res?.data?.data?.token;
       const user = res?.user || res?.data?.user || res?.data?.data?.user;
 
-      if (token) localStorage.setItem("token", token);
-      if (user) localStorage.setItem("user", JSON.stringify(user));
-
       localStorage.removeItem("pendingVerifyEmail");
 
       if (token) {
@@ -56,7 +53,7 @@ export default function VerifyEmail() {
           res?.data?.data?.role ||
           user?.role ||
           "CUSTOMER";
-        login(token, role);
+        login(token, role, { remember: true });
       }
 
       // ✅ Verified success → go to Home

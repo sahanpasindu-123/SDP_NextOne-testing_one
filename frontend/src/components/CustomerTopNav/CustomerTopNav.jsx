@@ -49,6 +49,8 @@ export default function CustomerTopNav() {
             <button 
               className={styles.link} 
               onClick={() => {
+                const ok = window.confirm("Log out now?");
+                if (!ok) return;
                 logout()
               }}
             >

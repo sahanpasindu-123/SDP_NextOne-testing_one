@@ -12,8 +12,6 @@ import Button from "../../components/Button/Button.jsx";
 import Badge from "../../components/Badge/Badge.jsx";
 
 import AddNewProductModal from "../../components/modals/Inventory/AddNewProductModal.jsx";
-import UpdateProductModal from "../../components/modals/Inventory/UpdateProductModal.jsx";
-import AddProductImageModal from "../../components/modals/Inventory/AddProductImageModal.jsx";
 
 import styles from "./InventoryAll.module.css";
 import toast from "react-hot-toast";
@@ -29,9 +27,6 @@ export default function InventoryAll() {
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState("all"); // all | low | out
   const [addOpen, setAddOpen] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
-  const [imageOpen, setImageOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -136,29 +131,10 @@ export default function InventoryAll() {
 
   const handleDelete = (row) => navigate(`${base}/inventory/delete/${row.id}`);
 
-  const handleUpdateOpen = (row) => {
-    closeInventoryModals();
-    setSelectedProduct(row.raw);
-    setUpdateOpen(true);
-  };
-
-  const handleImageOpen = (row) => {
-    closeInventoryModals();
-    setSelectedProduct(row.raw);
-    setImageOpen(true);
-  };
-
-  const closeInventoryModals = () => {
-    setAddOpen(false);
-    setUpdateOpen(false);
-    setImageOpen(false);
-  };
-
   const handleAddSubmit = async (data) => {
     try {
       const fd = new FormData();
       fd.append("productName", data.productName);
-      fd.append("productCode", data.productCode || "");
       fd.append("categoryId", String(data.categoryId));
       fd.append("price", data.price);
       fd.append("stockQty", data.stockQty);
@@ -184,16 +160,6 @@ export default function InventoryAll() {
     }
   };
 
-  const handleUpdateSubmit = (data) => {
-    console.log("Update Product:", { id: selectedProduct?.ProductID, data });
-    setUpdateOpen(false);
-  };
-
-  const handleImageSubmit = (file) => {
-    console.log("Add Image:", { productId: selectedProduct?.ProductID, file });
-    setImageOpen(false);
-  };
-
   const cols = [
     { key: "name", header: "Item Name" },
     { key: "category", header: "Category", width: 160 },
@@ -217,34 +183,7 @@ export default function InventoryAll() {
       key: "actions",
       header: "Actions",
       width: 180,
-      render: (r) =>
-        isEmployeePortal ? (
-          <span style={{ opacity: 0.7 }}>N/A</span>
-        ) : (
-          <div className={styles.actions}>
-            <button
-              className={`${styles.iconBtn} ${styles.edit}`}
-              aria-label="Edit"
-              onClick={() => handleUpdateOpen(r)}
-            >
-              <FiEdit2 />
-            </button>
-            <button
-              className={`${styles.iconBtn} ${styles.trash}`}
-              aria-label="Delete"
-              onClick={() => handleDelete(r)}
-            >
-              <FiTrash2 />
-            </button>
-            <button
-              className={`${styles.iconBtn} ${styles.image}`}
-              aria-label="Add Image"
-              onClick={() => handleImageOpen(r)}
-            >
-              Img
-            </button>
-          </div>
-        ),
+      render: () => <span style={{ opacity: 0.7 }}>N/A</span>,
     },
   ];
 
@@ -327,8 +266,6 @@ export default function InventoryAll() {
           <Button
             leftIcon={<FiPlus />}
             onClick={() => {
-              closeInventoryModals();
-              setSelectedProduct(null);
               setAddOpen(true);
             }}
           >
@@ -392,34 +329,8 @@ export default function InventoryAll() {
         categories={categories}
         title={isEmployeePortal ? "Request Product" : "Add New Product"}
         submitLabel={isEmployeePortal ? "Submit Request" : "Add Item"}
-      />
-
-      <UpdateProductModal
-        open={updateOpen}
-        onClose={() => {
-          setUpdateOpen(false);
-          setSelectedProduct(null);
-        }}
-        onSubmit={handleUpdateSubmit}
-        categories={categories.map((c) => c.Name)}
-        initial={{
-          name: selectedProduct?.Name,
-          sku: selectedProduct?.ProductCode || "",
-          category: selectedProduct?.category?.Name || selectedProduct?.CategoryName,
-          stock: selectedProduct?.Stock,
-          price: selectedProduct?.Price,
-          desc: selectedProduct?.Description,
-          minQty: selectedProduct?.StockLimit,
-        }}
-      />
-
-      <AddProductImageModal
-        open={imageOpen}
-        onClose={() => {
-          setImageOpen(false);
-          setSelectedProduct(null);
-        }}
-        onSubmit={handleImageSubmit}
+        showProductCode={!isEmployeePortal}
+        requireProductCode={!isEmployeePortal}
       />
     </div>
   );

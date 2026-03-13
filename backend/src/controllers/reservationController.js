@@ -1,4 +1,9 @@
 const prisma = require("../utils/prisma");
+const { expireReservationIfNeededTx } = require("../services/reservationService");
+
+function normStatus(s) {
+  return String(s || "").trim().toUpperCase();
+}
 
 // ------------------------------
 // CONFIRM RESERVATION
@@ -10,26 +15,53 @@ const confirmReservation = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid id" });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const txRes = await prisma.$transaction(async (tx) => {
       // 1️⃣ Check reservation exists
       const existing = await tx.reservation.findUnique({
         where: { ReservationID: id },
       });
 
       if (!existing) {
-        throw new Error("Reservation not found");
+        const e = new Error("Reservation not found");
+        e.status = 404;
+        throw e;
       }
 
-      const current = String(existing.Status || "").toUpperCase();
+      const role = normStatus(req.user?.role);
+      const dbId = Number(req.user?.dbId);
+
+      // CUSTOMER must only confirm their own reservation
+      if (role === "CUSTOMER") {
+        if (!Number.isFinite(dbId) || Number(existing.CustomerID) !== dbId) {
+          const e = new Error("Reservation not found");
+          e.status = 404;
+          throw e;
+        }
+      }
+
+      // Enforce expiry (3-day rule) before allowing state changes
+      const exp = await expireReservationIfNeededTx(tx, id);
+      if (exp?.expired) {
+        const updated = await tx.reservation.findUnique({
+          where: { ReservationID: id },
+        });
+        return { expired: true, reservation: updated };
+      }
+
+      const current = normStatus(existing.Status);
 
       // 2️⃣ Prevent double confirm
       if (current === "CONFIRMED") {
-        throw new Error("Reservation already confirmed");
+        const e = new Error("Reservation already confirmed");
+        e.status = 400;
+        throw e;
       }
 
       // 3️⃣ Allow only PENDING/RESERVED -> CONFIRMED
       if (!["PENDING", "RESERVED"].includes(current)) {
-        throw new Error(`Cannot confirm a ${current.toLowerCase()} reservation`);
+        const e = new Error(`Cannot confirm a ${current.toLowerCase()} reservation`);
+        e.status = 400;
+        throw e;
       }
 
       // 4️⃣ Ensure product not already confirmed elsewhere
@@ -42,20 +74,32 @@ const confirmReservation = async (req, res) => {
       });
 
       if (productConflict) {
-        throw new Error("This product is already confirmed by another reservation");
+        const e = new Error("This product is already confirmed by another reservation");
+        e.status = 400;
+        throw e;
       }
 
       // 5️⃣ Update status
-      return await tx.reservation.update({
+      const updated = await tx.reservation.update({
         where: { ReservationID: id },
         data: { Status: "CONFIRMED" },
       });
+
+      return { expired: false, reservation: updated };
     });
 
-    return res.json({ success: true, reservation: result });
+    if (txRes?.expired) {
+      return res.status(400).json({
+        success: false,
+        message: "Reservation has expired",
+        reservation: txRes?.reservation || null,
+      });
+    }
+
+    return res.json({ success: true, reservation: txRes?.reservation });
 
   } catch (err) {
-    return res.status(400).json({
+    return res.status(err.status || 400).json({
       success: false,
       message: err.message || "Server error",
     });
@@ -84,7 +128,25 @@ const cancelReservation = async (req, res) => {
         throw e;
       }
 
-      const current = String(existing.Status || "").toUpperCase();
+      const role = normStatus(req.user?.role);
+      const dbId = Number(req.user?.dbId);
+
+      // CUSTOMER must only cancel their own reservation
+      if (role === "CUSTOMER") {
+        if (!Number.isFinite(dbId) || Number(existing.CustomerID) !== dbId) {
+          const e = new Error("Reservation not found");
+          e.status = 404;
+          throw e;
+        }
+      }
+
+      // If expired, expire it (stock restore) and return the updated row.
+      const exp = await expireReservationIfNeededTx(tx, id);
+      if (exp?.expired) {
+        return await tx.reservation.findUnique({ where: { ReservationID: id } });
+      }
+
+      const current = normStatus(existing.Status);
       const cancelAllowed = ["PENDING", "RESERVED", "CONFIRMED"];
       if (!cancelAllowed.includes(current)) {
         const e = new Error(

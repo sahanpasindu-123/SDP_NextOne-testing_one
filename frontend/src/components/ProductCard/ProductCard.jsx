@@ -29,6 +29,7 @@ function firstMeaningful(...candidates) {
 export default function ProductCard({ product, onReserve, onViewDetails }) {
   const safeProduct = product || {};
   const available = Number(safeProduct.available ?? 0);
+  const canReserve = !Number.isFinite(available) ? true : available > 0;
   const lowThreshold = Number(safeProduct.lowStockThreshold ?? safeProduct.stockLimit ?? 0) || 5;
   const stockLabel =
     safeProduct.stockLabel ||
@@ -47,6 +48,7 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
 
   const handleReserve = () => {
     console.log("[ProductCard] Reserve click", safeProduct);
+    if (!canReserve) return;
     if (!onReserve) return;
     onReserve(
       effectiveId
@@ -140,6 +142,8 @@ export default function ProductCard({ product, onReserve, onViewDetails }) {
             type="button"
             className={styles.reserveBtn}
             onClick={handleReserve}
+            disabled={!canReserve}
+            title={!canReserve ? "Out of stock" : "Reserve"}
           >
             <FiShoppingCart /> <span>Reserve</span>
           </button>

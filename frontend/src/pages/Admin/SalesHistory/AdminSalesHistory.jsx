@@ -30,16 +30,20 @@ export default function AdminSalesHistory() {
 
   const fetchSales = async () => {
     try {
-      const res = await reportsAPI.getSalesReport()
-      const data = res?.data?.data ?? res?.data ?? []
-      const list = Array.isArray(data) ? data : []
+      const now = new Date()
+      const to = now.toISOString().slice(0, 10)
+      const fromDate = new Date(now)
+      fromDate.setDate(now.getDate() - 30)
+      const from = fromDate.toISOString().slice(0, 10)
+
+      const res = await reportsAPI.getSalesReport({ from, to })
+      const list = Array.isArray(res?.data) ? res.data : []
 
       const mapped = list.map((r) => ({
         id: r?.id ?? 'N/A',
         customer: r?.customer ?? 'N/A',
         date: r?.date ?? 'N/A',
         amount: r?.amount ?? 'Rs 0',
-        payment: r?.payment ?? 'N/A',
         status: toPaidPending(r?.status),
       }))
 
@@ -58,7 +62,6 @@ export default function AdminSalesHistory() {
     { key:'customer', header:'Customer' },
     { key:'date', header:'Date', width:160 },
     { key:'amount', header:'Amount', width:140 },
-    { key:'payment', header:'Payment', width:140, render:(r)=> <Badge tone="success">{r.payment}</Badge> },
     { key:'status', header:'Status', width:140, render:(r)=> r.status==='Paid' ? <Badge tone="success">Paid</Badge> : <Badge tone="warn">Pending</Badge> },
   ]
 
@@ -82,14 +85,13 @@ export default function AdminSalesHistory() {
   }
 
   const exportCsv = ({ timePeriod: tp } = {}) => {
-    const header = ['Invoice ID', 'Customer', 'Date', 'Amount', 'Payment', 'Status']
+    const header = ['Invoice ID', 'Customer', 'Date', 'Amount', 'Status']
     const body = (Array.isArray(rows) ? rows : []).map((r) =>
       [
         r?.id,
         r?.customer,
         r?.date,
         r?.amount,
-        r?.payment,
         r?.status,
       ]
         .map(escapeCsvCell)

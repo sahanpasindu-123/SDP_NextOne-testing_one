@@ -15,14 +15,16 @@ export default function EmployeeLogin() {
   const { refreshCategories } = useCategories();
 
   const clearAuth = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("role");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("employeeToken");
-    localStorage.removeItem("customerToken");
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
+    for (const store of [localStorage, sessionStorage]) {
+      store.removeItem("token");
+      store.removeItem("authToken");
+      store.removeItem("role");
+      store.removeItem("adminToken");
+      store.removeItem("employeeToken");
+      store.removeItem("customerToken");
+      store.removeItem("user");
+      store.removeItem("userId");
+    }
   };
 
   const handleSubmit = async (e) => {

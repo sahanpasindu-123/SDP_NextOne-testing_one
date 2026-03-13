@@ -228,7 +228,7 @@ export default function Reservations() {
                   toast.success("Reservation approved");
                 } catch (e) {
                   console.error("approve failed:", e);
-                  toast.error("Approve failed");
+                  toast.error(e?.message || "Approve failed");
                 } finally {
                   setBusyId(null);
                 }
@@ -381,7 +381,7 @@ export default function Reservations() {
                   await load();
                 } catch (e) {
                   console.error("action failed:", e);
-                  toast.error(action?.type === "sale" ? "Sale failed" : "Reject failed");
+                  toast.error(e?.message || (action?.type === "sale" ? "Sale failed" : "Reject failed"));
                 } finally {
                   setBusyId(null);
                 }

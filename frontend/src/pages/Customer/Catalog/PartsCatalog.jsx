@@ -100,7 +100,7 @@ export function mapApiProductToCard(p, i = 0) {
   return {
     id,
     productId: id,
-    partNo: id, // Reserve/details modal ekedi Product ID widihata use karanna
+    partNo: String(productCode || ""),
     productName: String(name || ""),
     name: String(name || ""),
     productCode: String(productCode || ""),
@@ -150,7 +150,6 @@ export default function PartsCatalog() {
       list = list.filter((p) => {
         return (
           String(p?.name || "").toLowerCase().includes(q) ||
-          String(p?.productId || "").toLowerCase().includes(q) ||
           String(p?.productCode || "").toLowerCase().includes(q) ||
           String(p?.CategoryCode || p?.categoryCode || p?.category || "")
             .toLowerCase()
@@ -351,7 +350,7 @@ export default function PartsCatalog() {
 
         <div className={styles.filters}>
           <input
-            placeholder="Search by name, product ID, category..."
+            placeholder="Search by name, product code, category..."
             value={filters.query}
             onChange={(e) =>
               setFilters((prev) => ({ ...prev, query: e.target.value }))
@@ -388,22 +387,19 @@ export default function PartsCatalog() {
             <option value="priceDesc">Sort: Price (High → Low)</option>
           </select>
 
-          <label className={styles.stockStatusFilter}>
-            <span className={styles.stockStatusLabel}>Stock Status</span>
-            <select
-              value={filters.stockStatus}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, stockStatus: e.target.value }))
-              }
-              aria-label="Stock Status"
-              title="Stock Status"
-            >
-              <option value="all">All</option>
-              <option value="in">In Stock</option>
-              <option value="low">Low Stock</option>
-              <option value="out">Out of Stock</option>
-            </select>
-          </label>
+          <select
+            value={filters.stockStatus}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, stockStatus: e.target.value }))
+            }
+            aria-label="Stock Status"
+            title="Stock Status"
+          >
+            <option value="all">Stock: All</option>
+            <option value="in">Stock: In Stock</option>
+            <option value="low">Stock: Low Stock</option>
+            <option value="out">Stock: Out of Stock</option>
+          </select>
         </div>
 
         {loading ? (

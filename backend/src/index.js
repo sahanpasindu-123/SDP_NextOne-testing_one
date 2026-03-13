@@ -19,6 +19,7 @@ require("./config/env");
 const prisma = require("./utils/prisma");
 const { errorHandler } = require("./middleware/errorHandler");
 const { authenticateToken, authorizeRoles } = require("./middleware/auth");
+const { processExpiredReservations } = require("./services/reservationService");
 
 /**
  * ================================
@@ -318,6 +319,32 @@ app.listen(PORT, () => {
     !!(process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET)
   );
   console.log("DATABASE_URL loaded:", !!process.env.DATABASE_URL);
+
+  // ===============================
+  // Reservation expiry enforcement
+  // ===============================
+  const pollMsRaw = Number(process.env.RESERVATION_EXPIRY_POLL_MS);
+  const pollMs =
+    Number.isFinite(pollMsRaw) && pollMsRaw >= 10_000 ? pollMsRaw : 5 * 60 * 1000;
+
+  let inFlight = false;
+  const runExpiry = async () => {
+    if (inFlight) return;
+    inFlight = true;
+    try {
+      const r = await processExpiredReservations({ limit: 500 });
+      if (r?.expiredCount) {
+        console.log(`[expiry] cancelled expired reservations: ${r.expiredCount}`);
+      }
+    } catch (e) {
+      console.warn("[expiry] failed:", e?.message || e);
+    } finally {
+      inFlight = false;
+    }
+  };
+
+  runExpiry();
+  setInterval(runExpiry, pollMs);
 });
 
 module.exports = app;

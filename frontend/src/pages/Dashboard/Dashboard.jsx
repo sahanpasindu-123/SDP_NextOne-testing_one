@@ -244,14 +244,19 @@ export default function Dashboard() {
   // ---------------- Table configs ----------------
   const recentSalesCols = [
     { key: 'customer', header: 'Customer' },
-    { key: 'total', header: 'Total', width: 140 },
+    {
+      key: 'total',
+      header: 'Total',
+      width: 140,
+      render: (r) => `Rs ${toNumber(r?.total).toLocaleString()}`,
+    },
     { key: 'status', header: 'Status', width: 120 },
     { key: 'date', header: 'Date', width: 140 },
   ]
 
   const recentSalesRows = recentSales.map(s => ({
     ...s,
-    total: `Rs ${s.total}`,
+    total: toNumber(s.total),
     date: s.date ? new Date(s.date).toLocaleDateString() : '-'
   }))
 
@@ -287,8 +292,8 @@ export default function Dashboard() {
   // ---------------- Chart data ----------------
   const barData = recentSales.map((s, i) => ({
     name: `#${i + 1}`,
-    sales: Number(s.total) || 0,
-    target: (Number(s.total) || 0) + 1000,
+    sales: toNumber(s.total),
+    target: toNumber(s.total) + 1000,
   }))
 
   const pie = lowStockProducts.map((p) => ({

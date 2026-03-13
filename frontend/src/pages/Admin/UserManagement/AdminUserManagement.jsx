@@ -339,11 +339,14 @@ export default function AdminUserManagement() {
       }
 
       if (!payload.email) return toast.error("Email is required");
+      if (!payload.contactNumber || !String(payload.contactNumber).trim()) {
+        return toast.error("Contact number is required");
+      }
 
       const res = await customersAPI.createCustomer({
         name: payload.name || "",
         email: payload.email,
-        phone: payload.contactNumber || null,
+        phone: String(payload.contactNumber).trim(),
         password: payload.password,
       });
 

@@ -31,7 +31,6 @@ export default function CustomerHome() {
 
     return (Array.isArray(list) ? list : []).filter((p) => {
       return (
-        String(p?.productId || p?.id || "").toLowerCase().includes(qText) ||
         String(p?.name || p?.productName || "").toLowerCase().includes(qText) ||
         String(p?.categoryCode || p?.CategoryCode || p?.category || "").toLowerCase().includes(qText) ||
         String(p?.productCode || "").toLowerCase().includes(qText)
@@ -197,7 +196,7 @@ export default function CustomerHome() {
                   setQ(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Search by Product ID, name, or category..."
+                placeholder="Search by product code, name, or category..."
                 style={{
                   padding: "10px 12px",
                   borderRadius: 10,

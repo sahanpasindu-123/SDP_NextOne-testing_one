@@ -4,6 +4,7 @@ const router = express.Router();
 const prisma = require("../utils/prisma");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 const bcrypt = require("bcryptjs");
+const { expireReservationIfNeededTx } = require("../services/reservationService");
 
 const WALK_IN_CUSTOMER_EMAIL = "walkin.pos@system.invalid";
 const WALK_IN_CUSTOMER_PHONE = "WALKIN000000000"; // 15 chars (fits @db.VarChar(15))
@@ -259,13 +260,6 @@ router.post(
           throw e;
         }
 
-        const status = String(r.Status || "").toUpperCase();
-        if (status !== "CONFIRMED") {
-          const e = new Error("Reservation must be CONFIRMED before creating a sale");
-          e.status = 400;
-          throw e;
-        }
-
         // employee must be assigned to the reservation's product place
         const placeId = r.product?.PlaceID;
         if (!Number.isFinite(Number(placeId))) {
@@ -286,6 +280,20 @@ router.post(
 
         // ✅ Atomic guard FIRST: only ONE request can flip CONFIRMED -> COMPLETED
         // Prevents double-sale creation for the same reservation (race condition safe).
+        // Enforce expiry (3-day rule) AFTER authorization checks.
+        // IMPORTANT: do not throw after expiry inside this tx (would rollback the stock restore).
+        const exp = await expireReservationIfNeededTx(tx, reservationId);
+        if (exp?.expired) {
+          return { expired: true, reservationId };
+        }
+
+        const status = String(r.Status || "").toUpperCase();
+        if (status !== "CONFIRMED") {
+          const e = new Error("Reservation must be CONFIRMED before creating a sale");
+          e.status = 400;
+          throw e;
+        }
+
         const lock = await tx.reservation.updateMany({
           where: { ReservationID: reservationId, Status: "CONFIRMED" },
           data: { Status: "COMPLETED" },
@@ -309,8 +317,12 @@ router.post(
           },
         });
 
-        return { sale, reservationId };
+        return { expired: false, sale, reservationId };
       });
+
+      if (result?.expired) {
+        return res.status(400).json({ success: false, message: "Reservation has expired" });
+      }
 
       return res.status(201).json({
         success: true,

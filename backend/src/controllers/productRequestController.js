@@ -6,6 +6,38 @@ function toNumberOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function isValidGeneratedProductCode(code) {
+  return /^[A-Z]{3}-\d{3}$/.test(String(code || ""));
+}
+
+async function generateNextProductCodeTx(tx, prefix = "COO") {
+  const pfx = String(prefix || "").trim().toUpperCase();
+  const safePrefix = /^[A-Z]{3}$/.test(pfx) ? pfx : "COO";
+
+  const existing = await tx.product.findMany({
+    where: { ProductCode: { startsWith: `${safePrefix}-` } },
+    select: { ProductCode: true },
+  });
+
+  let max = 0;
+  for (const row of existing) {
+    const code = String(row?.ProductCode || "").trim().toUpperCase();
+    if (!code.startsWith(`${safePrefix}-`)) continue;
+    if (!isValidGeneratedProductCode(code)) continue;
+    const num = Number(code.slice(4));
+    if (Number.isFinite(num)) max = Math.max(max, num);
+  }
+
+  const next = max + 1;
+  if (next > 999) {
+    const e = new Error("Unable to generate Product ID (code space exhausted)");
+    e.status = 500;
+    throw e;
+  }
+
+  return `${safePrefix}-${String(next).padStart(3, "0")}`;
+}
+
 // EMPLOYEE: create pending request
 exports.createProductRequest = async (req, res) => {
   try {
@@ -132,19 +164,43 @@ exports.approveRequest = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const product = await tx.product.create({
-        data: {
-          Name: reqItem.Name,
-          Description: reqItem.Description,
-          Status: "ACTIVE",
-          Price: reqItem.Price,
-          Stock: reqItem.Stock,
-          StockLimit: reqItem.StockLimit,
-          CategoryID: reqItem.CategoryID,
-          PlaceID: reqItem.PlaceID,
-          ImageURL: reqItem.ImageURL,
-        },
-      });
+      // Ensure approved products always get a usable ProductCode (required by existing UIs/search).
+      // Employee requests do not persist a productCode in the request model.
+      let productCode = await generateNextProductCodeTx(tx, "COO");
+
+      let product;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+          product = await tx.product.create({
+            data: {
+              ProductCode: productCode,
+              Name: reqItem.Name,
+              Description: reqItem.Description,
+              Status: "ACTIVE",
+              Price: reqItem.Price,
+              Stock: reqItem.Stock,
+              StockLimit: reqItem.StockLimit,
+              CategoryID: reqItem.CategoryID,
+              PlaceID: reqItem.PlaceID,
+              ImageURL: reqItem.ImageURL,
+            },
+          });
+          break;
+        } catch (e) {
+          // Prisma unique violation: retry with next code
+          if (e?.code === "P2002") {
+            productCode = await generateNextProductCodeTx(tx, "COO");
+            continue;
+          }
+          throw e;
+        }
+      }
+
+      if (!product) {
+        const e = new Error("Failed to approve request (could not generate Product ID)");
+        e.status = 500;
+        throw e;
+      }
 
       const updatedReq = await tx.productRequest.update({
         where: { RequestID: id },

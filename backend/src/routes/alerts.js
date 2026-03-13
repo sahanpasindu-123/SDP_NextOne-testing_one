@@ -19,19 +19,26 @@ router.get(
       const q = req.query.q ? String(req.query.q).trim() : null;
       const range = req.query.range ? String(req.query.range) : "all";
 
-      const where = { IsActive: true };
+      const and = [];
 
       if (type && type !== "all") {
         // tolerate frontend-friendly labels
         const normalizedType = String(type).trim().toUpperCase().replace(/\s+/g, "_");
-        where.Type = normalizedType;
+        and.push({ Type: normalizedType });
       }
-      if (status && status !== "all") where.Status = status;
+
+      if (status && status !== "all") {
+        const normalizedStatus = String(status).trim().toUpperCase();
+        if (normalizedStatus === "UNREAD") {
+          // "Unread" should include historical NULL / NEW values too
+          and.push({ OR: [{ Status: null }, { Status: "Unread" }, { Status: "NEW" }] });
+        } else {
+          and.push({ Status: status });
+        }
+      }
 
       if (q) {
-        where.OR = [
-          { Message: { contains: q } },
-        ];
+        and.push({ OR: [{ Message: { contains: q } }] });
       }
 
       if (range && range !== "all") {
@@ -48,8 +55,10 @@ router.get(
           from.setDate(now.getDate() - 30);
         }
 
-        if (from) where.CreatedAt = { gte: from };
+        if (from) and.push({ CreatedAt: { gte: from } });
       }
+
+      const where = and.length ? { IsActive: true, AND: and } : { IsActive: true };
 
       const list = await prisma.alert.findMany({
         where,

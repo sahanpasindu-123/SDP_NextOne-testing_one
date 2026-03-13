@@ -401,7 +401,11 @@ exports.updateProduct = async (req, res) => {
     const data = {};
 
     if (productName !== undefined) {
-      data.Name = productName ? String(productName).trim() : null;
+      const cleanName = String(productName || "").trim();
+      if (!cleanName) {
+        return res.status(400).json({ success: false, message: "Product Name is required" });
+      }
+      data.Name = cleanName;
     }
 
     if (productCode !== undefined) {

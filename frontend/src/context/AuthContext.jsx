@@ -19,15 +19,48 @@ export function AuthProvider({ children }) {
   const isLoggedIn = !!token
 
   const clearStorage = useCallback(() => {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('token')
-    localStorage.removeItem('role')
-    localStorage.removeItem('adminToken')
-    localStorage.removeItem('employeeToken')
-    localStorage.removeItem('customerToken')
-    localStorage.removeItem('user')
-    localStorage.removeItem('admin')
-    localStorage.removeItem('employee')
+    const keys = [
+      'authToken',
+      'token',
+      'role',
+      'adminToken',
+      'employeeToken',
+      'customerToken',
+      'user',
+      'admin',
+      'employee',
+    ]
+
+    for (const store of [localStorage, sessionStorage]) {
+      try {
+        keys.forEach((k) => store.removeItem(k))
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
+
+  const storageGet = useCallback((key) => {
+    try {
+      return sessionStorage.getItem(key) || localStorage.getItem(key)
+    } catch {
+      return null
+    }
+  }, [])
+
+  const pickStorageForExistingToken = useCallback((storedToken) => {
+    try {
+      if (!storedToken) return localStorage
+      const sTok = sessionStorage.getItem('authToken') || sessionStorage.getItem('token')
+      if (sTok && sTok === storedToken) return sessionStorage
+      const lTok = localStorage.getItem('authToken') || localStorage.getItem('token')
+      if (lTok && lTok === storedToken) return localStorage
+      return sessionStorage.getItem('authToken') || sessionStorage.getItem('token')
+        ? sessionStorage
+        : localStorage
+    } catch {
+      return localStorage
+    }
   }, [])
 
   // Best-effort local JWT expiry check (works if token is a standard JWT)
@@ -52,19 +85,30 @@ export function AuthProvider({ children }) {
   }, [])
 
   // Optional: pass role if you have it (ADMIN / EMPLOYEE / CUSTOMER)
-  const login = useCallback((token, userRole) => {
-    //  keep both keys in sync to avoid intermittent 401s across legacy code
-    localStorage.setItem('authToken', token)
-    localStorage.setItem('token', token)
-    setToken(token)
-    setInitializing(false)
+  // Options: { remember?: boolean } (default true => localStorage; false => sessionStorage)
+  const login = useCallback((jwt, userRole, options = {}) => {
+    const remember = options?.remember !== false
+    const store = remember ? localStorage : sessionStorage
 
-    if (userRole) {
-      const R = normalizeRole(userRole)
-      localStorage.setItem('role', R)
-      setRole(R)
+    // Prevent mixed auth state (stale tokens across storages/roles)
+    clearStorage()
+
+    // keep both keys in sync to avoid intermittent 401s across legacy code
+    store.setItem('authToken', jwt)
+    store.setItem('token', jwt)
+
+    const R = userRole ? normalizeRole(userRole) : null
+    if (R) {
+      store.setItem('role', R)
+      if (R === 'ADMIN') store.setItem('adminToken', jwt)
+      if (R === 'EMPLOYEE') store.setItem('employeeToken', jwt)
+      if (R === 'CUSTOMER') store.setItem('customerToken', jwt)
     }
-  }, [])
+
+    setToken(jwt)
+    setRole(R)
+    setInitializing(false)
+  }, [clearStorage])
 
   // logout + redirect to correct login page
   const logout = useCallback(({ reason } = {}) => {
@@ -89,9 +133,9 @@ export function AuthProvider({ children }) {
     async function initAuth() {
       setInitializing(true)
 
-      //  accept both keys used across this repo (legacy + normalized)
-      const storedToken = localStorage.getItem('authToken') || localStorage.getItem('token')
-      const storedRole = normalizeRole(localStorage.getItem('role'))
+      // accept both keys used across this repo (legacy + normalized), and both storages (remember-me)
+      const storedToken = storageGet('authToken') || storageGet('token')
+      const storedRole = normalizeRole(storageGet('role'))
 
       // No token at all
       if (!storedToken) {
@@ -141,7 +185,8 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        localStorage.setItem('role', hydratedRole)
+        const store = pickStorageForExistingToken(storedToken)
+        store.setItem('role', hydratedRole)
         if (!cancelled) {
           setToken(storedToken)
           setRole(hydratedRole)
@@ -171,7 +216,7 @@ export function AuthProvider({ children }) {
       cancelled = true;
       window.removeEventListener('auth:logout', onLogout)
     }
-  }, [clearStorage, isJwtExpired, logout])
+  }, [clearStorage, isJwtExpired, logout, pickStorageForExistingToken, storageGet])
 
   const value = useMemo(
     () => ({

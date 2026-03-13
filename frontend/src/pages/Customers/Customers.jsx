@@ -6,8 +6,11 @@ import Modal from '../../components/Modal/Modal.jsx'
 import Button from '../../components/Button/Button.jsx'
 import styles from './Customers.module.css'
 import toast from "react-hot-toast";
+import { useAuth } from '../../context/AuthContext'
 
 export default function Customers() {
+  const { role } = useAuth()
+  const canManageCustomers = String(role || '').trim().toUpperCase() === 'ADMIN'
   const isMountedRef = useRef(true)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -214,12 +217,14 @@ export default function Customers() {
       <div className={styles.hero}>
         <div className={styles.heroTop}>
           <div className={styles.h1}>Customer Management</div>
-          <button
-            className={styles.addBtn}
-            onClick={openAdd}
-          >
-            <FiPlus /> Add Customer
-          </button>
+          {canManageCustomers ? (
+            <button
+              className={styles.addBtn}
+              onClick={openAdd}
+            >
+              <FiPlus /> Add Customer
+            </button>
+          ) : null}
         </div>
 
         <div className={`card ${styles.panel}`}>
@@ -284,20 +289,26 @@ export default function Customers() {
                 <div className={styles.last}>{r.last}</div>
 
                 <div className={styles.actions}>
-                  <button
-                    className={`${styles.iconBtn} ${styles.edit}`}
-                    aria-label="Edit"
-                    onClick={() => openEdit(r)}
-                  >
-                    <FiEdit2 />
-                  </button>
-                  <button
-                    className={`${styles.iconBtn} ${styles.trash}`}
-                    aria-label="Delete"
-                    onClick={() => setDeleteTarget(r)}
-                  >
-                    <FiTrash2 />
-                  </button>
+                  {canManageCustomers ? (
+                    <>
+                      <button
+                        className={`${styles.iconBtn} ${styles.edit}`}
+                        aria-label="Edit"
+                        onClick={() => openEdit(r)}
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        className={`${styles.iconBtn} ${styles.trash}`}
+                        aria-label="Delete"
+                        onClick={() => setDeleteTarget(r)}
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </>
+                  ) : (
+                    <span style={{ opacity: 0.7 }}>—</span>
+                  )}
                 </div>
               </div>
             ))}

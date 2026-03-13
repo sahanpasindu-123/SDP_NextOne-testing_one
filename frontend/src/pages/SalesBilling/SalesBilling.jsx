@@ -188,20 +188,8 @@ export default function SalesBilling() {
               try {
                 if (!r.saleId) return toast.error("Missing sale id");
 
-                // create invoice if not exists
-                const res = await fetch(
-                  `${import.meta.env.VITE_API_BASE || ""}/api/sales/${r.saleId}/invoice`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${localStorage.getItem("token")}`,
-                    },
-                  }
-                );
-
-                const data = await res.json();
-                if (!data.success) throw new Error(data.message || "Invoice failed");
+                const data = await salesAPI.generateInvoice(r.saleId);
+                if (data?.success === false) throw new Error(data?.message || "Invoice failed");
 
                 const blob = new Blob([JSON.stringify(data, null, 2)], {
                   type: "application/json",
@@ -323,19 +311,8 @@ export default function SalesBilling() {
       const latest = sales[0];
       if (!latest?.saleId) return toast.error("Missing sale id");
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE || ""}/api/sales/${latest.saleId}/invoice`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || "Invoice failed");
+      const data = await salesAPI.generateInvoice(latest.saleId);
+      if (data?.success === false) throw new Error(data?.message || "Invoice failed");
 
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",

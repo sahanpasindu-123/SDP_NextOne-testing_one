@@ -36,6 +36,19 @@ const formatDate = (val) => {
   return d.toISOString().slice(0, 10);
 };
 
+const formatDateTime = (val) => {
+  if (!val) return "—";
+  const d = new Date(val);
+  if (Number.isNaN(d.getTime())) return String(val);
+  return d.toLocaleString("en-LK", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 export default function MyReservations() {
   const isMountedRef = useRef(true);
   const [rows, setRows] = useState([]);
@@ -54,7 +67,11 @@ export default function MyReservations() {
       setRows(
         list.map((r) => ({
           id: r.ReservationID,
-          productId: r.product?.ProductID ?? r.ProductID ?? r.productId ?? r.product?.productId ?? "-",
+          productCode:
+            r.product?.ProductCode ??
+            r.product?.productCode ??
+            r.productCode ??
+            "-",
           categoryCode:
             r.product?.CategoryCode ??
             r.product?.categoryCode ??
@@ -64,6 +81,7 @@ export default function MyReservations() {
           part: r.product?.Name ?? "—",
           qty: r.Quantity,
           date: formatDate(r.ReservedAt),
+          expiresAt: formatDateTime(r.ExpiresAt),
           status: normalizeStatusLabel(r.Status),
           rawStatus: String(r.Status || "").toUpperCase(),
           amount: formatMoney(r.Total),
@@ -163,9 +181,11 @@ export default function MyReservations() {
               <div className={styles.part}>
                 <div className={styles.pName}>{r.part}</div>
                 <div className={styles.pMeta}>
-                  <span>Product ID: {r.productId}</span>
+                  <span>Product Code: {r.productCode}</span>
                   <span className={styles.dot}>•</span>
                   <span>Category: {r.categoryCode}</span>
+                  <span className={styles.dot}>•</span>
+                  <span>Expires: {r.expiresAt}</span>
                 </div>
               </div>
               <div>{r.qty}</div>

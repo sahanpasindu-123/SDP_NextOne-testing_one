@@ -16,6 +16,7 @@ export default function SignIn() {
   });
 
   const [showPass, setShowPass] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const handleChange = (e) => {
     setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
@@ -37,7 +38,7 @@ export default function SignIn() {
         return;
       }
 
-      login(token, "CUSTOMER");
+      login(token, "CUSTOMER", { remember: rememberMe });
       navigate("/customer/home");
     } catch (err) {
       const msg = err?.response?.data?.message || "Invalid email or password";
@@ -90,7 +91,11 @@ export default function SignIn() {
 
           <div className={styles.rowBetween}>
             <label className={styles.check}>
-              <input type="checkbox" />
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
               <span>Remember me</span>
             </label>
 

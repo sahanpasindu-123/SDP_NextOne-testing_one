@@ -46,20 +46,25 @@ export function normalizeAxiosError(error) {
 // Helpers (AUTH)
 // ===============================
 function clearAuthStorage() {
-  // legacy keys
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
+  const keys = [
+    "authToken",
+    "token",
+    "role",
+    "adminToken",
+    "employeeToken",
+    "customerToken",
+    "user",
+    "admin",
+    "employee",
+  ];
 
-  //  role-based keys (IMPORTANT)
-  localStorage.removeItem("adminToken");
-  localStorage.removeItem("employeeToken");
-  localStorage.removeItem("customerToken");
-
-  // optional extras
-  localStorage.removeItem("user");
-  localStorage.removeItem("admin");
-  localStorage.removeItem("employee");
+  for (const store of [localStorage, sessionStorage]) {
+    try {
+      keys.forEach((k) => store.removeItem(k));
+    } catch {
+      // ignore
+    }
+  }
 }
 
 function emitLogout(reason, details) {
@@ -81,12 +86,12 @@ function pickTokenByPortalPath() {
   const path = window.location?.pathname || "";
 
   if (path.startsWith("/admin")) {
-    return localStorage.getItem("adminToken");
+    return sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
   }
   if (path.startsWith("/employee")) {
-    return localStorage.getItem("employeeToken");
+    return sessionStorage.getItem("employeeToken") || localStorage.getItem("employeeToken");
   }
-  return localStorage.getItem("customerToken");
+  return sessionStorage.getItem("customerToken") || localStorage.getItem("customerToken");
 }
 
 if (!axiosClient[INTERCEPTOR_FLAG]) {
@@ -102,6 +107,8 @@ axiosClient.interceptors.request.use(
     // fallback to legacy keys (for old pages)
     const token =
       portalToken ||
+      sessionStorage.getItem("authToken") ||
+      sessionStorage.getItem("token") ||
       localStorage.getItem("authToken") ||
       localStorage.getItem("token");
 
@@ -126,6 +133,10 @@ axiosClient.interceptors.request.use(
           hasAuthHeader: !!config?.headers?.Authorization,
           tokenKey: portalToken
             ? "portalToken"
+            : sessionStorage.getItem("authToken")
+            ? "session:authToken"
+            : sessionStorage.getItem("token")
+            ? "session:token"
             : localStorage.getItem("authToken")
             ? "authToken"
             : localStorage.getItem("token")

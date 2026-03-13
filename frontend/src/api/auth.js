@@ -12,20 +12,6 @@ export const authAPI = {
     const token = data?.token || data?.data?.token;
     const role = String(data?.role || data?.data?.role || "").toUpperCase();
 
-    // Legacy keys (avoid breaking older code)
-    if (token) {
-      localStorage.setItem("token", token);
-      localStorage.setItem("authToken", token);
-    }
-
-    // Role-aware keys (new)
-    if (token && role) {
-      if (role === "ADMIN") localStorage.setItem("adminToken", token);
-      if (role === "EMPLOYEE") localStorage.setItem("employeeToken", token);
-      if (role === "CUSTOMER") localStorage.setItem("customerToken", token);
-      localStorage.setItem("role", role);
-    }
-
     return { ...data, token, role };
   },
 
@@ -48,18 +34,6 @@ export const authAPI = {
       }
 
       // ✅ Role-based tokens (IMPORTANT)
-      if (role === "ADMIN") localStorage.setItem("adminToken", token);
-      else if (role === "EMPLOYEE") localStorage.setItem("employeeToken", token);
-      else {
-        // fallback if backend didn't send role correctly
-        localStorage.setItem("authToken", token);
-      }
-
-      // Keep legacy keys for compatibility (optional)
-      localStorage.setItem("token", token);
-      localStorage.setItem("authToken", token);
-      if (role) localStorage.setItem("role", role);
-
       return { ...resData, token, role };
     } catch (error) {
       console.log("LOGIN ERROR:", error?.response?.data);
@@ -97,13 +71,6 @@ export const authAPI = {
     }
 
     // ✅ customer token key
-    localStorage.setItem("customerToken", token);
-
-    // legacy keys (optional)
-    localStorage.setItem("token", token);
-    localStorage.setItem("authToken", token);
-    localStorage.setItem("role", "CUSTOMER");
-
     return { ...data, token, role: "CUSTOMER" };
   },
 
@@ -119,17 +86,6 @@ export const authAPI = {
     const data = response.data;
     const token = data?.token || data?.data?.token;
     const role = String(data?.role || data?.data?.role || "").toUpperCase();
-
-    if (token) {
-      if (role === "ADMIN") localStorage.setItem("adminToken", token);
-      else if (role === "EMPLOYEE") localStorage.setItem("employeeToken", token);
-      else localStorage.setItem("customerToken", token);
-
-      // legacy keys
-      localStorage.setItem("token", token);
-      localStorage.setItem("authToken", token);
-      if (role) localStorage.setItem("role", role);
-    }
 
     return { ...data, token, role };
   },

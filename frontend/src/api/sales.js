@@ -18,4 +18,9 @@ export const salesAPI = {
     });
     return response.data;
   },
+
+  generateInvoice: async (saleId) => {
+    const response = await axiosClient.post(`/sales/${saleId}/invoice`);
+    return response.data;
+  },
 };

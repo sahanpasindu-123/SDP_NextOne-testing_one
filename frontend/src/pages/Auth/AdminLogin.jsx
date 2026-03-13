@@ -14,11 +14,16 @@ export default function AdminLogin() {
   const { login } = useAuth();
 
   const clearAuth = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
+    for (const store of [localStorage, sessionStorage]) {
+      store.removeItem("token");
+      store.removeItem("authToken");
+      store.removeItem("role");
+      store.removeItem("adminToken");
+      store.removeItem("employeeToken");
+      store.removeItem("customerToken");
+      store.removeItem("user");
+      store.removeItem("userId");
+    }
   };
 
   const handleSubmit = async (e) => {

@@ -30,6 +30,8 @@ export default function EmployeeSidebar() {
   const { logout } = useAuth()
 
   const handleLogout = () => {
+    const ok = window.confirm('Log out now?')
+    if (!ok) return
     logout()
     // Employee sidebar logout should ALWAYS go to employee login
     navigate('/employee/signin')
