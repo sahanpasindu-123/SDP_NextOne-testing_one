@@ -44,14 +44,35 @@
   align-items:center;
   gap: 10px;
 }
-.countPill{
+.headRight{
   margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+.refreshText{
+  font-size:12px;
+  color: var(--muted);
+  font-weight:600;
+}
+.countPill{
   font-size:11px;
   color:#b91c1c;
   background:#fee2e2;
   padding: 4px 10px;
   border-radius:999px;
   font-weight:700;
+}
+.lowStockMsg{
+  padding: 0 16px 12px;
+  font-size:12px;
+  color: var(--muted);
+}
+.lowStockError{
+  padding: 0 16px 12px;
+  font-size:12px;
+  color:#b91c1c;
+  font-weight:600;
 }
 .rowActions{display:flex; gap: 10px; justify-content:flex-end}
 .actionBtn{

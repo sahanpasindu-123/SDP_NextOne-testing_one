@@ -7,14 +7,96 @@ import Button from '../../components/Button/Button.jsx'
 import Badge from '../../components/Badge/Badge.jsx'
 import { customersAPI } from '../../api/customers'
 import { reportsAPI } from "../../api/reports";
+import { inventoryAPI } from '../../api/inventory'
 import styles from './Dashboard.module.css'
+
+const FALLBACK_LOW_STOCK_THRESHOLD = 5
+
+const toNumber = (val) => {
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
+const normalizeLowStockProducts = (products) => {
+  const list = Array.isArray(products) ? products : []
+
+  const mapped = list
+    .map((p) => {
+      const src = p || {}
+      const rawProductId = src?.productId ?? src?.ProductID ?? src?.id ?? null
+      const productId = rawProductId != null ? String(rawProductId) : 'N/A'
+
+      const name = src?.Name ?? src?.name ?? 'N/A'
+
+      const stockQuantity = toNumber(
+        src?.stockQuantity ??
+          src?.Stock ??
+          src?.stock ??
+          src?.quantity ??
+          src?.qty ??
+          0
+      )
+
+      const thresholdRaw =
+        src?.lowStockThreshold ??
+        src?.StockLimit ??
+        src?.stockLimit ??
+        src?.minStock ??
+        src?.minimumStock ??
+        null
+
+      const thresholdCandidate =
+        thresholdRaw === null || thresholdRaw === undefined ? 0 : toNumber(thresholdRaw)
+      const threshold =
+        thresholdCandidate > 0 ? thresholdCandidate : FALLBACK_LOW_STOCK_THRESHOLD
+
+      // Low stock alerts include: 0 < stockQuantity <= threshold
+      const low = stockQuantity > 0 && stockQuantity <= threshold
+      if (!low) return null
+
+      const categoryCode =
+        src?.CategoryCode ??
+        src?.categoryCode ??
+        src?.category?.CategoryCode ??
+        src?.category?.categoryCode ??
+        ''
+
+      return {
+        id: productId,
+        productId,
+        name: String(name || 'N/A'),
+        stock: stockQuantity,
+        stockQuantity,
+        lowStockThreshold: threshold,
+        CategoryCode: String(categoryCode || ''),
+        categoryCode: String(categoryCode || ''),
+        raw: p,
+      }
+    })
+    .filter(Boolean)
+
+  mapped.sort((a, b) => {
+    const stockDiff = toNumber(a?.stock) - toNumber(b?.stock)
+    if (stockDiff !== 0) return stockDiff
+    return String(a?.productId || '').localeCompare(String(b?.productId || ''))
+  })
+
+  return mapped
+}
 
 export default function Dashboard() {
   const [customerRows, setCustomerRows] = useState([])
   const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const [lowStockRows, setLowStockRows] = useState([])
+  const [lowStockLoading, setLowStockLoading] = useState(true)
+  const [lowStockRefreshing, setLowStockRefreshing] = useState(false)
+  const [lowStockError, setLowStockError] = useState(null)
+
   const isMountedRef = useRef(true)
+  const lowStockRequestIdRef = useRef(0)
+  const lowStockInFlightRef = useRef(false)
 
   // ---------------- Load customers ----------------
   const loadCustomers = async () => {
@@ -73,20 +155,75 @@ export default function Dashboard() {
     }
   }
 
+  // ---------------- Load low stock (fresh inventory) ----------------
+  const loadLowStock = async ({ mode } = { mode: 'initial' }) => {
+    if (lowStockInFlightRef.current) return
+    lowStockInFlightRef.current = true
+
+    const reqId = ++lowStockRequestIdRef.current
+    const isInitial = mode === 'initial'
+
+    try {
+      if (isInitial) setLowStockLoading(true)
+      else setLowStockRefreshing(true)
+
+      const res = await inventoryAPI.list()
+      const list =
+        res?.success && Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.data)
+            ? res.data
+            : Array.isArray(res)
+              ? res
+              : []
+
+      const next = normalizeLowStockProducts(list)
+
+      if (!isMountedRef.current || reqId !== lowStockRequestIdRef.current) return
+      setLowStockRows(next)
+      setLowStockError(null)
+    } catch (err) {
+      console.error('[Dashboard] Failed to refresh low stock alerts:', err)
+      if (!isMountedRef.current || reqId !== lowStockRequestIdRef.current) return
+      setLowStockError(
+        typeof err?.message === 'string' && err.message.trim()
+          ? err.message
+          : 'Failed to refresh low stock alerts'
+      )
+    } finally {
+      if (isMountedRef.current && reqId === lowStockRequestIdRef.current) {
+        setLowStockLoading(false)
+        setLowStockRefreshing(false)
+      }
+      lowStockInFlightRef.current = false
+    }
+  }
+
   useEffect(() => {
     isMountedRef.current = true
 
     loadCustomers()
     loadDashboard()
+    loadLowStock({ mode: 'initial' })
 
     const interval = setInterval(() => {
       loadCustomers()
       loadDashboard()
     }, 10000)
 
+    const onFocus = () => {
+      if (document.hidden) return
+      loadLowStock({ mode: 'refresh' })
+    }
+
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+
     return () => {
       isMountedRef.current = false
       clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
     }
   }, [])
 
@@ -100,9 +237,7 @@ export default function Dashboard() {
     ? safeDashboard.recentSales
     : []
 
-  const lowStockProducts = Array.isArray(safeDashboard?.lowStockProducts)
-    ? safeDashboard.lowStockProducts
-    : []
+  const lowStockProducts = Array.isArray(lowStockRows) ? lowStockRows : []
 
   const counts = safeDashboard?.counts || {}
 
@@ -121,22 +256,17 @@ export default function Dashboard() {
   }))
 
   const lowCols = [
-    { key: 'name', header: 'Product' },
-    { key: 'stock', header: 'Current Stock', width: 140 },
     {
-      key: 'act',
-      header: 'Action',
-      width: 120,
-      render: () => (
-        <Button
-          style={{ height: 30, padding: '0 12px', borderRadius: 999 }}
-          variant="primary"
-          type="button"
-        >
-          Update
-        </Button>
-      )
+      key: 'product',
+      header: 'Product',
+      render: (r) => {
+        const productId = r?.productId ?? r?.ProductID ?? r?.id ?? 'N/A'
+        const name = String(r?.name ?? r?.Name ?? '').trim()
+        if (!name) return String(productId)
+        return `${productId} — ${name}`
+      },
     },
+    { key: 'stock', header: 'Current Stock', width: 140 },
   ]
 
   const customerCols = [
@@ -162,8 +292,8 @@ export default function Dashboard() {
   }))
 
   const pie = lowStockProducts.map((p) => ({
-    name: p.name,
-    value: p.stock,
+    name: p.productId ?? p.name,
+    value: toNumber(p.stock),
     color: '#ef4444',
   }))
 
@@ -223,9 +353,36 @@ export default function Dashboard() {
       <div className={`card ${styles.tableCard}`}>
         <div className={styles.tableHead}>
           <FiAlertCircle style={{ color: '#ef4444' }} /> Low Stock Alert
-          <span className={styles.countPill}>{lowStockProducts.length} items</span>
+          <div className={styles.headRight}>
+            {lowStockRefreshing ? (
+              <span className={styles.refreshText}>Updating...</span>
+            ) : null}
+            <Button
+              style={{ height: 30, padding: '0 12px', borderRadius: 999 }}
+              variant="primary"
+              type="button"
+              onClick={() => loadLowStock({ mode: 'refresh' })}
+              disabled={lowStockLoading || lowStockRefreshing}
+            >
+              {lowStockRefreshing ? 'Updating...' : 'Update'}
+            </Button>
+            <span className={styles.countPill}>{lowStockProducts.length} items</span>
+          </div>
         </div>
-        <Table columns={lowCols} rows={lowStockProducts} />
+
+        {lowStockLoading ? (
+          <div className={styles.lowStockMsg}>Loading low stock alerts...</div>
+        ) : lowStockError && lowStockProducts.length === 0 ? (
+          <div className={styles.lowStockError}>{lowStockError}</div>
+        ) : lowStockProducts.length === 0 ? (
+          <div className={styles.lowStockMsg}>No low stock alerts</div>
+        ) : (
+          <Table columns={lowCols} rows={lowStockProducts} />
+        )}
+
+        {lowStockError && lowStockProducts.length > 0 ? (
+          <div className={styles.lowStockError}>{lowStockError}</div>
+        ) : null}
       </div>
     </div>
   )
