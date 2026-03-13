@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import styles from "./BackupData.module.css";
 import toast from "react-hot-toast";
 import Modal from "../../components/Modal/Modal";
@@ -15,8 +14,6 @@ import {
 
 export default function BackupData() {
   const isMountedRef = useRef(true);
-  const [auto, setAuto] = useState(true);
-  const [freq, setFreq] = useState("Daily (at midnight)");
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState(null);
@@ -135,32 +132,6 @@ export default function BackupData() {
     <div className={styles.wrap}>
       <div className={styles.title}>Backup &amp; Data</div>
 
-      {/* Automated backup */}
-      <div className={styles.sectionTitle}>Automated Backups</div>
-
-      <div className={styles.row}>
-        <div>
-          <div className={styles.rowTitle}>Enable Automated Backups</div>
-          <div className={styles.rowSub}>
-            System will automatically backup your data
-          </div>
-        </div>
-        <ToggleSwitch checked={auto} onChange={setAuto} />
-      </div>
-
-      <div className={styles.block}>
-        <div className={styles.label}>Backup Frequency</div>
-        <select
-          className={styles.select}
-          value={freq}
-          onChange={(e) => setFreq(e.target.value)}
-        >
-          <option>Daily (at midnight)</option>
-          <option>Weekly</option>
-          <option>Monthly</option>
-        </select>
-      </div>
-
       {/* Manual backup */}
       <div className={styles.sectionTitle}>Manual Backup</div>
       <div className={styles.help}>
@@ -225,32 +196,16 @@ export default function BackupData() {
       </div>
 
       <div className={styles.help}>
-        Export your inventory data in various formats.
+        Export your data as CSV or JSON.
       </div>
 
       <div className={styles.exportRow}>
         <button
           className={styles.outlineBtn}
           type="button"
-          onClick={() => handleExport("excel")}
-        >
-          Export as Excel
-        </button>
-
-        <button
-          className={styles.outlineBtn}
-          type="button"
           onClick={() => handleExport("csv")}
         >
           Export as CSV
-        </button>
-
-        <button
-          className={styles.outlineBtn}
-          type="button"
-          onClick={() => handleExport("pdf")}
-        >
-          Export as PDF
         </button>
 
         <button

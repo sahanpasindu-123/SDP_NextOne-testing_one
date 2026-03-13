@@ -17,7 +17,6 @@ import LowStock from "../pages/LowStock/LowStock.jsx";
 import AlertsAll from "../pages/Alerts/AlertsAll.jsx";
 import SettingsLayout from "../pages/Settings/SettingsLayout.jsx";
 import UserProfile from "../pages/Settings/UserProfile.jsx";
-import NotificationSettings from "../pages/Settings/NotificationSettings.jsx";
 import Security from "../pages/Settings/Security.jsx";
 import BackupData from "../pages/Settings/BackupData.jsx";
 import CompanyInfo from "../pages/Settings/CompanyInfo.jsx";
@@ -33,7 +32,6 @@ import ReportsInventory from "../pages/Reports/ReportsInventory.jsx";
 import ReportsPerformance from "../pages/Reports/ReportsPerformance.jsx";
 import AdminLowStock from "../pages/Admin/LowStock/AdminLowStock.jsx";
 import AdminUserManagement from "../pages/Admin/UserManagement/AdminUserManagement.jsx";
-import AdminSettingsSystem from "../pages/Admin/Settings/AdminSystemPreferences.jsx";
 import AdminCategories from "../pages/Admin/Categories/AdminCategories.jsx";
 import AdminContacts from "../pages/Admin/Contacts/AdminContacts.jsx";
 import AdminContactReply from "../pages/Admin/Contacts/AdminContactReply.jsx";
@@ -150,11 +148,14 @@ export default function AppRoutes() {
         <Route path="settings" element={<SettingsLayout />}>
           <Route index element={<UserProfile />} />
           <Route path="profile" element={<UserProfile />} />
-          <Route path="notifications" element={<NotificationSettings />} />
           <Route path="security" element={<Security />} />
           <Route path="backup" element={<BackupData />} />
           <Route path="company" element={<CompanyInfo />} />
-          <Route path="system" element={<AdminSettingsSystem />} />
+
+          {/* Removed admin settings pages -> always redirect to a valid settings page */}
+          <Route path="system" element={<Navigate to="/admin/settings/security" replace />} />
+          <Route path="notifications" element={<Navigate to="/admin/settings/security" replace />} />
+
           <Route path="*" element={<Navigate to="/admin/settings/profile" replace />} />
         </Route>
 

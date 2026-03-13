@@ -1,13 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import {
-  FiUser,
-  FiMonitor,
-  FiBell,
-  FiShield,
-  FiDatabase,
-  FiGrid,
-  FiChevronRight,
-} from "react-icons/fi";
+import { FiUser, FiShield, FiDatabase, FiGrid, FiChevronRight } from "react-icons/fi";
 import styles from "./SettingsLayout.module.css";
 
 export default function SettingsLayout() {
@@ -21,7 +13,9 @@ export default function SettingsLayout() {
       <div className={styles.headerBlock}>
         <div className={styles.h1}>Settings</div>
         <div className={styles.sub}>
-          {isEmployee ? "Change your password" : "Manage your account and system settings"}
+          {isEmployee
+            ? "Change your password"
+            : "Manage your profile, security, company information, and backups"}
         </div>
       </div>
 
@@ -42,32 +36,6 @@ export default function SettingsLayout() {
             </NavLink>
           )}
 
-          {!isEmployee && (
-            <NavLink
-              to={`${base}/settings/system`}
-              className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ""}`}
-            >
-              <span className={styles.left}>
-                <FiMonitor className={styles.ico} />
-                <span>System Preferences</span>
-              </span>
-              <FiChevronRight className={styles.chev} />
-            </NavLink>
-          )}
-
-          {!isEmployee && (
-            <NavLink
-              to={`${base}/settings/notifications`}
-              className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ""}`}
-            >
-              <span className={styles.left}>
-                <FiBell className={styles.ico} />
-                <span>Notification Settings</span>
-              </span>
-              <FiChevronRight className={styles.chev} />
-            </NavLink>
-          )}
-
           <NavLink
             to={`${base}/settings/security`}
             className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ""}`}
@@ -81,12 +49,12 @@ export default function SettingsLayout() {
 
           {!isEmployee && (
             <NavLink
-              to={`${base}/settings/backup`}
+              to={`${base}/settings/company`}
               className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ""}`}
             >
               <span className={styles.left}>
-                <FiDatabase className={styles.ico} />
-                <span>Backup &amp; Data</span>
+                <FiGrid className={styles.ico} />
+                <span>Company Information</span>
               </span>
               <FiChevronRight className={styles.chev} />
             </NavLink>
@@ -94,12 +62,12 @@ export default function SettingsLayout() {
 
           {!isEmployee && (
             <NavLink
-              to={`${base}/settings/company`}
+              to={`${base}/settings/backup`}
               className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ""}`}
             >
               <span className={styles.left}>
-                <FiGrid className={styles.ico} />
-                <span>Company Information</span>
+                <FiDatabase className={styles.ico} />
+                <span>Backup &amp; Data</span>
               </span>
               <FiChevronRight className={styles.chev} />
             </NavLink>
