@@ -36,7 +36,7 @@ h1,h2,h3,h4,h5,h6{ margin:0; letter-spacing: -0.02em; }
 
 /* Card surface */
 .card{
-  background: rgba(255,255,255,.86);
+  background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -59,7 +59,7 @@ h1,h2,h3,h4,h5,h6{ margin:0; letter-spacing: -0.02em; }
 
 .hr{
   height:1px;
-  background: rgba(15, 23, 42, 0.10);
+  background: var(--panel-border);
   margin: 14px 0;
 }
 

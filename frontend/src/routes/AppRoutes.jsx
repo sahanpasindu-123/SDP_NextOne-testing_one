@@ -15,7 +15,6 @@ import ReportsSales from "../pages/Reports/ReportsSales.jsx";
 import Customers from "../pages/Customers/Customers.jsx";
 import LowStock from "../pages/LowStock/LowStock.jsx";
 import AlertsAll from "../pages/Alerts/AlertsAll.jsx";
-import SettingsSystem from "../pages/Settings/SystemPreferences.jsx";
 import SettingsLayout from "../pages/Settings/SettingsLayout.jsx";
 import UserProfile from "../pages/Settings/UserProfile.jsx";
 import NotificationSettings from "../pages/Settings/NotificationSettings.jsx";
@@ -103,13 +102,17 @@ export default function AppRoutes() {
         <Route path="alerts" element={<AlertsAll />} />
 
         <Route path="settings" element={<SettingsLayout />}>
-          <Route index element={<UserProfile />} />
-          <Route path="profile" element={<UserProfile />} />
-          <Route path="notifications" element={<NotificationSettings />} />
+          <Route index element={<Navigate to="security" replace />} />
           <Route path="security" element={<Security />} />
-          <Route path="backup" element={<BackupData />} />
-          <Route path="company" element={<CompanyInfo />} />
-          <Route path="system" element={<SettingsSystem />} />
+
+          {/* Removed employee settings pages -> always redirect to Change Password */}
+          <Route path="profile" element={<Navigate to="/employee/settings/security" replace />} />
+          <Route path="preferences" element={<Navigate to="/employee/settings/security" replace />} />
+          <Route path="system" element={<Navigate to="/employee/settings/security" replace />} />
+          <Route path="notifications" element={<Navigate to="/employee/settings/security" replace />} />
+          <Route path="backup" element={<Navigate to="/employee/settings/security" replace />} />
+          <Route path="company" element={<Navigate to="/employee/settings/security" replace />} />
+          <Route path="*" element={<Navigate to="/employee/settings/security" replace />} />
         </Route>
 
         {/* default */}
@@ -152,6 +155,7 @@ export default function AppRoutes() {
           <Route path="backup" element={<BackupData />} />
           <Route path="company" element={<CompanyInfo />} />
           <Route path="system" element={<AdminSettingsSystem />} />
+          <Route path="*" element={<Navigate to="/admin/settings/profile" replace />} />
         </Route>
 
         {/* default */}

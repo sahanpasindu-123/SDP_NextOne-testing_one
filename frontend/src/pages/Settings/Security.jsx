@@ -2,14 +2,16 @@ import { useState } from "react";
 import styles from "./Security.module.css";
 import { changeEmployeePassword } from "../../api/employees";
 import { changeAdminPassword } from "../../api/admin";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Security() {
   const [cur, setCur] = useState("");
   const [nw, setNw] = useState("");
   const [conf, setConf] = useState("");
 
-  // role stored at login time
-  const role = localStorage.getItem("role"); // "ADMIN" | "EMPLOYEE"
+  const { role: authRole } = useAuth();
+  const role = String(authRole || localStorage.getItem("role") || "").trim().toUpperCase(); // "ADMIN" | "EMPLOYEE"
+  const isEmployee = role === "EMPLOYEE";
 
   const handleUpdatePassword = async () => {
     try {
@@ -62,7 +64,7 @@ export default function Security() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.title}>Security Settings</div>
+      <div className={styles.title}>{isEmployee ? "Change Password" : "Security Settings"}</div>
 
       <div className={styles.sectionLabel}>Password</div>
 
@@ -101,7 +103,7 @@ export default function Security() {
         className={styles.updateBtn}
         onClick={handleUpdatePassword}
       >
-        Update Password
+        {isEmployee ? "Change Password" : "Update Password"}
       </button>
     </div>
   );

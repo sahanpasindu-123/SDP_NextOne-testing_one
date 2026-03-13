@@ -2,25 +2,28 @@
 .title{
   font-size:16px;
   font-weight:800;
-  color:#111827;
+  color: var(--text);
   margin-bottom:14px;
 }
 .sectionLabel{
   font-size:13px;
   font-weight:800;
-  color:#374151;
+  color: var(--text);
   margin:10px 0 10px;
 }
 .block{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-.label{ font-size:12px; font-weight:700; color:#4b5563; }
+.label{ font-size:12px; font-weight:700; color: var(--muted); }
 .input{
   height:44px;
-  border:1px solid #d7dce6;
+  border:1px solid var(--field-border);
   border-radius:8px;
   padding:0 12px;
   outline:none;
   font-size:14px;
+  background: var(--field-bg);
+  color: var(--field-text);
 }
+.input::placeholder{ color: var(--field-placeholder); }
 
 .updateBtn{
   height:38px;

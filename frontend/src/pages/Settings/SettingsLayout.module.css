@@ -1,6 +1,6 @@
 .page{
   padding:24px 28px;
-  background:#fbfbfc;
+  background: transparent;
   min-height: calc(100vh - 0px);
 }
 
@@ -10,12 +10,12 @@
 .h1{
   font-size:24px;
   font-weight:800;
-  color:#111827;
+  color: var(--text);
 }
 .sub{
   margin-top:4px;
   font-size:13px;
-  color:#6b7280;
+  color: var(--muted);
 }
 
 .grid{
@@ -26,7 +26,8 @@
 }
 
 .menuCard{
-  background:#fff;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius:14px;
   box-shadow: 0 10px 26px rgba(17,24,39,.06);
   overflow:hidden;
@@ -34,9 +35,9 @@
 .menuTitle{
   padding:18px 18px 12px;
   font-weight:800;
-  color:#111827;
+  color: var(--text);
   font-size:14px;
-  border-bottom:1px solid #f1f5f9;
+  border-bottom:1px solid var(--panel-border);
 }
 
 .item{
@@ -45,8 +46,8 @@
   justify-content:space-between;
   padding:14px 16px;
   text-decoration:none;
-  color:#374151;
-  border-bottom:1px solid #f6f7fb;
+  color: var(--text);
+  border-bottom:1px solid var(--panel-border);
 }
 .item:last-child{ border-bottom:0; }
 
@@ -57,11 +58,11 @@
   font-size:13px;
   font-weight:600;
 }
-.ico{ font-size:16px; color:#1f2937; opacity:.9; }
-.chev{ color:#111827; opacity:.6; }
+.ico{ font-size:16px; color: var(--text); opacity:.9; }
+.chev{ color: var(--text); opacity:.55; }
 
 .active{
-  background:#f4f0ff;
+  background: rgba(226,173,0,.10);
 }
 .active .left span{
   color:#e0ab00;
@@ -75,7 +76,8 @@
 }
 
 .contentCard{
-  background:#fff;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius:16px;
   box-shadow: 0 10px 26px rgba(17,24,39,.06);
   padding:22px 24px;
