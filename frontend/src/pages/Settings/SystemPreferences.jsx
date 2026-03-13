@@ -128,6 +128,10 @@ export default function SystemPreferences() {
   return (
     <>
       <div className={styles.rightHead}>{isEmployee ? "Preferences" : "System Preferences"}</div>
+      <div className={styles.notice}>
+        Saved locally on this device (not synced to the server).
+        {isEmployee ? " (Employees: language only.)" : ""}
+      </div>
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Display</div>

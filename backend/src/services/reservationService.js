@@ -1,4 +1,5 @@
 const prisma = require("../utils/prisma");
+const { ensureLowStockAlert } = require("../utils/lowStockAlert");
 
 function toInt(v) {
   const n = Number(v);
@@ -284,31 +285,18 @@ async function createReservation({
       });
     }
 
-    // - Create a LOW_STOCK alert when remaining stock <= 5
-    //   (simple dedupe: if there is already an active NEW LOW_STOCK alert for this product, skip)
-    if (availableStock <= LOW_STOCK_THRESHOLD) {
-      const existing = await tx.alert.findFirst({
-        where: {
-          IsActive: true,
-          Type: "LOW_STOCK",
-          // Status may be NEW/Unread/null/Read depending on older code paths
-          OR: [{ Status: "NEW" }, { Status: "Unread" }, { Status: null }],
-          Message: { contains: `ProductID ${pid}` },
-        },
-        select: { AlertID: true },
-      });
+    // - Create a LOW_STOCK alert when remaining stock is at/below limit
+    const effectiveLimit =
+      updatedProduct?.StockLimit == null
+        ? LOW_STOCK_THRESHOLD
+        : Number(updatedProduct.StockLimit);
 
-      if (!existing) {
-        await tx.alert.create({
-          data: {
-            Message: `Low stock for ProductID ${pid} (${updatedProduct?.Name || "Product"}). Available: ${availableStock}`,
-            Type: "LOW_STOCK",
-            Status: "NEW",
-            IsActive: true,
-          },
-        });
-      }
-    }
+    await ensureLowStockAlert(tx, {
+      productId: pid,
+      productName: updatedProduct?.Name,
+      stock: availableStock,
+      limit: effectiveLimit,
+    });
 
     return {
       reservationId: reservation.ReservationID,

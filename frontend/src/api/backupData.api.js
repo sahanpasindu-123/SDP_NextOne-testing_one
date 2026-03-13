@@ -1,15 +1,8 @@
-import axiosClient from "./axiosClient";
+// Legacy wrapper kept for backward-compat.
+// Prefer importing from `frontend/src/api/settings.js`.
+import { settingsAPI } from "./settings";
 
-export const createBackup = () => {
-  return axiosClient.post("/settings/backup");
-};
-
-export const exportData = (type) => {
-  return axiosClient.get(`/settings/export/${type}`, {
-    responseType: "blob",
-  });
-};
-
-export const restoreBackup = () => {
-  return axiosClient.post("/settings/backup/restore");
-};
+export const createBackup = () => settingsAPI.createBackup();
+export const listBackups = () => settingsAPI.listBackups();
+export const exportData = (type) => settingsAPI.exportData(type);
+export const restoreBackup = (fileName) => settingsAPI.restoreBackup(fileName);

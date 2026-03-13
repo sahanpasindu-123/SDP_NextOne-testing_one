@@ -123,10 +123,18 @@ export default function AdminContactReply() {
       if (msg.length < 3) return setError("Reply message is too short.");
 
       setSending(true);
-      await adminContactsAPI.reply(id, { replyMessage: msg });
+      const res = await adminContactsAPI.reply(id, { replyMessage: msg });
+      const payload = res?.data;
 
       if (!isMountedRef.current) return;
-      setSuccessMsg("Reply sent successfully.");
+      if (payload?.mailSent === false) {
+        setSuccessMsg(
+          payload?.message ||
+            "Reply saved, but email delivery failed. You may contact the customer manually."
+        );
+      } else {
+        setSuccessMsg(payload?.message || "Reply sent successfully.");
+      }
       await load({ silent: true, syncReplyMessage: true });
     } catch (err) {
       console.error(err);

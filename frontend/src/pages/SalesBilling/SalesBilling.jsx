@@ -70,13 +70,15 @@ export default function SalesBilling() {
     const salesList = Array.isArray(salesResponse?.data) ? salesResponse.data : [];
     const mappedSales =
       salesList.map((s) => ({
-        id: `INV-${s.SaleID}`,
+        id: s.SaleID,
         saleId: s.SaleID,
+        saleRef: `SALE-${s.SaleID}`,
         customer: s.customer?.Name || "N/A",
         date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "N/A",
         amount: `Rs ${Number(s.TotalPrice || 0).toLocaleString("en-LK")}`,
         payment: s.Type === "CARD" ? "Credit Card" : "Cash",
         invoiceId: s.invoice?.InvoiceID || null,
+        invoiceRef: s.invoice?.InvoiceID ? `INV-${s.invoice.InvoiceID}` : "Not generated",
       })) || [];
     if (isMountedRef.current) {
       setSales(mappedSales);
@@ -109,13 +111,15 @@ export default function SalesBilling() {
         const salesList = Array.isArray(salesResponse?.data) ? salesResponse.data : [];
         const mappedSales =
           salesList.map((s) => ({
-            id: `INV-${s.SaleID}`,
+            id: s.SaleID,
             saleId: s.SaleID,
+            saleRef: `SALE-${s.SaleID}`,
             customer: s.customer?.Name || "N/A",
             date: s.SaleDate ? new Date(s.SaleDate).toISOString().slice(0, 10) : "N/A",
             amount: `Rs ${Number(s.TotalPrice || 0).toLocaleString("en-LK")}`,
             payment: s.Type === "CARD" ? "Credit Card" : "Cash",
             invoiceId: s.invoice?.InvoiceID || null,
+            invoiceRef: s.invoice?.InvoiceID ? `INV-${s.invoice.InvoiceID}` : "Not generated",
           })) || [];
 
         if (!isMountedRef.current) return;
@@ -141,10 +145,15 @@ export default function SalesBilling() {
 
   const cols = [
     {
-      key: "id",
-      header: "Invoice ID",
-      width: 110,
-      render: (r) => <span className={styles.invId}>{r.id}</span>,
+      key: "invoiceRef",
+      header: "Invoice",
+      width: 150,
+      render: (r) => (
+        <div style={{ display: "grid", gap: 2 }}>
+          <span className={styles.invId}>{r.invoiceRef}</span>
+          <span style={{ fontSize: 11, opacity: 0.7 }}>{r.saleRef}</span>
+        </div>
+      ),
     },
     { key: "customer", header: "Customer" },
     {
@@ -178,7 +187,7 @@ export default function SalesBilling() {
               setInvoicePreview(r);
             }}
           >
-            View
+            Details
           </a>
           <span className={styles.sep}>|</span>
           <a
@@ -197,7 +206,7 @@ export default function SalesBilling() {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `invoice-sale-${r.saleId}.json`;
+                a.download = `invoice-record-sale-${r.saleId}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
               } catch (err) {
@@ -206,7 +215,7 @@ export default function SalesBilling() {
               }
             }}
           >
-            Download
+            Download JSON
           </a>
         </div>
       ),
@@ -531,7 +540,7 @@ export default function SalesBilling() {
 
       <div className={`card ${styles.tableCard}`}>
         <div className={styles.tableHead}>
-          <div>Recent Invoices</div>
+          <div>Recent Sales</div>
           <a
             className={styles.viewAll}
             href="/employee/sales"
@@ -548,7 +557,7 @@ export default function SalesBilling() {
 
       <Modal
         open={!!invoicePreview}
-        title="Invoice Details"
+        title="Sale / Invoice Details"
         onClose={() => setInvoicePreview(null)}
         width={520}
       >
@@ -557,7 +566,11 @@ export default function SalesBilling() {
             <div style={{ display: "grid", gap: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                 <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Invoice</div>
-                <div style={{ fontWeight: 900 }}>{invoicePreview.id}</div>
+                <div style={{ fontWeight: 900 }}>{invoicePreview.invoiceRef}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Sale</div>
+                <div style={{ fontWeight: 900 }}>{invoicePreview.saleRef}</div>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                 <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Customer</div>

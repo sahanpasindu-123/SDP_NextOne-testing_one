@@ -16,7 +16,7 @@ export default function Security() {
 
   const handleUpdatePassword = async () => {
     try {
-      // 1️⃣ Frontend validations
+      // 1) Frontend validations
       if (!cur || !nw || !conf) {
         toast.error("Please fill all fields");
         return;
@@ -30,7 +30,7 @@ export default function Security() {
         return;
       }
 
-      // 2️⃣ Call correct API based on role
+      // 2) Call correct API based on role
       let res;
       if (role === "ADMIN") {
         res = await changeAdminPassword({
@@ -47,10 +47,10 @@ export default function Security() {
         return;
       }
 
-      // 3️⃣ Success
+      // 3) Success
       toast.success(res?.data?.message || "Password updated successfully");
 
-      // 4️⃣ Clear inputs
+      // 4) Clear inputs
       setCur("");
       setNw("");
       setConf("");

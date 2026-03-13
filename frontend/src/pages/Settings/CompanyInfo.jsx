@@ -57,6 +57,9 @@ export default function CompanyInfo() {
   return (
     <div className={styles.wrap}>
       <div className={styles.title}>Company Information</div>
+      <div className={styles.notice}>
+        Saved locally in this browser only (not synced to the server).
+      </div>
 
       <div className={styles.grid2}>
         <div className={styles.block}>

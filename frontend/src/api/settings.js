@@ -34,15 +34,23 @@ export const exportData = async (type) => {
 };
 
 export const downloadBackup = async (fileName) => {
-  // Since backend produces json files and does not provide a dedicated download endpoint,
-  // we export the backup as a blob by fetching it via /uploads. If uploads are not exposed,
-  // fall back to exporting from list.
-  // Minimal approach: use browser download of known /uploads path.
-  const url = `${axiosClient.defaults.baseURL?.replace(/\/?api\/?$/, "") || ""}/uploads/backups/${encodeURIComponent(fileName)}`;
+  const safeName = String(fileName || "").trim();
+  if (!safeName) throw new Error("fileName required");
+
+  const res = await axiosClient.get(
+    `/settings/backup/${encodeURIComponent(safeName)}/download`,
+    { responseType: "blob" }
+  );
+
+  const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data]);
+  const url = window.URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
-  a.download = fileName;
+  a.download = safeName;
   document.body.appendChild(a);
   a.click();
   a.remove();
+
+  window.URL.revokeObjectURL(url);
 };

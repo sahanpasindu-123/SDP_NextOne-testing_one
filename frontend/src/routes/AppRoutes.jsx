@@ -88,7 +88,11 @@ export default function AppRoutes() {
       >
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="inventory" element={<InventoryAll />} />
-        <Route path="inventory/delete/:id" element={<DeleteProduct />} />
+        {/* Employees are not allowed to delete products */}
+        <Route
+          path="inventory/delete/:id"
+          element={<Navigate to="/employee/inventory" replace />}
+        />
         <Route path="sales" element={<SalesBilling />} />
         <Route path="reservations" element={<Reservations />} />
         <Route path="reports" element={<Navigate to="/employee/reports/sales" replace />} />

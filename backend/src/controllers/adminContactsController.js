@@ -146,7 +146,7 @@ async function replyToContact(req, res) {
       });
     }
 
-    // ✅ Update contact with reply
+    // ✅ Update contact with reply (persist even if email sending fails)
     const updatedContact = await prisma.contact.update({
       where: { ContactID: contactId },
       data: {
@@ -161,23 +161,33 @@ async function replyToContact(req, res) {
     const safeCustomerMessage = String(contact.Message || "").replaceAll("\n", "<br/>");
     const safeReply = String(replyMessage).replaceAll("\n", "<br/>");
 
-    await sendMail({
-      to: contact.customer.Email,
-      subject: "Reply to your inquiry",
-      html: `
-        <p>Dear ${customerName},</p>
-        <p>${safeReply}</p>
-        <hr />
-        <p><strong>Your Message:</strong></p>
-        <p>${safeCustomerMessage}</p>
-        <br />
-        <p>Best regards,<br/>NextOne Support Team</p>
-      `,
-    });
+    let mailSent = false;
+    try {
+      await sendMail({
+        to: contact.customer.Email,
+        subject: "Reply to your inquiry",
+        html: `
+          <p>Dear ${customerName},</p>
+          <p>${safeReply}</p>
+          <hr />
+          <p><strong>Your Message:</strong></p>
+          <p>${safeCustomerMessage}</p>
+          <br />
+          <p>Best regards,<br/>NextOne Support Team</p>
+        `,
+      });
+      mailSent = true;
+    } catch (mailErr) {
+      // IMPORTANT: reply is already saved; do not return 500 to avoid duplicate resend attempts.
+      console.error("Contact reply email failed:", mailErr);
+    }
 
     return res.status(200).json({
       success: true,
-      message: "Reply sent successfully",
+      mailSent,
+      message: mailSent
+        ? "Reply sent successfully"
+        : "Reply saved, but email delivery failed. You may copy the reply and contact the customer manually.",
       data: updatedContact,
     });
   } catch (error) {

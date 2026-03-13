@@ -183,8 +183,12 @@ app.use(morgan("dev"));
  * Static files (uploads)
  * ================================
  */
-// Add CORS headers for static file serving
-app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
+// Public static uploads MUST be limited to safe assets (e.g., product images).
+// Do NOT expose backups via static serving.
+app.use(
+  "/uploads/products",
+  express.static(path.join(__dirname, "..", "uploads", "products"))
+);
 
 /**
  * ================================
@@ -306,9 +310,9 @@ app.use(errorHandler);
  * ================================
  */
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`❤️  Health: http://localhost:${PORT}/api/health`);
-  console.log(`🗄  DB Ping: http://localhost:${PORT}/api/db-ping`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Health: http://localhost:${PORT}/api/health`);
+  console.log(`DB Ping: http://localhost:${PORT}/api/db-ping`);
 
   console.log(
     "CORS_ORIGIN:",

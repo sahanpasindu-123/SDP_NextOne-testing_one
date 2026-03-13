@@ -24,7 +24,7 @@ router.get(
         ? String(req.query.status).toUpperCase()
         : null;
 
-      // 1️⃣ Get employee assigned places
+      // 1) Get employee assigned places
       const assignedPlaces = await prisma.employeePlace.findMany({
         where: { EmployeeID: employeeId },
         select: { PlaceID: true },
@@ -33,16 +33,22 @@ router.get(
       const placeIds = assignedPlaces.map(p => p.PlaceID);
 
       if (placeIds.length === 0) {
-        return res.json({ success: true, data: [] });
+        return res.json({
+          success: true,
+          data: [],
+          meta: { reason: "NO_PLACE_ASSIGNMENTS" },
+          message:
+            "No place assignments found for this employee. Ask an admin to assign you to a place to view reservations.",
+        });
       }
 
-      // 2️⃣ Reservation base filter
+      // 2) Reservation base filter
       const where = {
         product: { PlaceID: { in: placeIds } },
       };
       if (status) where.Status = status;
 
-      // 3️⃣ Fetch reservations + product + place
+      // 3) Fetch reservations + product + place
       const reservations = await prisma.reservation.findMany({
         where,
         orderBy: { ReservedAt: "desc" },
@@ -63,7 +69,7 @@ router.get(
         },
       });
 
-      // 4️⃣ Filter by employee's places (product.PlaceID)
+      // 4) Filter by employee's places (product.PlaceID)
       return res.json({ success: true, data: reservations });
     } catch (err) {
       console.error("employee reservations error:", err);

@@ -83,6 +83,47 @@ exports.listBackups = async (req, res) => {
 };
 
 /**
+ * DOWNLOAD BACKUP (ADMIN ONLY)
+ * GET /api/settings/backup/:fileName/download
+ */
+exports.downloadBackup = async (req, res) => {
+  try {
+    const fileNameRaw = String(req.params?.fileName || "").trim();
+    if (!fileNameRaw) {
+      return res.status(400).json({ success: false, message: "fileName required" });
+    }
+
+    // Prevent path traversal and limit to json backup files.
+    if (
+      fileNameRaw.includes("..") ||
+      fileNameRaw.includes("/") ||
+      fileNameRaw.includes("\\") ||
+      !fileNameRaw.toLowerCase().endsWith(".json")
+    ) {
+      return res.status(400).json({ success: false, message: "Invalid fileName" });
+    }
+
+    const resolvedDir = path.resolve(BACKUP_DIR);
+    const resolvedFile = path.resolve(path.join(BACKUP_DIR, fileNameRaw));
+
+    if (!resolvedFile.startsWith(resolvedDir + path.sep)) {
+      return res.status(400).json({ success: false, message: "Invalid fileName" });
+    }
+
+    if (!fs.existsSync(resolvedFile)) {
+      return res.status(404).json({ success: false, message: "Backup file not found" });
+    }
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+
+    return res.download(resolvedFile, fileNameRaw);
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
  * RESTORE BACKUP
  * POST /api/settings/backup/restore
  */

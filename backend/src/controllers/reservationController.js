@@ -16,7 +16,7 @@ const confirmReservation = async (req, res) => {
     }
 
     const txRes = await prisma.$transaction(async (tx) => {
-      // 1️⃣ Check reservation exists
+      // 1) Check reservation exists
       const existing = await tx.reservation.findUnique({
         where: { ReservationID: id },
       });
@@ -50,39 +50,31 @@ const confirmReservation = async (req, res) => {
 
       const current = normStatus(existing.Status);
 
-      // 2️⃣ Prevent double confirm
+      // 2) Prevent double confirm
       if (current === "CONFIRMED") {
         const e = new Error("Reservation already confirmed");
         e.status = 400;
         throw e;
       }
 
-      // 3️⃣ Allow only PENDING/RESERVED -> CONFIRMED
+      // 3) Allow only PENDING/RESERVED -> CONFIRMED
       if (!["PENDING", "RESERVED"].includes(current)) {
         const e = new Error(`Cannot confirm a ${current.toLowerCase()} reservation`);
         e.status = 400;
         throw e;
       }
 
-      // 4️⃣ Ensure product not already confirmed elsewhere
-      const productConflict = await tx.reservation.findFirst({
-        where: {
-          ProductID: existing.ProductID,
-          Status: "CONFIRMED",
-          NOT: { ReservationID: id },
-        },
-      });
-
-      if (productConflict) {
-        const e = new Error("This product is already confirmed by another reservation");
-        e.status = 400;
-        throw e;
+      // 4) Update status
+      // IMPORTANT: Do NOT block multiple confirmed reservations per product.
+      // Stock is decremented at reservation creation time.
+      const updateData = { Status: "CONFIRMED" };
+      if (role === "ADMIN" && Number.isFinite(dbId) && dbId > 0) {
+        updateData.ApprovedBy = dbId;
       }
 
-      // 5️⃣ Update status
       const updated = await tx.reservation.update({
         where: { ReservationID: id },
-        data: { Status: "CONFIRMED" },
+        data: updateData,
       });
 
       return { expired: false, reservation: updated };
@@ -96,7 +88,12 @@ const confirmReservation = async (req, res) => {
       });
     }
 
-    return res.json({ success: true, reservation: txRes?.reservation });
+    return res.json({
+      success: true,
+      message: "Reservation confirmed",
+      reservation: txRes?.reservation,
+      data: txRes?.reservation, // backward-compatible alias
+    });
 
   } catch (err) {
     return res.status(err.status || 400).json({

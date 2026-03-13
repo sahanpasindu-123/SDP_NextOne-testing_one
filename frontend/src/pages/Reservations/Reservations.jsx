@@ -71,6 +71,16 @@ export default function Reservations() {
       if (currentFilter !== "ALL") params.status = currentFilter;
 
       const res = await employeeReservationsAPI.list(params);
+      if (res?.meta?.reason === "NO_PLACE_ASSIGNMENTS") {
+        if (isMountedRef.current) {
+          setRows([]);
+          setError(
+            res?.message ||
+              "No place assignments found. Ask an admin to assign you to a place."
+          );
+        }
+        return;
+      }
       const list = Array.isArray(res?.data) ? res.data : [];
 
       const mapped = list.map((r) => ({

@@ -18,6 +18,13 @@ router.get(
   settingsController.listBackups
 );
 
+router.get(
+  "/backup/:fileName/download",
+  authenticateToken,
+  authorizeRoles("ADMIN"),
+  settingsController.downloadBackup
+);
+
 router.post(
   "/backup/restore",
   authenticateToken,

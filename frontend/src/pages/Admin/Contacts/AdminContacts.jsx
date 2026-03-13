@@ -1,39 +1,30 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Table from "../../../components/Table/Table.jsx";
+import Badge from "../../../components/Badge/Badge.jsx";
 import Button from "../../../components/Button/Button.jsx";
 import { adminContactsAPI } from "../../../api/admin.js";
 
-export default function AdminContactReply() {
-  const { id } = useParams();
+export default function AdminContacts() {
   const navigate = useNavigate();
-
-  const [contact, setContact] = useState(null);
-  const [replyMessage, setReplyMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
-
-  const inFlightRef = useRef(false);
   const isMountedRef = useRef(true);
+  const inFlightRef = useRef(false);
 
-  const unwrapOne = (res) => {
-    // backend returns: { success: true, data: {...} }
-    if (res?.data?.data) return res.data.data;
-    if (res?.data) return res.data;
-    return null;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [q, setQ] = useState("");
+  const [items, setItems] = useState([]);
+
+  const unwrapList = (res) => {
+    // axios: { data: { success, data } }
+    const payload = res?.data;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload)) return payload;
+    return [];
   };
 
-  const getErrMsg = (err, fallback) => {
-    return (
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err?.message ||
-      fallback
-    );
-  };
-
-  const isValidId = Number.isInteger(Number(id)) && Number(id) > 0;
+  const getErrMsg = (err, fallback) =>
+    err?.response?.data?.message || err?.message || fallback;
 
   const load = async ({ silent = false } = {}) => {
     try {
@@ -42,30 +33,15 @@ export default function AdminContactReply() {
 
       if (!silent) setLoading(true);
       setError("");
-      setSuccessMsg("");
 
-      if (!isValidId) {
-        if (isMountedRef.current) {
-          setContact(null);
-          setReplyMessage("");
-          setError("Select a contact message to view details.");
-          setLoading(false);
-        }
-        return;
-      }
-
-      const res = await adminContactsAPI.getById(id);
-      const data = unwrapOne(res);
+      const res = await adminContactsAPI.list();
+      const list = unwrapList(res);
 
       if (!isMountedRef.current) return;
-      setContact(data || null);
-      setReplyMessage(data?.ReplyMessage || "");
+      setItems(list);
     } catch (err) {
       console.error(err);
-      if (isMountedRef.current) {
-        setError(getErrMsg(err, "Failed to load contact message"));
-        setContact(null);
-      }
+      if (isMountedRef.current) setError(getErrMsg(err, "Failed to load inbox"));
     } finally {
       inFlightRef.current = false;
       if (!silent && isMountedRef.current) setLoading(false);
@@ -79,40 +55,79 @@ export default function AdminContactReply() {
       isMountedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, []);
 
-  const sendReply = async () => {
-    try {
-      setError("");
-      setSuccessMsg("");
+  const rows = useMemo(() => {
+    const needle = String(q || "").trim().toLowerCase();
+    const base = Array.isArray(items) ? items : [];
+    if (!needle) return base;
 
-      const msg = String(replyMessage || "").trim();
-      if (!msg) {
-        setError("Reply message is required.");
-        return;
-      }
-      if (msg.length < 3) {
-        setError("Reply message is too short.");
-        return;
-      }
+    return base.filter((c) => {
+      const hay = [
+        c?.ContactID,
+        c?.Subject,
+        c?.Message,
+        c?.customer?.Name,
+        c?.customer?.Email,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [items, q]);
 
-      setSending(true);
-      await adminContactsAPI.reply(id, { replyMessage: msg });
-
-      if (!isMountedRef.current) return;
-      setSuccessMsg("Reply sent successfully.");
-      await load({ silent: true });
-    } catch (err) {
-      console.error(err);
-      if (isMountedRef.current) {
-        setError(getErrMsg(err, "Failed to send reply"));
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setSending(false);
-      }
-    }
-  };
+  const cols = [
+    {
+      key: "ContactID",
+      header: "ID",
+      width: 90,
+      render: (r) => <span style={{ fontWeight: 800 }}>#{r?.ContactID}</span>,
+    },
+    {
+      key: "customer",
+      header: "Customer",
+      render: (r) => (
+        <div style={{ display: "grid", gap: 2 }}>
+          <div style={{ fontWeight: 700 }}>{r?.customer?.Name || "N/A"}</div>
+          <div style={{ fontSize: 12, opacity: 0.8 }}>{r?.customer?.Email || "N/A"}</div>
+        </div>
+      ),
+    },
+    {
+      key: "Subject",
+      header: "Subject",
+      render: (r) => <span>{r?.Subject || "—"}</span>,
+    },
+    {
+      key: "CreatedAt",
+      header: "Received",
+      width: 190,
+      render: (r) =>
+        r?.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "N/A",
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: 120,
+      render: (r) =>
+        r?.RepliedAt ? (
+          <Badge tone="success">Replied</Badge>
+        ) : (
+          <Badge tone="warn">Open</Badge>
+        ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      width: 120,
+      render: (r) => (
+        <Button onClick={() => navigate(`/admin/contacts/${r?.ContactID}`)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div style={{ padding: 16 }}>
@@ -121,23 +136,36 @@ export default function AdminContactReply() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 12,
           marginBottom: 12,
         }}
       >
-        <h2 style={{ margin: 0 }}>Contact Message</h2>
+        <div>
+          <h2 style={{ margin: 0 }}>Contacts Inbox</h2>
+          <div style={{ fontSize: 12, opacity: 0.8 }}>
+            View customer contact messages and reply.
+          </div>
+        </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <Button
-            variant="secondary"
-            onClick={() => navigate("/admin/contacts")}
-            disabled={loading || sending}
-          >
-            Back
-          </Button>
-          <Button onClick={() => load()} disabled={loading}>
+          <Button variant="secondary" onClick={() => load()} disabled={loading}>
             Refresh
           </Button>
         </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by subject, message, name, email…"
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid #d6d6d6",
+          }}
+        />
       </div>
 
       {error ? (
@@ -154,108 +182,13 @@ export default function AdminContactReply() {
         </div>
       ) : null}
 
-      {successMsg ? (
-        <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            border: "1px solid #bfe7c0",
-            borderRadius: 8,
-          }}
-        >
-          <strong style={{ display: "block", marginBottom: 6 }}>Success</strong>
-          <div>{successMsg}</div>
-        </div>
+      {loading ? <div style={{ padding: 12 }}>Loading…</div> : null}
+
+      {!loading && rows.length === 0 ? (
+        <div style={{ padding: 12, opacity: 0.8 }}>No messages found.</div>
       ) : null}
 
-      {loading ? <div style={{ padding: 12 }}>Loading...</div> : null}
-
-      {!loading && contact ? (
-        <div style={{ display: "grid", gap: 12 }}>
-          <div
-            style={{
-              padding: 12,
-              border: "1px solid #e5e5e5",
-              borderRadius: 10,
-            }}
-          >
-            <div style={{ display: "grid", gap: 6 }}>
-              <div>
-                <strong>ID:</strong> {contact.ContactID}
-              </div>
-              <div>
-                <strong>Customer:</strong>{" "}
-                {(contact?.customer?.Name || "N/A").trim()}
-              </div>
-              <div>
-                <strong>Email:</strong> {contact?.customer?.Email || "N/A"}
-              </div>
-              <div>
-                <strong>Subject:</strong> {contact?.Subject || "N/A"}
-              </div>
-              <div>
-                <strong>Received:</strong>{" "}
-                {contact?.CreatedAt
-                  ? new Date(contact.CreatedAt).toLocaleString()
-                  : "N/A"}
-              </div>
-            </div>
-
-            <hr style={{ margin: "12px 0" }} />
-
-            <div>
-              <strong>Message</strong>
-              <div style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
-                {contact?.Message || "N/A"}
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: 12,
-              border: "1px solid #e5e5e5",
-              borderRadius: 10,
-            }}
-          >
-            <div style={{ marginBottom: 8 }}>
-              <strong>Reply</strong>
-              {contact?.RepliedAt ? (
-                <span style={{ marginLeft: 8, fontSize: 12 }}>
-                  (Last replied:{" "}
-                  {new Date(contact.RepliedAt).toLocaleString()})
-                </span>
-              ) : null}
-            </div>
-
-            <textarea
-              rows={6}
-              style={{
-                width: "100%",
-                padding: 10,
-                borderRadius: 8,
-                border: "1px solid #ccc",
-              }}
-              value={replyMessage}
-              onChange={(e) => setReplyMessage(e.target.value)}
-              placeholder="Type your reply here..."
-              disabled={sending}
-            />
-
-            <div
-              style={{
-                marginTop: 10,
-                display: "flex",
-                justifyContent: "flex-end",
-              }}
-            >
-              <Button onClick={sendReply} disabled={sending}>
-                {sending ? "Sending..." : "Send Reply"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {!loading && rows.length > 0 ? <Table columns={cols} rows={rows} /> : null}
     </div>
   );
 }

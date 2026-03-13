@@ -1,5 +1,6 @@
 const prisma = require("../utils/prisma");
 const { writeAuditLog } = require("../utils/auditLog");
+const { ensureLowStockAlert } = require("../utils/lowStockAlert");
 
 // --------------------
 // Helpers
@@ -24,18 +25,13 @@ function isValidProductCode(value) {
  *  - Message, Type, Status, IsActive, CustomerID?, UserID?
  */
 async function createLowStockAlertIfNeeded(product) {
-  if (product.StockLimit === null || product.StockLimit === undefined) return;
-
-  if (Number(product.Stock) <= Number(product.StockLimit)) {
-    await prisma.alert.create({
-      data: {
-        Message: `Low stock for product: ${product.Name} (Stock: ${product.Stock}, Limit: ${product.StockLimit})`,
-        Type: "LOW_STOCK",
-        Status: "Unread",
-        IsActive: true,
-      },
-    });
-  }
+  if (!product) return;
+  await ensureLowStockAlert(prisma, {
+    productId: product.ProductID,
+    productName: product.Name,
+    stock: product.Stock,
+    limit: product.StockLimit,
+  });
 }
 
 // --------------------

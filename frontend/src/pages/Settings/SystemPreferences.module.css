@@ -28,6 +28,16 @@
 }
 .right{padding: 16px 18px}
 .rightHead{font-size:16px;font-weight:800;margin-bottom: 10px; color: var(--text)}
+.notice{
+  margin: -4px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
 .section{padding: 10px 0}
 .sectionTitle{font-size:13px;font-weight:800;margin-bottom: 10px;color: var(--text)}
 .row{
