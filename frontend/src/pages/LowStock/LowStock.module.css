@@ -22,6 +22,15 @@
   color:#475569;
   cursor:pointer;
 }
+.dd:disabled{
+  opacity: .6;
+  cursor: not-allowed;
+}
+.export:disabled,
+.pager:disabled{
+  opacity: .6;
+  cursor: not-allowed;
+}
 .export{
   height: 40px;
   padding: 0 16px;
@@ -115,6 +124,11 @@
 .orange{color:#f97316;border-color:#f97316}
 .red{color:#ef4444;border-color:#ef4444}
 .stockSub{font-size:11px;color:#64748b}
+.empty{
+  padding: 18px;
+  font-size: 12px;
+  color:#64748b;
+}
 .footer{
   display:flex;
   align-items:center;

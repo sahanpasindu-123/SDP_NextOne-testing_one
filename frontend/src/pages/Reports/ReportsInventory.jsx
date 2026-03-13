@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import {
@@ -10,20 +10,29 @@ import {
   FiCalendar,
 } from "react-icons/fi";
 import { reportsAPI } from "../../api/reports";
+import { productsAPI } from "../../api/products";
 import styles from "./ReportsInventory.module.css";
+import toast from "react-hot-toast";
 
 const chips = ["Today", "This Week", "This Month", "Last 3 Months", "Custom"];
 const COLORS = ["#E0AB00", "#4CE7FF", "#FF6B6B", "#FFD166", "#06D6A0", "#118AB2"];
+
+const escapeCsvCell = (v) => {
+  const s = String(v ?? "");
+  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+};
 
 export default function ReportsInventory() {
   const location = useLocation();
   const base = location.pathname.startsWith("/admin") ? "/admin" : "/employee";
   const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
   const [range, setRange] = useState("This Month");
 
   const [stats, setStats] = useState([]);
   const [pieData, setPieData] = useState([]);
-  const [movements, setMovements] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,12 +50,22 @@ export default function ReportsInventory() {
   }, [range]);
 
   const fetchInventoryReport = async () => {
+    const requestId = (requestIdRef.current += 1);
     try {
-      const res = await reportsAPI.getInventoryReport();
-      const payload = res?.data?.data ?? res?.data ?? {};
+      setLoading(true);
+      let payload = {};
+      try {
+        const invRes = await reportsAPI.getInventoryReport({ range });
+        payload = invRes?.data ?? {};
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load inventory report");
+        payload = {};
+      }
+
       const rawStats = payload?.stats || {};
 
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || requestId !== requestIdRef.current) return;
       setStats([
         {
           title: "Total Items",
@@ -69,11 +88,40 @@ export default function ReportsInventory() {
       ]);
 
       setPieData(Array.isArray(payload?.pieData) ? payload.pieData : []);
-      setMovements(Array.isArray(payload?.movements) ? payload.movements : []);
+
+      try {
+        const productsRes = await productsAPI.getProducts();
+        const list =
+          Array.isArray(productsRes?.data)
+            ? productsRes.data
+            : Array.isArray(productsRes)
+              ? productsRes
+              : [];
+
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+        setItems(
+          list.map((p) => ({
+            productId: p?.ProductID ?? p?.productId ?? p?.id ?? "N/A",
+            productName: p?.Name ?? p?.productName ?? p?.name ?? "N/A",
+            CategoryCode:
+              p?.CategoryCode ?? p?.categoryCode ?? p?.Category?.CategoryCode ?? "—",
+            stockQuantity: Number(p?.Stock ?? p?.stockQuantity ?? p?.stock ?? 0) || 0,
+          }))
+        );
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load inventory items");
+        if (isMountedRef.current && requestId === requestIdRef.current) setItems([]);
+      }
     } catch (err) {
       console.error(err);
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setStats([]);
+        setPieData([]);
+        setItems([]);
+      }
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestId === requestIdRef.current) {
         setLoading(false);
       }
     }
@@ -90,21 +138,31 @@ export default function ReportsInventory() {
   };
 
   const handleExportReport = () => {
-    const header = "Date,Item,Type,Qty";
-    const body = movements
-      .map(m => `${m.date},${m.item},${m.type},${m.qty}`)
+    if (!items.length) {
+      toast("No data available to export");
+      return;
+    }
+
+    const header = ["Product ID", "Product Name", "Category Code", "Stock Quantity"];
+    const body = items
+      .map((r) =>
+        [r.productId, r.productName, r.CategoryCode, r.stockQuantity]
+          .map(escapeCsvCell)
+          .join(",")
+      )
       .join("\n");
 
-    downloadFile(`${header}\n${body}`, "inventory-report.csv", "text/csv");
+    downloadFile(
+      `${header.join(",")}\n${body}`,
+      "inventory-report.csv",
+      "text/csv;charset=utf-8"
+    );
+    toast.success("Exported: inventory-report.csv");
   };
 
   const handleFilterClick = () => {
     fetchInventoryReport();
   };
-
-  if (loading) {
-    return <p style={{ padding: 20 }}>Loading inventory report...</p>;
-  }
 
   return (
     <div className={styles.page}>
@@ -119,24 +177,41 @@ export default function ReportsInventory() {
 
       <div className={styles.topCard}>
         <div className={styles.tabs}>
-          <NavLink to={`${base}/reports/sales`} className={styles.tab}>
+          <NavLink
+            to={`${base}/reports/sales`}
+            className={({ isActive }) =>
+              `${styles.tab} ${isActive ? styles.activeYellow : ""}`
+            }
+          >
             <FiBarChart2 /> Sales Report
           </NavLink>
 
           <NavLink
             to={`${base}/reports/inventory`}
-            className={`${styles.tab} ${styles.activeYellow}`}
+            className={({ isActive }) =>
+              `${styles.tab} ${isActive ? styles.activeYellow : ""}`
+            }
           >
             <FiPieChart /> Inventory Report
           </NavLink>
 
-          <NavLink to={`${base}/reports/performance`} className={styles.tab}>
+          <NavLink
+            to={`${base}/reports/performance`}
+            className={({ isActive }) =>
+              `${styles.tab} ${isActive ? styles.activeYellow : ""}`
+            }
+          >
             <FiTrendingUp /> Performance
           </NavLink>
         </div>
 
         <div className={styles.actions}>
-          <button className={styles.outlineBtn} type="button" onClick={handleFilterClick}>
+          <button
+            className={styles.outlineBtn}
+            type="button"
+            onClick={handleFilterClick}
+            disabled={loading}
+          >
             <FiFilter /> Filter
           </button>
 
@@ -144,6 +219,7 @@ export default function ReportsInventory() {
             className={styles.yellowBtn}
             type="button"
             onClick={handleExportReport}
+            disabled={loading}
           >
             <FiDownload /> Export Report
           </button>
@@ -172,6 +248,11 @@ export default function ReportsInventory() {
       </div>
 
       <div className={styles.stats}>
+        {loading && !stats.length ? (
+          <div style={{ padding: 12, color: "#6b7280", fontWeight: 800 }}>
+            Loading inventory report...
+          </div>
+        ) : null}
         {stats.map(s => (
           <div key={s.title} className={styles.statCard}>
             <div className={styles.statTop}>
@@ -184,49 +265,73 @@ export default function ReportsInventory() {
         ))}
       </div>
 
-      <div className={styles.grid2}>
-        <div className={styles.box}>
-          <div className={styles.boxTitle}>Inventory by Category</div>
+        <div className={styles.grid2}>
+          <div className={styles.box}>
+            <div className={styles.boxTitle}>Inventory by Category</div>
 
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                dataKey="value"
-                cx="50%"
-                cy="50%"
-                outerRadius={110}
-              >
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className={styles.box}>
-          <div className={styles.boxTitle}>Recent Stock Movements</div>
-
-          <div className={styles.table}>
-            <div className={styles.tHead}>
-              <div>Date</div>
-              <div>Item</div>
-              <div>Type</div>
-              <div>Quantity</div>
-            </div>
-
-            {movements.map((m, idx) => (
-              <div key={idx} className={styles.tRow}>
-                <div>{m.date}</div>
-                <div>{m.item}</div>
-                <div>{m.type}</div>
-                <div>{m.qty}</div>
+            {loading && !pieData.length ? (
+              <div style={{ padding: 16, color: "#6b7280", fontWeight: 800 }}>
+                Loading chart...
               </div>
-            ))}
+            ) : pieData.length ? (
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={110}
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ padding: 16, color: "#6b7280", fontWeight: 800 }}>
+                No data available
+              </div>
+            )}
+          </div>
+
+          <div className={styles.box}>
+            <div className={styles.boxTitle}>Inventory Items</div>
+
+            <div className={styles.table}>
+              <div className={styles.tHead}>
+                <div>Product ID</div>
+                <div>Product</div>
+                <div>Category</div>
+                <div>Stock</div>
+              </div>
+
+              {loading && !items.length ? (
+                <div className={styles.tRow}>
+                  <div style={{ gridColumn: "1 / -1", color: "#6b7280", fontWeight: 800 }}>
+                    Loading items...
+                  </div>
+                </div>
+              ) : !items.length ? (
+                <div className={styles.tRow}>
+                  <div style={{ gridColumn: "1 / -1", color: "#6b7280", fontWeight: 800 }}>
+                    No data available
+                  </div>
+                </div>
+              ) : null}
+
+              {items.map((m, idx) => (
+                <div key={idx} className={styles.tRow}>
+                  <div>{m.productId}</div>
+                  <div>{m.productName}</div>
+                  <div>{m.CategoryCode}</div>
+                  <div>{m.stockQuantity}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

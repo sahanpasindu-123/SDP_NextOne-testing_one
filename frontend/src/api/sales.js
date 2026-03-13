@@ -1,8 +1,8 @@
 import axiosClient from "./axiosClient";
 
 export const salesAPI = {
-  getSales: async () => {
-    const response = await axiosClient.get("/sales");
+  getSales: async (params = {}) => {
+    const response = await axiosClient.get("/sales", { params });
     return response.data;
   },
 

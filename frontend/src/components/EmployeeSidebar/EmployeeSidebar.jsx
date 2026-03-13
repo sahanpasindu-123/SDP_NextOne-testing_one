@@ -19,7 +19,7 @@ const nav = [
   { to: '/employee/inventory', label: 'Manage Inventory', icon: <FiBox /> },
   { to: '/employee/sales', label: 'Sales & Billing', icon: <FiShoppingCart /> },
   { to: '/employee/reservations', label: 'Reservations', icon: <FiCalendar /> },
-  { to: '/employee/reports/sales', label: 'Reports', icon: <FiBarChart2 /> },
+  { to: '/employee/reports', label: 'Reports', icon: <FiBarChart2 /> },
   { to: '/employee/customers', label: 'Customers', icon: <FiUsers /> },
   { to: '/employee/low-stock', label: 'Low Stock', icon: <FiAlertCircle />, badge: '5' },
   { to: '/employee/alerts', label: 'Alerts', icon: <FiBell />, badge: '7' },
@@ -61,7 +61,7 @@ export default function EmployeeSidebar() {
 
       <div className={styles.bottom}>
         <NavLink
-          to="/employee/settings/profile"
+          to="/employee/settings"
           className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ''}`}
         >
           <span className={styles.icon}>

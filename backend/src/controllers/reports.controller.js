@@ -1,5 +1,19 @@
 const prisma = require("../utils/prisma");
 
+const toISODate = (d) => {
+  if (!d) return null;
+  try {
+    return new Date(d).toISOString().split("T")[0];
+  } catch {
+    return null;
+  }
+};
+
+const toNumber = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
 // ------------------------------------
 // Dashboard stats
 // ------------------------------------
@@ -25,15 +39,15 @@ const getDashboardStats = async (req, res) => {
       prisma.sale.findMany({
         take: 5,
         orderBy: { SaleDate: "desc" },
-        include: { customer: true },
+        include: { customer: true, invoice: true },
       }),
     ]);
 
     const formattedSales = recentSales.map((s) => ({
-      id: s.SaleID ?? s.InvoiceID ?? `SALE-${s.SaleID ?? "N/A"}`,
+      id: s?.invoice?.InvoiceID ?? s.SaleID ?? `SALE-${s.SaleID ?? "N/A"}`,
       customer: s.customer?.Name || "Walk-in",
-      total: Number(s.TotalAmount ?? 0),
-      date: s.SaleDate,
+      total: toNumber(s?.invoice?.Amount ?? s?.TotalPrice),
+      date: s.SaleDate ?? s?.invoice?.Date ?? null,
       status: s.Status || "UNKNOWN",
     }));
 
@@ -79,15 +93,17 @@ const getSalesReport = async (req, res) => {
 
     const sales = await prisma.sale.findMany({
       where,
-      include: { customer: true },
+      include: { customer: true, invoice: true },
       orderBy: { SaleDate: "desc" },
     });
 
     const rows = sales.map((s) => ({
-      id: s.InvoiceID || s.SaleID || `SALE-${s.SaleID}`,
+      id: s?.invoice?.InvoiceID ?? s.SaleID ?? `SALE-${s.SaleID ?? "N/A"}`,
       customer: s.customer ? s.customer.Name : "Walk-in",
-      date: s.SaleDate ? new Date(s.SaleDate).toISOString().split("T")[0] : null,
-      amount: `Rs ${Number(s.TotalAmount ?? 0).toLocaleString()}`,
+      date: toISODate(s?.invoice?.Date ?? s?.SaleDate),
+      amount: `Rs ${Math.round(
+        toNumber(s?.invoice?.Amount ?? s?.TotalPrice)
+      ).toLocaleString()}`,
       status: s.Status || "UNKNOWN",
     }));
 
@@ -156,7 +172,7 @@ const getInventoryReport = async (req, res) => {
 const getPerformanceReport = async (req, res) => {
   try {
     const sales = await prisma.sale.findMany({
-      select: { SaleDate: true, TotalAmount: true },
+      select: { SaleDate: true, TotalPrice: true },
     });
 
     const reservations = await prisma.reservation.findMany({
@@ -167,7 +183,7 @@ const getPerformanceReport = async (req, res) => {
     sales.forEach((s) => {
       const d = new Date(s.SaleDate);
       const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
-      monthlySales[key] = (monthlySales[key] || 0) + Number(s.TotalAmount ?? 0);
+      monthlySales[key] = (monthlySales[key] || 0) + toNumber(s.TotalPrice);
     });
 
     const monthlyReservations = {};

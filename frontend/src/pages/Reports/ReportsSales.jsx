@@ -8,10 +8,24 @@ import styles from "./ReportsSales.module.css";
 import toast from "react-hot-toast";
 import { reportsAPI } from "../../api/reports";
 
+const toPaidPending = (raw) => {
+  const s = String(raw || "").toUpperCase();
+  if (s.includes("PAID") || s.includes("COMPLETE")) return "Paid";
+  if (s.includes("PEND")) return "Pending";
+  return raw ? String(raw) : "UNKNOWN";
+};
+
+const escapeCsvCell = (v) => {
+  const s = String(v ?? "");
+  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+};
+
 export default function ReportsSales() {
   const location = useLocation();
   const base = location.pathname.startsWith("/admin") ? "/admin" : "/employee";
   const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,17 +40,26 @@ export default function ReportsSales() {
   }, []);
 
   const fetchSalesReport = async () => {
+    const requestId = (requestIdRef.current += 1);
     try {
       setLoading(true);
       const res = await reportsAPI.getSalesReport();
-      if (!isMountedRef.current) return;
-      const data = res?.data?.data ?? res?.data ?? [];
-      setRows(Array.isArray(data) ? data : []);
+      if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      const mapped = data.map((r) => ({
+        id: r?.id ?? "N/A",
+        customer: r?.customer ?? "N/A",
+        date: r?.date ?? "N/A",
+        amount: r?.amount ?? "Rs 0",
+        status: toPaidPending(r?.status),
+      }));
+      setRows(mapped);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load sales report");
+      if (isMountedRef.current && requestId === requestIdRef.current) setRows([]);
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestId === requestIdRef.current) {
         setLoading(false);
       }
     }
@@ -77,9 +100,17 @@ export default function ReportsSales() {
   };
 
   const handleExportReport = () => {
+    if (!rows.length) {
+      toast("No data available to export");
+      return;
+    }
     const header = "Invoice ID,Customer,Date,Amount,Status";
     const body = rows
-      .map((r) => [r.id, r.customer, r.date, r.amount, r.status].join(","))
+      .map((r) =>
+        [r.id, r.customer, r.date, r.amount, r.status]
+          .map(escapeCsvCell)
+          .join(",")
+      )
       .join("\n");
 
     downloadFile(`${header}\n${body}`, "sales-report.csv", "text/csv");
@@ -90,10 +121,6 @@ export default function ReportsSales() {
     fetchSalesReport();
     toast("Filter applied");
   };
-
-  if (loading) {
-    return <div className={styles.page}>Loading sales report...</div>;
-  }
 
   return (
     <div className={styles.page}>
@@ -111,7 +138,7 @@ export default function ReportsSales() {
           <NavLink
             to={`${base}/reports/sales`}
             className={({ isActive }) =>
-              `${styles.tab} ${isActive ? styles.active : ""}`
+              `${styles.tab} ${isActive ? styles.activeYellow : ""}`
             }
           >
             Sales Report
@@ -137,7 +164,7 @@ export default function ReportsSales() {
         </div>
 
         <div className={styles.actions}>
-          <Button leftIcon={<FiDownload />} onClick={handleExportReport}>
+          <Button leftIcon={<FiDownload />} onClick={handleExportReport} disabled={loading}>
             Export Report
           </Button>
 
@@ -145,6 +172,7 @@ export default function ReportsSales() {
             variant="secondary"
             leftIcon={<FiFilter />}
             onClick={handleFilter}
+            disabled={loading}
           >
             Filter
           </Button>
@@ -153,6 +181,15 @@ export default function ReportsSales() {
 
       <div className={`card ${styles.tableCard}`}>
         <div className={styles.tableHead}>Sales</div>
+        {loading ? (
+          <div style={{ padding: 14, color: "#6b7280", fontWeight: 800 }}>
+            Loading sales report...
+          </div>
+        ) : !rows.length ? (
+          <div style={{ padding: 14, color: "#6b7280", fontWeight: 800 }}>
+            No data available
+          </div>
+        ) : null}
         <Table columns={cols} rows={rows} />
       </div>
     </div>

@@ -94,6 +94,7 @@ export default function AppRoutes() {
         <Route path="inventory/delete/:id" element={<DeleteProduct />} />
         <Route path="sales" element={<SalesBilling />} />
         <Route path="reservations" element={<Reservations />} />
+        <Route path="reports" element={<Navigate to="/employee/reports/sales" replace />} />
         <Route path="reports/sales" element={<ReportsSales />} />
         <Route path="reports/inventory" element={<ReportsInventory />} />
         <Route path="reports/performance" element={<ReportsPerformance />} />
@@ -130,6 +131,7 @@ export default function AppRoutes() {
         <Route path="pending" element={<AdminPending />} />
         <Route path="sales-history" element={<AdminSalesHistory />} />
         <Route path="reservations" element={<AdminReservations />} />
+        <Route path="reports" element={<Navigate to="/admin/reports/sales" replace />} />
         <Route path="reports/sales" element={<AdminReportsSales />} />
         <Route path="reports/inventory" element={<ReportsInventory />} />
         <Route path="reports/performance" element={<ReportsPerformance />} />

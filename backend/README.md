@@ -114,9 +114,9 @@ A complete Node.js + Express backend for the SDP system with MySQL and Prisma OR
 
 ### Reports
 - `GET /api/reports` - Get reports
-- `POST /api/reports/sales` - Generate sales report
-- `POST /api/reports/inventory` - Generate inventory report
-- `POST /api/reports/performance` - Generate performance report
+- `GET /api/reports/sales` - Generate sales report
+- `GET /api/reports/inventory` - Generate inventory report
+- `GET /api/reports/performance` - Generate performance report
 
 ### Settings
 - `GET /api/settings/profile` - Get user profile

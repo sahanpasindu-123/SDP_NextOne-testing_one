@@ -21,7 +21,7 @@ const nav = [
   { to: '/admin/pending', label: 'Product Requests', icon: <FiClock /> },
   { to: '/admin/sales-history', label: 'Sales History', icon: <FiBarChart2 /> },
   { to: '/admin/reservations', label: 'Reservations', icon: <FiCalendar /> },
-  { to: '/admin/reports/sales', label: 'Reports', icon: <FiBarChart2 /> },
+  { to: '/admin/reports', label: 'Reports', icon: <FiBarChart2 /> },
   { to: '/admin/low-stock', label: 'Low Stock', icon: <FiAlertCircle />, badge: '5' },
   { to: '/admin/user-management', label: 'User Management', icon: <FiUsers /> },
   { to: "/admin/categories", label: "Categories", icon: <FiTag /> },
@@ -65,7 +65,7 @@ export default function AdminSidebar() {
 
       <div className={styles.bottom}>
         <NavLink
-          to="/admin/settings/profile"
+          to="/admin/settings"
           className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ''}`}
         >
           <span className={styles.icon}>
