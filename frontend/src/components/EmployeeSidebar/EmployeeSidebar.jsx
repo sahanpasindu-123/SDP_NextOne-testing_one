@@ -21,8 +21,8 @@ const nav = [
   { to: '/employee/reservations', label: 'Reservations', icon: <FiCalendar /> },
   { to: '/employee/reports', label: 'Reports', icon: <FiBarChart2 /> },
   { to: '/employee/customers', label: 'Customers', icon: <FiUsers /> },
-  { to: '/employee/low-stock', label: 'Low Stock', icon: <FiAlertCircle />, badge: '5' },
-  { to: '/employee/alerts', label: 'Alerts', icon: <FiBell />, badge: '7' },
+  { to: '/employee/low-stock', label: 'Low Stock', icon: <FiAlertCircle /> },
+  { to: '/employee/alerts', label: 'Alerts', icon: <FiBell /> },
 ]
 
 export default function EmployeeSidebar() {
@@ -38,10 +38,10 @@ export default function EmployeeSidebar() {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.profile}>
-        <div className={styles.avatar}>JS</div>
+        <div className={styles.avatar}>U</div>
         <div>
-          <div className={styles.name}>John Smith</div>
-          <div className={styles.role}>Parts Manager</div>
+          <div className={styles.name}>Employee</div>
+          <div className={styles.role}>Staff</div>
         </div>
       </div>
 

@@ -6,6 +6,9 @@ import StatCard from "../../components/StatCard/StatCard.jsx";
 import Badge from "../../components/Badge/Badge.jsx";
 import Table from "../../components/Table/Table.jsx";
 import styles from "./Reservations.module.css";
+import toast from "react-hot-toast";
+import Modal from "../../components/Modal/Modal.jsx";
+import Button from "../../components/Button/Button.jsx";
 
 const formatReservationId = (id) => {
   const raw = String(id ?? "").trim();
@@ -21,6 +24,8 @@ export default function Reservations() {
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL|PENDING|CONFIRMED|COMPLETED|REJECTED|CANCELLED
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // { type: 'reject'|'sale', row }
+  const [busyId, setBusyId] = useState(null);
 
   const statusFilterRef = useRef(statusFilter);
   const isMountedRef = useRef(true);
@@ -217,14 +222,19 @@ export default function Reservations() {
               className={`${styles.aBtn} ${styles.ok}`}
               onClick={async () => {
                 try {
+                  setBusyId(r.id);
                   await employeeReservationsAPI.approve(r.id);
                   await load();
+                  toast.success("Reservation approved");
                 } catch (e) {
                   console.error("approve failed:", e);
-                  alert("Approve failed");
+                  toast.error("Approve failed");
+                } finally {
+                  setBusyId(null);
                 }
               }}
               title="Approve"
+              disabled={busyId === r.id}
             >
               <FiCheck />
             </button>
@@ -232,17 +242,10 @@ export default function Reservations() {
             <button
               className={`${styles.aBtn} ${styles.no}`}
               onClick={async () => {
-                const ok = window.confirm("Reject this reservation?");
-                if (!ok) return;
-                try {
-                  await employeeReservationsAPI.reject(r.id);
-                  await load();
-                } catch (e) {
-                  console.error("reject failed:", e);
-                  alert("Reject failed");
-                }
+                setConfirmAction({ type: "reject", row: r });
               }}
               title="Reject"
+              disabled={busyId === r.id}
             >
               <FiX />
             </button>
@@ -251,17 +254,9 @@ export default function Reservations() {
           <button
             className={styles.saleBtn}
             onClick={async () => {
-              const ok = window.confirm("Create Sale from this reservation?");
-              if (!ok) return;
-              try {
-                await salesAPI.createFromReservation(r.id, "CASH");
-                await load();
-                alert("Sale created (Reservation completed)");
-              } catch (e) {
-                console.error("sale failed:", e);
-                alert("Sale failed");
-              }
+              setConfirmAction({ type: "sale", row: r });
             }}
+            disabled={busyId === r.id}
           >
             Sale
           </button>
@@ -342,6 +337,62 @@ export default function Reservations() {
           />
         )}
       </div>
+
+      <Modal
+        open={!!confirmAction}
+        title={confirmAction?.type === "sale" ? "Create Sale" : "Reject Reservation"}
+        onClose={() => setConfirmAction(null)}
+        width={520}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: "#334155", fontWeight: 700 }}>
+            {confirmAction?.type === "sale" ? "Create a sale from" : "Reject"} reservation{" "}
+            <span style={{ fontWeight: 900 }}>{formatReservationId(confirmAction?.row?.id)}</span>?
+          </div>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            {confirmAction?.type === "sale"
+              ? "This will complete the reservation and create a sale."
+              : "This will mark the reservation as rejected."}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmAction(null)}
+              disabled={busyId === confirmAction?.row?.id}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                const action = confirmAction;
+                const id = action?.row?.id;
+                if (!id) return;
+                setConfirmAction(null);
+                setBusyId(id);
+                try {
+                  if (action.type === "sale") {
+                    await salesAPI.createFromReservation(id, "CASH");
+                    toast.success("Sale created (reservation completed)");
+                  } else {
+                    await employeeReservationsAPI.reject(id);
+                    toast.success("Reservation rejected");
+                  }
+                  await load();
+                } catch (e) {
+                  console.error("action failed:", e);
+                  toast.error(action?.type === "sale" ? "Sale failed" : "Reject failed");
+                } finally {
+                  setBusyId(null);
+                }
+              }}
+              disabled={busyId === confirmAction?.row?.id}
+            >
+              {confirmAction?.type === "sale" ? "Create Sale" : "Reject"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

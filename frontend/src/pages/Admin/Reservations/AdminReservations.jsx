@@ -3,6 +3,9 @@ import Table from "../../../components/Table/Table.jsx";
 import Badge from "../../../components/Badge/Badge.jsx";
 import styles from "./AdminReservations.module.css";
 import { reservationsAPI } from "../../../api/reservations";
+import toast from "react-hot-toast";
+import Modal from "../../../components/Modal/Modal.jsx";
+import Button from "../../../components/Button/Button.jsx";
 
 const formatReservationId = (id) => {
   const raw = String(id ?? "").trim();
@@ -39,6 +42,7 @@ export default function AdminReservations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
   const isMountedRef = useRef(true);
   const pollRef = useRef(null);
 
@@ -167,7 +171,7 @@ export default function AdminReservations() {
                   await reservationsAPI.adminApprove(r.id);
                   await load();
                 } catch (e) {
-                  alert(e?.message || "Approve failed");
+                  toast.error(e?.message || "Approve failed");
                 } finally {
                   if (isMountedRef.current) {
                     setBusyId(null);
@@ -183,21 +187,7 @@ export default function AdminReservations() {
               className={styles.no}
               disabled={busyId === r.id}
               onClick={async () => {
-                const ok = window.confirm("Reject this reservation?");
-                if (!ok) return;
-                try {
-                  if (isMountedRef.current) {
-                    setBusyId(r.id);
-                  }
-                  await reservationsAPI.adminReject(r.id);
-                  await load();
-                } catch (e) {
-                  alert(e?.message || "Reject failed");
-                } finally {
-                  if (isMountedRef.current) {
-                    setBusyId(null);
-                  }
-                }
+                setRejectTarget(r);
               }}
             >
               Reject
@@ -230,6 +220,52 @@ export default function AdminReservations() {
           <Table columns={cols} rows={filteredRows} />
         )}
       </div>
+
+      <Modal
+        open={!!rejectTarget}
+        title="Reject Reservation"
+        onClose={() => setRejectTarget(null)}
+        width={520}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: "#334155", fontWeight: 700 }}>
+            Reject reservation <span style={{ fontWeight: 900 }}>{formatReservationId(rejectTarget?.id)}</span>?
+          </div>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            This will mark the reservation as rejected.
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <Button
+              variant="secondary"
+              onClick={() => setRejectTarget(null)}
+              disabled={busyId === rejectTarget?.id}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                const target = rejectTarget;
+                if (!target?.id) return;
+                setRejectTarget(null);
+                try {
+                  if (isMountedRef.current) setBusyId(target.id);
+                  await reservationsAPI.adminReject(target.id);
+                  await load();
+                  toast.success("Reservation rejected");
+                } catch (e) {
+                  toast.error(e?.message || "Reject failed");
+                } finally {
+                  if (isMountedRef.current) setBusyId(null);
+                }
+              }}
+              disabled={busyId === rejectTarget?.id}
+            >
+              Reject
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

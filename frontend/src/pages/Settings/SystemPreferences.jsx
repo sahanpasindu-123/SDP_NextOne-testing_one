@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { FiSave } from 'react-icons/fi'
 import styles from './SystemPreferences.module.css'
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 
 function Toggle({ checked, onToggle, label }) {
   return (
@@ -29,7 +30,6 @@ export default function SystemPreferences() {
   const isEmployee = normalizedRole === "EMPLOYEE";
 
   const [loaded, setLoaded] = useState(false)
-  const [darkMode, setDarkMode] = useState(false)
   const [compactMode, setCompactMode] = useState(true)
   const [autoSave, setAutoSave] = useState(true)
   const [confirmBeforeDelete, setConfirmBeforeDelete] = useState(true)
@@ -43,13 +43,13 @@ export default function SystemPreferences() {
     return language === "Sinhala" ? "Sinhala" : "English";
   }, [language]);
 
-  // Apply theme + language globally
+  // Apply language globally (light theme only)
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.theme = darkMode ? "dark" : "light";
-    root.style.colorScheme = darkMode ? "dark" : "light";
+    root.removeAttribute("data-theme");
+    root.style.colorScheme = "light";
     root.lang = safeLanguage === "Sinhala" ? "si" : "en";
-  }, [darkMode, safeLanguage]);
+  }, [safeLanguage]);
 
   // load saved prefs
   useEffect(() => {
@@ -58,7 +58,6 @@ export default function SystemPreferences() {
       if (!raw) return
       const p = JSON.parse(raw)
 
-      if (typeof p.darkMode === 'boolean') setDarkMode(p.darkMode)
       if (!isEmployee) {
         if (typeof p.compactMode === 'boolean') setCompactMode(p.compactMode)
         if (typeof p.autoSave === 'boolean') setAutoSave(p.autoSave)
@@ -80,9 +79,8 @@ export default function SystemPreferences() {
 
   const persist = () => {
     const payload = isEmployee
-      ? { darkMode, language: safeLanguage }
+      ? { language: safeLanguage }
       : {
-          darkMode,
           compactMode,
           autoSave,
           confirmBeforeDelete,
@@ -107,7 +105,7 @@ export default function SystemPreferences() {
 
   const handleSave = () => {
     persist()
-    alert('Preferences saved (stored locally on this device).')
+    toast.success("Preferences saved (stored locally on this device).")
   }
 
   // Employee: persist immediately (no extra toggles / no autosave UI)
@@ -116,7 +114,7 @@ export default function SystemPreferences() {
     if (!loaded) return
     persist()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEmployee, loaded, darkMode, safeLanguage])
+  }, [isEmployee, loaded, safeLanguage])
 
   // optional: auto-save when enabled
   useEffect(() => {
@@ -125,7 +123,7 @@ export default function SystemPreferences() {
     if (!autoSave) return
     persist()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [darkMode, compactMode, autoSave, confirmBeforeDelete, language, currency, dateFormat, timeFormat])
+  }, [compactMode, autoSave, confirmBeforeDelete, language, currency, dateFormat, timeFormat])
 
   return (
     <>
@@ -133,18 +131,6 @@ export default function SystemPreferences() {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Display</div>
-
-        <div className={styles.row}>
-          <div>
-            <div className={styles.rowTitle}>Dark Mode</div>
-            <div className={styles.rowSub}>Turn dark mode on or off</div>
-          </div>
-          <Toggle
-            checked={darkMode}
-            onToggle={() => setDarkMode((v) => !v)}
-            label="Dark Mode"
-          />
-        </div>
 
         {!isEmployee && (
           <div className={styles.row}>

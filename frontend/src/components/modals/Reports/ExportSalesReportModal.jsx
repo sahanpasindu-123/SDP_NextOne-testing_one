@@ -1,4 +1,5 @@
 import styles from "./ExportSalesReportModal.module.css";
+import Modal from "../../Modal/Modal.jsx";
 
 export default function ExportSalesReportModal({
   open,
@@ -16,7 +17,7 @@ export default function ExportSalesReportModal({
   };
 
   return (
-    <div className={styles.overlay} onMouseDown={onClose}>
+    <Modal open={open} title="Export Sales Report" onClose={onClose} width={560}>
       <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.top}>
           <div className={styles.title}>Export Sales Report</div>
@@ -65,6 +66,6 @@ export default function ExportSalesReportModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

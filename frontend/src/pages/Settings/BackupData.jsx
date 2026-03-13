@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import styles from "./BackupData.module.css";
+import toast from "react-hot-toast";
+import Modal from "../../components/Modal/Modal";
+import Button from "../../components/Button/Button";
 
 import {
   createBackup,
@@ -16,6 +19,7 @@ export default function BackupData() {
   const [freq, setFreq] = useState("Daily (at midnight)");
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState(null);
 
   // Load backups on page load
   useEffect(() => {
@@ -36,7 +40,7 @@ export default function BackupData() {
       setBackups(data || []);
     } catch (err) {
       console.error(err);
-      alert("Failed to load backups");
+      toast.error("Failed to load backups");
     }
   };
 
@@ -45,11 +49,11 @@ export default function BackupData() {
     try {
       setLoading(true);
       await createBackup();
-      alert("Backup created successfully");
+      toast.success("Backup created successfully");
       await loadBackups();
     } catch (err) {
       console.error(err);
-      alert("Backup failed");
+      toast.error("Backup failed");
     } finally {
       if (isMountedRef.current) {
         setLoading(false);
@@ -63,20 +67,31 @@ export default function BackupData() {
       await downloadBackup(fileName);
     } catch (err) {
       console.error(err);
-      alert("Download failed");
+      toast.error("Download failed");
     }
   };
 
   // Restore backup
   const handleRestoreBackup = async (fileName) => {
-    if (!window.confirm("Are you sure you want to restore this backup?")) return;
+    setRestoreTarget(fileName);
+  };
+
+  const confirmRestoreBackup = async () => {
+    const fileName = restoreTarget;
+    if (!fileName) return;
 
     try {
+      setLoading(true);
       await restoreBackup(fileName);
-      alert("Backup restored successfully");
+      toast.success("Backup restored successfully");
+      setRestoreTarget(null);
     } catch (err) {
       console.error(err);
-      alert("Restore failed");
+      toast.error("Restore failed");
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -112,7 +127,7 @@ export default function BackupData() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert("Export failed");
+      toast.error("Export failed");
     }
   };
 
@@ -246,6 +261,31 @@ export default function BackupData() {
           Export as JSON
         </button>
       </div>
+
+      <Modal
+        open={!!restoreTarget}
+        title="Restore Backup"
+        onClose={() => setRestoreTarget(null)}
+        width={520}
+      >
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ color: "#334155", fontWeight: 700 }}>
+            Restore backup <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" }}>{restoreTarget}</span>?
+          </div>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            This will overwrite current data with the selected backup.
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 }}>
+            <Button variant="secondary" onClick={() => setRestoreTarget(null)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button onClick={confirmRestoreBackup} disabled={loading}>
+              {loading ? "Restoring..." : "Restore"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

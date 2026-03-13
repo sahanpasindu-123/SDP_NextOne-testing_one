@@ -4,6 +4,7 @@ import styles from "./EmployeeLogin.module.css";
 import { authAPI } from "../../api/auth";
 import { useAuth } from "../../context/AuthContext";
 import { useCategories } from "../../context/CategoriesContext";
+import toast from "react-hot-toast";
 
 export default function EmployeeLogin() {
   const [employeeId, setEmployeeId] = useState("");
@@ -32,7 +33,7 @@ export default function EmployeeLogin() {
     const rawPassword = String(password || "");
 
     if (!normalizedEmployeeId || !rawPassword) {
-      alert("Employee ID and password are required.");
+      toast.error("Employee ID and password are required.");
       return;
     }
 
@@ -65,7 +66,7 @@ export default function EmployeeLogin() {
         err?.response?.data?.message ||
         err?.message ||
         "Invalid Employee ID or Password";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

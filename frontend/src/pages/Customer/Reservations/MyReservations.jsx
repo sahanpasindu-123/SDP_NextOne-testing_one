@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import styles from "./MyReservations.module.css";
 import Badge from "../../../components/Badge/Badge.jsx";
 import { reservationsAPI } from "../../../api/reservations";
+import Modal from "../../../components/Modal/Modal.jsx";
+import Button from "../../../components/Button/Button.jsx";
 
 const formatReservationId = (id) => {
   const raw = String(id ?? "").trim();
@@ -40,6 +42,7 @@ export default function MyReservations() {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text: string }
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const load = async () => {
     try {
@@ -91,9 +94,12 @@ export default function MyReservations() {
   const hasRows = useMemo(() => rows.length > 0, [rows]);
 
   const handleCancelReservation = async (reservationId) => {
-    const ok = window.confirm("Cancel this reservation?");
-    if (!ok) return;
+    setCancelTarget(reservationId);
+  };
 
+  const confirmCancelReservation = async () => {
+    const reservationId = cancelTarget;
+    if (!reservationId) return;
     try {
       if (isMountedRef.current) {
         setMessage(null);
@@ -104,6 +110,7 @@ export default function MyReservations() {
 
       if (!isMountedRef.current) return;
       setMessage({ type: "success", text: `Reservation ${formatReservationId(reservationId)} cancelled` });
+      setCancelTarget(null);
       await load(); // re-fetch
     } catch (e) {
       console.error("cancel failed:", e);
@@ -198,6 +205,31 @@ export default function MyReservations() {
           ))
         )}
       </div>
+
+      <Modal
+        open={!!cancelTarget}
+        title="Cancel Reservation"
+        onClose={() => setCancelTarget(null)}
+        width={520}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: "#334155", fontWeight: 700 }}>
+            Cancel reservation <span style={{ fontWeight: 900 }}>{formatReservationId(cancelTarget)}</span>?
+          </div>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            You can’t undo this action.
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <Button variant="secondary" onClick={() => setCancelTarget(null)} disabled={!!cancellingId}>
+              Keep
+            </Button>
+            <Button onClick={confirmCancelReservation} disabled={!!cancellingId}>
+              {cancellingId ? "Cancelling..." : "Cancel Reservation"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

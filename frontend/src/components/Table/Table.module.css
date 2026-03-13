@@ -19,10 +19,7 @@ thead th{
   padding: 14px 16px;
   border-bottom: 1px solid rgba(230,233,238,.9);
   transition: background-color 0.2s ease;
-  cursor: pointer;
-}
-thead th:hover{
-  background: #f1f5f9;
+  cursor: default;
 }
 tbody td{
   padding: 16px 16px;

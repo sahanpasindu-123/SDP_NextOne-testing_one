@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import Modal from "../../Modal/Modal";
 import { reservationsAPI } from "../../../api/reservations";
+import toast from "react-hot-toast";
+import Button from "../../Button/Button.jsx";
 
 // If you already have reservations API wrapper, use that.
 // Otherwise use fetch directly.
@@ -46,16 +48,16 @@ export default function ReservePartModal({ open, onClose, product, onSuccess }) 
       );
 
       if (!data?.success) {
-        alert(data?.message || "Reservation failed");
+        toast.error(data?.message || "Reservation failed");
         return;
       }
 
-      alert("Reservation confirmed ✅");
+      toast.success("Reservation confirmed");
 
       onClose?.();
       onSuccess?.();
     } catch (e) {
-      alert("Server error");
+      toast.error("Server error");
     } finally {
       setLoading(false);
     }
@@ -122,16 +124,12 @@ export default function ReservePartModal({ open, onClose, product, onSuccess }) 
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button type="button" onClick={handleCancel} disabled={loading}>
+            <Button variant="secondary" type="button" onClick={handleCancel} disabled={loading}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={loading || available <= 0}
-            >
+            </Button>
+            <Button type="button" onClick={handleConfirm} disabled={loading || available <= 0}>
               {loading ? "Confirming..." : "Confirm Reservation"}
-            </button>
+            </Button>
           </div>
         </div>
       )}

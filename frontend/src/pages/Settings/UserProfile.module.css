@@ -16,7 +16,7 @@
   width:76px;
   height:76px;
   border-radius:999px;
-  background:#e0ab00;
+  background: var(--accent);
   color:#fff;
   display:flex;
   align-items:center;
@@ -31,7 +31,7 @@
   padding:0 14px;
   border:0;
   border-radius:8px;
-  background:#e0ab00;
+  background: var(--accent);
   color:#fff;
   font-weight:800;
   cursor:pointer;
@@ -91,7 +91,7 @@
   padding:0 22px;
   border:0;
   border-radius:10px;
-  background:#e0ab00;
+  background: var(--accent);
   color:#fff;
   font-weight:900;
   cursor:pointer;

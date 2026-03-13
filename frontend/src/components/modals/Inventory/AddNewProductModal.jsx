@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./AddNewProductModal.module.css";
+import toast from "react-hot-toast";
+import Modal from "../../Modal/Modal.jsx";
 
 export default function AddNewProductModal({
   open,
@@ -104,18 +106,18 @@ export default function AddNewProductModal({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!productName.trim()) return alert("Product Name is required");
-    if (!productCode.trim()) return alert("Product ID is required");
+    if (!productName.trim()) return toast.error("Product Name is required");
+    if (!productCode.trim()) return toast.error("Product ID is required");
     if (!/^COO-\d{3}$/.test(productCode.trim())) {
-      return alert("Product ID must be like COO-001");
+      return toast.error("Product ID must be like COO-001");
     }
-    if (!categoryId) return alert("Category is required");
-    if (!price || Number(price) <= 0) return alert("Valid price required");
+    if (!categoryId) return toast.error("Category is required");
+    if (!price || Number(price) <= 0) return toast.error("Valid price required");
     if (stockQty === "" || Number(stockQty) < 0) {
-      return alert("Valid stock quantity required");
+      return toast.error("Valid stock quantity required");
     }
     if (minQty === "" || Number(minQty) < 0) {
-      return alert("Valid minimum quantity required");
+      return toast.error("Valid minimum quantity required");
     }
 
     onSubmit?.({
@@ -137,21 +139,8 @@ export default function AddNewProductModal({
   // UI
   // =======================
   return (
-    <div className={styles.overlay} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.top}>
-          <div className={styles.title}>{title}</div>
-          <button
-            type="button"
-            className={styles.close}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            x
-          </button>
-        </div>
-
-        <form className={styles.form} onSubmit={handleSubmit}>
+    <Modal open={open} title={title} onClose={onClose} width={760}>
+      <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.grid}>
             <div className={styles.block}>
               <div className={styles.label}>Product Name *</div>
@@ -290,8 +279,7 @@ export default function AddNewProductModal({
               {submitLabel}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

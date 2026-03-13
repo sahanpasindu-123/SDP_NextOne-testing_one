@@ -317,7 +317,7 @@ export default function Dashboard() {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="sales" fill="#e2ad00" />
+              <Bar dataKey="sales" fill="var(--accent)" />
               <Bar dataKey="target" fill="#3dd9ff" />
             </BarChart>
           </ResponsiveContainer>

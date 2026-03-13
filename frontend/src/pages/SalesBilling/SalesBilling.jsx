@@ -27,6 +27,8 @@ import Badge from "../../components/Badge/Badge.jsx";
 import Table from "../../components/Table/Table.jsx";
 import Button from "../../components/Button/Button.jsx";
 import styles from "./SalesBilling.module.css";
+import toast from "react-hot-toast";
+import Modal from "../../components/Modal/Modal.jsx";
 
 const barData = [
   { name: "Jan", sales: 4200, target: 4600 },
@@ -42,6 +44,7 @@ export default function SalesBilling() {
   const isMountedRef = useRef(true);
   // keep if other UI parts depend on it later
   const [cartQty, setCartQty] = useState(1);
+  const [invoicePreview, setInvoicePreview] = useState(null);
 
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
@@ -172,9 +175,7 @@ export default function SalesBilling() {
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              alert(
-                `Invoice: ${r.id}\nCustomer: ${r.customer}\nAmount: ${r.amount}\nPayment: ${r.payment}`
-              );
+              setInvoicePreview(r);
             }}
           >
             View
@@ -185,7 +186,7 @@ export default function SalesBilling() {
             onClick={async (e) => {
               e.preventDefault();
               try {
-                if (!r.saleId) return alert("Missing sale id");
+                if (!r.saleId) return toast.error("Missing sale id");
 
                 // create invoice if not exists
                 const res = await fetch(
@@ -213,7 +214,7 @@ export default function SalesBilling() {
                 URL.revokeObjectURL(url);
               } catch (err) {
                 console.error(err);
-                alert(err.message || "Download failed");
+                toast.error(err.message || "Download failed");
               }
             }}
           >
@@ -233,7 +234,7 @@ export default function SalesBilling() {
   const addToCart = (p) => {
     const maxStock = Number(p.Stock);
     if (!Number.isFinite(maxStock) || maxStock <= 0) {
-      alert("Out of stock");
+      toast.error("Out of stock");
       return;
     }
 
@@ -295,7 +296,7 @@ export default function SalesBilling() {
 
   const processSale = async () => {
     try {
-      if (cartItems.length === 0) return alert("Cart is empty");
+      if (cartItems.length === 0) return toast.error("Cart is empty");
 
       for (const it of cartItems) {
         await salesAPI.createSale({
@@ -305,22 +306,22 @@ export default function SalesBilling() {
         });
       }
 
-      alert("Sale processed");
+      toast.success("Sale processed");
       if (!isMountedRef.current) return;
       setCartItems([]);
       await refreshSales();
     } catch (e) {
       console.error(e);
-      alert(e?.response?.data?.message || "Process sale failed");
+      toast.error(e?.response?.data?.message || "Process sale failed");
     }
   };
 
   const generateInvoiceForLatestSale = async () => {
     try {
-      if (!sales || sales.length === 0) return alert("No sales found");
+      if (!sales || sales.length === 0) return toast.error("No sales found");
 
       const latest = sales[0];
-      if (!latest?.saleId) return alert("Missing sale id");
+      if (!latest?.saleId) return toast.error("Missing sale id");
 
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE || ""}/api/sales/${latest.saleId}/invoice`,
@@ -346,10 +347,10 @@ export default function SalesBilling() {
       a.click();
       URL.revokeObjectURL(url);
 
-      alert("Invoice generated (JSON downloaded)");
+      toast.success("Invoice generated (JSON downloaded)");
     } catch (e) {
       console.error(e);
-      alert(e.message || "Invoice failed");
+      toast.error(e.message || "Invoice failed");
     }
   };
 
@@ -536,7 +537,7 @@ export default function SalesBilling() {
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="sales" fill="#e2ad00" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="sales" fill="var(--accent)" radius={[6, 6, 0, 0]} />
               <Bar dataKey="target" fill="#3dd9ff" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -567,6 +568,46 @@ export default function SalesBilling() {
         </div>
         <Table columns={cols} rows={sales} />
       </div>
+
+      <Modal
+        open={!!invoicePreview}
+        title="Invoice Details"
+        onClose={() => setInvoicePreview(null)}
+        width={520}
+      >
+        {!invoicePreview ? null : (
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Invoice</div>
+                <div style={{ fontWeight: 900 }}>{invoicePreview.id}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Customer</div>
+                <div style={{ fontWeight: 800 }}>{invoicePreview.customer}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Date</div>
+                <div style={{ fontWeight: 800 }}>{invoicePreview.date}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Payment</div>
+                <div style={{ fontWeight: 800 }}>{invoicePreview.payment}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ color: "#64748b", fontWeight: 800, fontSize: 12 }}>Amount</div>
+                <div style={{ fontWeight: 900 }}>{invoicePreview.amount}</div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button variant="secondary" onClick={() => setInvoicePreview(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

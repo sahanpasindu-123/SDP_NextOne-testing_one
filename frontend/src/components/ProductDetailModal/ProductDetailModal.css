@@ -1,50 +1,24 @@
-/* Overlay */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-/* Card */
+/* Card (now rendered inside shared Modal) */
 .modal-card {
-  background: #f4f4f4;
-  width: 900px;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  padding: 20px;
-  animation: fadeIn 0.3s ease-in-out;
+  background: transparent;
+  width: 100%;
+  padding: 0;
 }
 
-/* Header */
+/* Header (shared Modal already provides header) */
 .modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: none;
 }
 
 .modal-header h2 {
   margin: 0;
 }
 
-.close-btn {
-  border: none;
-  background: transparent;
-  font-size: 22px;
-  cursor: pointer;
-}
-
 /* Content Layout */
 .modal-content {
   display: flex;
-  gap: 30px;
-  margin-top: 20px;
+  gap: 24px;
+  margin-top: 0;
 }
 
 /* Image */
@@ -105,7 +79,7 @@
   width: 100%;
   padding: 14px;
   border: none;
-  background: #f4b400;
+  background: var(--accent);
   font-weight: bold;
   border-radius: 8px;
   cursor: pointer;
@@ -113,17 +87,16 @@
 }
 
 .reserve-btn:hover {
-  background: #e0a800;
+  filter: brightness(0.96);
 }
 
-/* Animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
+@media (max-width: 860px) {
+  .modal-content {
+    flex-direction: column;
   }
-  to {
-    opacity: 1;
-    transform: scale(1);
+  .image-section img {
+    width: 100%;
+    height: auto;
+    max-height: 360px;
   }
 }

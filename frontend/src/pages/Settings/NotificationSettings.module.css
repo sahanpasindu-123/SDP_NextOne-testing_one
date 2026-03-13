@@ -43,7 +43,7 @@
   padding:0 22px;
   border:0;
   border-radius:10px;
-  background:#e0ab00;
+  background: var(--accent);
   color:#fff;
   font-weight:900;
   cursor:pointer;

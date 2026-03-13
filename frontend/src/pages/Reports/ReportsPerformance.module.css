@@ -224,8 +224,8 @@
   border-radius: 999px;
   display: inline-block;
 }
-.dotY { background: #E0AB00; }
-.dotB { background: #4CE7FF; }
+.dotY { background: var(--accent); }
+.dotB { background: var(--accent-2); }
 .dotR { background: #FF6B6B; }
 
 .bottomGrid {

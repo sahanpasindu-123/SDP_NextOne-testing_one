@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import styles from "./NotificationSettings.module.css";
+import toast from "react-hot-toast";
 
 export default function NotificationSettings() {
   const [lowStock, setLowStock] = useState(true);
@@ -39,7 +40,7 @@ export default function NotificationSettings() {
       // ignore permission errors
     }
 
-    alert("Notification settings saved (stored locally).");
+    toast.success("Notification settings saved (stored locally).");
   };
 
 

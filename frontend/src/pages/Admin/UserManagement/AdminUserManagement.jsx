@@ -10,6 +10,7 @@ import Table from "../../../components/Table/Table.jsx";
 import AddUserModal from "../../../components/modals/User/AddUserModal.jsx";
 import UpdateUserModal from "../../../components/modals/User/UpdateUserModal.jsx";
 import DeleteUserModal from "../../../components/modals/User/DeleteUserModal.jsx";
+import toast from "react-hot-toast";
 import styles from "./AdminUserManagement.module.css";
 
 export default function AdminUserManagement() {
@@ -307,15 +308,15 @@ export default function AdminUserManagement() {
 
       const type = payload.type === "customer" ? "customer" : "employee";
 
-      if (!payload.password) return alert("Password is required");
+      if (!payload.password) return toast.error("Password is required");
 
       if (payload.password !== payload.confirmPassword) {
-        alert("Password and Confirm Password do not match");
+        toast.error("Password and Confirm Password do not match");
         return;
       }
 
       if (type === "employee") {
-        if (!payload.id) return alert("Employee Id is required");
+        if (!payload.id) return toast.error("Employee Id is required");
 
         const res = await employeesAPI.create({
           employeeId: payload.id,
@@ -326,18 +327,18 @@ export default function AdminUserManagement() {
         });
 
         if (res?.success === false) {
-          alert(res?.message || "Failed to add employee");
+          toast.error(res?.message || "Failed to add employee");
           return;
         }
 
-        alert("Employee added successfully");
+        toast.success("Employee added successfully");
         if (!isMountedRef.current) return;
         setAddOpen(false);
         await loadEmployees();
         return;
       }
 
-      if (!payload.email) return alert("Email is required");
+      if (!payload.email) return toast.error("Email is required");
 
       const res = await customersAPI.createCustomer({
         name: payload.name || "",
@@ -347,17 +348,17 @@ export default function AdminUserManagement() {
       });
 
       if (res?.success === false) {
-        alert(res?.message || "Failed to add customer");
+        toast.error(res?.message || "Failed to add customer");
         return;
       }
 
-      alert("Customer added successfully");
+      toast.success("Customer added successfully");
       if (!isMountedRef.current) return;
       setAddOpen(false);
       await loadCustomers();
     } catch (err) {
       console.error(err);
-      alert(err?.message || err?.response?.data?.message || "Failed to add user");
+      toast.error(err?.message || err?.response?.data?.message || "Failed to add user");
     }
   };
 
@@ -388,7 +389,7 @@ export default function AdminUserManagement() {
       if (!data) return;
       const type = data.type === "customer" ? "customer" : "employee";
       const id = getSelectedAdminId(type);
-      if (!id) return alert("User id not found");
+      if (!id) return toast.error("User id not found");
 
       await axiosClient.put(`/admin/users/${id}`, { ...data, type });
 
@@ -397,10 +398,10 @@ export default function AdminUserManagement() {
       setSelectedUser(null);
       if (type === "employee") await loadEmployees();
       else await loadCustomers();
-      alert("User updated successfully");
+      toast.success("User updated successfully");
     } catch (err) {
       console.error(err);
-      alert(err?.message || "Update failed");
+      toast.error(err?.message || "Update failed");
     }
   };
 
@@ -408,7 +409,7 @@ export default function AdminUserManagement() {
     try {
       const type = activeTab === "customers" ? "customer" : "employee";
       const id = getSelectedAdminId(type);
-      if (!id) return alert("User id not found");
+      if (!id) return toast.error("User id not found");
 
       await axiosClient.delete(`/admin/users/${id}`, { params: { type } });
 
@@ -430,10 +431,10 @@ export default function AdminUserManagement() {
 
       setDelOpen(false);
       setSelectedUser(null);
-      alert("User deleted successfully");
+      toast.success("User deleted successfully");
     } catch (err) {
       console.error(err);
-      alert(err?.message || "Delete failed");
+      toast.error(err?.message || "Delete failed");
     }
   };
 

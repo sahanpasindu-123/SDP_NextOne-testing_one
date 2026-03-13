@@ -4,7 +4,7 @@
 .title{font-size:16px;font-weight:800;color:#111827}
 .close{width:34px;height:34px;border:0;background:transparent;cursor:pointer;font-size:22px;line-height:1;color:#9aa3b2;border-radius:8px}
 .close:hover{background:#f3f4f6}
-.form{padding:18px}
+.form{padding:0}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
 .block{display:flex;flex-direction:column;gap:8px}
 .full{grid-column:1/-1}
@@ -15,7 +15,7 @@
 
 .actions{display:flex;justify-content:flex-end;gap:12px;margin-top:18px}
 .cancelBtn{height:40px;padding:0 18px;border:0;border-radius:8px;background:#e5e7eb;color:#111827;font-weight:700;cursor:pointer}
-.primaryBtn{height:40px;padding:0 18px;border:0;border-radius:8px;background:#e0ab00;color:#fff;font-weight:900;cursor:pointer}
+.primaryBtn{height:40px;padding:0 18px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-weight:900;cursor:pointer}
 .primaryBtn:active,.cancelBtn:active{transform:translateY(1px)}
 
 .file{display:none}

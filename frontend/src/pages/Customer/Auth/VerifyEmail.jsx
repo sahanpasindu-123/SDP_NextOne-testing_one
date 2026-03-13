@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { authAPI } from "../../../api/auth";
 import { useAuth } from "../../../context/AuthContext";
 import styles from "./Auth.module.css";
+import toast from "react-hot-toast";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -77,9 +78,9 @@ export default function VerifyEmail() {
 
     try {
       const res = await authAPI.resendVerification({ email });
-      alert(res?.message || "Code resent");
+      toast.success(res?.message || "Code resent");
     } catch (err) {
-      alert(err?.response?.data?.message || "Resend failed");
+      toast.error(err?.response?.data?.message || "Resend failed");
     }
   };
 

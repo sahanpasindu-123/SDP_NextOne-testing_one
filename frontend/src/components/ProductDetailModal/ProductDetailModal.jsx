@@ -1,9 +1,11 @@
 import React from "react";
 import "./ProductDetailModal.css";
 import fallbackImg from "../../assets/JCB_IMG/img1.jpg";
+import Modal from "../Modal/Modal.jsx";
 
 const ProductModal = ({ isOpen, onClose, product, onReserve }) => {
-  if (!isOpen || !product) return null;
+  const open = !!isOpen && !!product;
+  if (!open) return null;
 
   const safeName = String(product?.name || "Product");
   const rawPrice = Number(product?.price);
@@ -20,7 +22,7 @@ const ProductModal = ({ isOpen, onClose, product, onReserve }) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={() => onClose?.()}>
+    <Modal open={open} title="Product Details" onClose={() => onClose?.()} width={900}>
       <div
         className="modal-card"
         onClick={(e) => e.stopPropagation()}
@@ -75,7 +77,7 @@ const ProductModal = ({ isOpen, onClose, product, onReserve }) => {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

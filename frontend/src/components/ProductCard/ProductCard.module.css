@@ -190,7 +190,7 @@
   padding: 10px;
   border-radius: 8px;
   border: none;
-  background: #f4b400;
+  background: var(--accent);
   font-size: 13px;
   font-weight: 600;
   color: #000;

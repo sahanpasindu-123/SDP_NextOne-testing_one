@@ -5,6 +5,11 @@
   display:flex;
   flex-direction:column;
   padding: 18px 14px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  flex: 0 0 auto;
 }
 .profile{
   display:flex;
@@ -60,5 +65,10 @@
   gap: 6px;
 }
 @media (max-width: 980px){
-  .sidebar{display:none}
+  .sidebar{width: 230px; padding: 14px 10px}
+  .item{padding: 10px 10px}
+  .label{font-size:12px}
+}
+@media (max-width: 560px){
+  .sidebar{width: 210px}
 }

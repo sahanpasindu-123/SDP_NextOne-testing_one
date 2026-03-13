@@ -4,6 +4,9 @@ import Badge from "../../../components/Badge/Badge.jsx";
 import Table from "../../../components/Table/Table.jsx";
 import styles from "./AdminPending.module.css";
 import { productRequestsAPI } from "../../../api/productRequests";
+import toast from "react-hot-toast";
+import Modal from "../../../components/Modal/Modal.jsx";
+import Button from "../../../components/Button/Button.jsx";
 
 function formatDate(iso) {
   if (!iso) return "N/A";
@@ -21,6 +24,7 @@ export default function AdminPending() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // { type: 'approve'|'reject', row }
 
   const fetchPending = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -93,22 +97,20 @@ export default function AdminPending() {
 
 
   const handleApprove = async (r) => {
-    if (!window.confirm(`Approve request #${r.RequestID}?`)) return;
+    setConfirmAction({ type: "approve", row: r });
+  };
 
+  const confirmApprove = async (r) => {
     try {
       if (isMountedRef.current) {
         setBusyId(r.RequestID);
       }
       await productRequestsAPI.approve(r.RequestID);
       await fetchPending();
-      alert(`Approved request #${r.RequestID}`);
+      toast.success(`Approved request #${r.RequestID}`);
     } catch (err) {
       console.error("approve failed:", err);
-      alert(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Approve failed"
-      );
+      toast.error(err?.response?.data?.message || err?.message || "Approve failed");
     } finally {
       if (isMountedRef.current) {
         setBusyId(null);
@@ -117,22 +119,20 @@ export default function AdminPending() {
   };
 
   const handleReject = async (r) => {
-    if (!window.confirm(`Reject request #${r.RequestID}?`)) return;
+    setConfirmAction({ type: "reject", row: r });
+  };
 
+  const confirmReject = async (r) => {
     try {
       if (isMountedRef.current) {
         setBusyId(r.RequestID);
       }
       await productRequestsAPI.reject(r.RequestID);
       await fetchPending();
-      alert(`Rejected request #${r.RequestID}`);
+      toast.success(`Rejected request #${r.RequestID}`);
     } catch (err) {
       console.error("reject failed:", err);
-      alert(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Reject failed"
-      );
+      toast.error(err?.response?.data?.message || err?.message || "Reject failed");
     } finally {
       if (isMountedRef.current) {
         setBusyId(null);
@@ -251,6 +251,45 @@ export default function AdminPending() {
           <Table columns={cols} rows={rows} />
         )}
       </div>
+
+      <Modal
+        open={!!confirmAction}
+        title={confirmAction?.type === "reject" ? "Reject Request" : "Approve Request"}
+        onClose={() => setConfirmAction(null)}
+        width={520}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: "#334155", fontWeight: 700 }}>
+            {confirmAction?.type === "reject" ? "Reject" : "Approve"} request{" "}
+            <span style={{ fontWeight: 900 }}>#{confirmAction?.row?.RequestID}</span>?
+          </div>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            {confirmAction?.row?.Name ? `Product: ${confirmAction.row.Name}` : "This action will update the request status."}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmAction(null)}
+              disabled={busyId === confirmAction?.row?.RequestID}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                const row = confirmAction?.row;
+                if (!row) return;
+                setConfirmAction(null);
+                if (confirmAction?.type === "reject") await confirmReject(row);
+                else await confirmApprove(row);
+              }}
+              disabled={busyId === confirmAction?.row?.RequestID}
+            >
+              {confirmAction?.type === "reject" ? "Reject" : "Approve"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

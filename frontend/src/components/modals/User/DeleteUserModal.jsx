@@ -1,4 +1,5 @@
 import styles from "./DeleteUserModal.module.css";
+import Modal from "../../Modal/Modal.jsx";
 
 export default function DeleteUserModal({
   open,
@@ -9,15 +10,8 @@ export default function DeleteUserModal({
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.top}>
-          <div className={styles.title}>Delete User</div>
-          <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            x
-          </button>
-        </div>
-
+    <Modal open={open} title="Delete User" onClose={onClose} width={520}>
+      <div className={styles.inner}>
         <div className={styles.iconWrap}>
           <div className={styles.icon}>!</div>
         </div>
@@ -37,6 +31,6 @@ export default function DeleteUserModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

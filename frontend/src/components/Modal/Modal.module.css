@@ -18,6 +18,10 @@
   border-radius: 14px;
   box-shadow: var(--shadow);
   border: 1px solid rgba(230,233,238,.8);
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  display:flex;
+  flex-direction:column;
   transform: scale(0.95);
   opacity: 0;
   animation: modalEnter 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -34,6 +38,7 @@
   align-items:center;
   justify-content:space-between;
   border-bottom: 1px solid rgba(230,233,238,.6);
+  flex: 0 0 auto;
 }
 .title{font-size:20px; font-weight:700}
 .close{
@@ -56,4 +61,8 @@
 .close:active{
   transform: scale(0.95);
 }
-.body{padding: 8px 20px 18px}
+.body{
+  padding: 8px 20px 18px;
+  overflow:auto;
+  flex: 1 1 auto;
+}

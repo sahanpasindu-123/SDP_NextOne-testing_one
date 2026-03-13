@@ -124,16 +124,10 @@ export default function ReportsSales() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.head}>
-        <div>
-          <div className={styles.h1}>Reports</div>
-          <div className={styles.sub}>
-            Generate and export reports for your inventory and sales data.
-          </div>
-        </div>
-      </div>
+      <div className="pageTitle">Reports</div>
+      <div className="pageSub">Generate and export reports for your inventory and sales data.</div>
 
-      <div className={styles.topCard}>
+      <div className={`card ${styles.topCard}`}>
         <div className={styles.tabs}>
           <NavLink
             to={`${base}/reports/sales`}

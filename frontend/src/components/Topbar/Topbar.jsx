@@ -25,12 +25,11 @@ export default function Topbar() {
           onClick={() => navigate(notificationsPath)}
         >
           <FiBell />
-          <span className={styles.dot}>3</span>
         </button>
 
         <div className={styles.user}>
           <div className={styles.userBadge}><FiUser /></div>
-          <div className={styles.userName}>John Smith</div>
+          <div className={styles.userName}>User</div>
         </div>
       </div>
     </header>

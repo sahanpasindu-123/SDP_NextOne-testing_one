@@ -102,3 +102,33 @@
   .tHead,.tRow{grid-template-columns: 1fr}
   .actions{justify-content:flex-start}
 }
+
+.modalForm{
+  display:grid;
+  gap:12px;
+}
+.field{
+  display:grid;
+  gap:6px;
+}
+.fieldLabel{
+  font-size:12px;
+  font-weight:800;
+  color: var(--muted);
+}
+.fieldInput{
+  height:44px;
+  border:1px solid var(--field-border);
+  border-radius:10px;
+  padding:0 12px;
+  outline:none;
+  font-size:14px;
+  background: var(--field-bg);
+  color: var(--field-text);
+}
+.modalActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:6px;
+}

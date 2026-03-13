@@ -345,14 +345,14 @@ export default function ReportsPerformance() {
                 <Line
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#E0AB00"
+                  stroke="var(--accent)"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="profit"
-                  stroke="#4CE7FF"
+                  stroke="var(--accent-2)"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />

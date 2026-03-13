@@ -62,16 +62,16 @@
 .chev{ color: var(--text); opacity:.55; }
 
 .active{
-  background: rgba(226,173,0,.10);
+  background: rgba(99,102,241,.10);
 }
 .active .left span{
-  color:#e0ab00;
+  color: var(--accent);
 }
 .active .ico{
-  color:#e0ab00;
+  color: var(--accent);
 }
 .active .chev{
-  color:#e0ab00;
+  color: var(--accent);
   opacity:1;
 }
 

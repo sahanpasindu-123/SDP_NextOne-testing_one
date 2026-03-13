@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import styles from "./UpdateUserModal.module.css";
+import Modal from "../../Modal/Modal.jsx";
 
 export default function UpdateUserModal({
   open,
@@ -53,16 +54,8 @@ export default function UpdateUserModal({
   };
 
   return (
-    <div className={styles.overlay} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.top}>
-          <div className={styles.title}>Update User</div>
-          <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            x
-          </button>
-        </div>
-
-        <form className={styles.form} onSubmit={handleSubmit}>
+    <Modal open={open} title="Update User" onClose={onClose} width={560}>
+      <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.block}>
             <div className={styles.label}>User Type</div>
             <div className={styles.radios}>
@@ -145,8 +138,7 @@ export default function UpdateUserModal({
               Update User
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

@@ -4,6 +4,7 @@ import { useAuth } from "../../../context/AuthContext";
 import styles from "./Auth.module.css";
 import { FiEye } from "react-icons/fi";
 import { authAPI } from "../../../api/auth";
+import toast from "react-hot-toast";
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function SignIn() {
       const token = res?.token;
 
       if (!token) {
-        alert("Login succeeded but token missing.");
+        toast.error("Login succeeded but token missing.");
         return;
       }
 
@@ -47,7 +48,7 @@ export default function SignIn() {
         return;
       }
 
-      alert(msg);
+      toast.error(msg);
     }
   };
 

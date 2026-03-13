@@ -250,7 +250,7 @@ export default function AdminDashboard() {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="sales" fill="#e2ad00" radius={[6,6,0,0]} />
+                <Bar dataKey="sales" fill="var(--accent)" radius={[6,6,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import styles from './ProfileSettings.module.css'
 import { customersAPI } from "../../../api/customers";
+import toast from "react-hot-toast";
 
 export default function ProfileSettings() {
   // -------- Local state (implemented) --------
@@ -54,8 +55,8 @@ export default function ProfileSettings() {
   }, [])
 
   const handleSaveProfile = async () => {
-    if (!fullName.trim()) return alert("Full Name is required.")
-    if (!email.trim()) return alert("Email is required.")
+    if (!fullName.trim()) return toast.error("Full Name is required.")
+    if (!email.trim()) return toast.error("Email is required.")
 
     setSaving(true)
     try {
@@ -66,7 +67,7 @@ export default function ProfileSettings() {
       })
 
       if (!res?.success) {
-        alert(res?.message || "Failed to save changes.")
+        toast.error(res?.message || "Failed to save changes.")
         return
       }
 
@@ -78,18 +79,18 @@ export default function ProfileSettings() {
       // Address is not persisted in the current backend schema; keep it local-only.
       localStorage.setItem("customerProfileSettings", JSON.stringify({ address }))
 
-      alert(res?.message || "Saved changes.")
+      toast.success(res?.message || "Saved changes.")
     } catch (e) {
-      alert(e?.message || "Failed to save changes.")
+      toast.error(e?.message || "Failed to save changes.")
     } finally {
       setSaving(false)
     }
   }
 
   const handleUpdatePassword = async () => {
-    if (!currentPw || !newPw || !confirmPw) return alert("Please fill all password fields.")
-    if (newPw.length < 8) return alert("New password must be at least 8 characters.")
-    if (newPw !== confirmPw) return alert("New password and confirm password do not match.")
+    if (!currentPw || !newPw || !confirmPw) return toast.error("Please fill all password fields.")
+    if (newPw.length < 8) return toast.error("New password must be at least 8 characters.")
+    if (newPw !== confirmPw) return toast.error("New password and confirm password do not match.")
 
     setPwSaving(true)
     try {
@@ -99,16 +100,16 @@ export default function ProfileSettings() {
       })
 
       if (!res?.success) {
-        alert(res?.message || "Password update failed")
+        toast.error(res?.message || "Password update failed")
         return
       }
 
       setCurrentPw("")
       setNewPw("")
       setConfirmPw("")
-      alert(res?.message || "Password updated successfully")
+      toast.success(res?.message || "Password updated successfully")
     } catch (e) {
-      alert(e?.message || "Password update failed")
+      toast.error(e?.message || "Password update failed")
     } finally {
       setPwSaving(false)
     }

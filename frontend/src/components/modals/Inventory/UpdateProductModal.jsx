@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./UpdateProductModal.module.css";
+import Modal from "../../Modal/Modal.jsx";
 
 export default function UpdateProductModal({
   open,
@@ -90,16 +91,8 @@ export default function UpdateProductModal({
   };
 
   return (
-    <div className={styles.overlay} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.top}>
-          <div className={styles.title}>Update Product</div>
-          <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            x
-          </button>
-        </div>
-
-        <form className={styles.form} onSubmit={handleSubmit}>
+    <Modal open={open} title="Update Product" onClose={onClose} width={760}>
+      <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.grid}>
             <div className={styles.block}>
               <div className={styles.label}>Product Name *</div>
@@ -175,8 +168,7 @@ export default function UpdateProductModal({
             <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancel</button>
             <button type="submit" className={styles.primaryBtn}>Update</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

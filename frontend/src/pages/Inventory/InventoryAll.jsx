@@ -16,6 +16,7 @@ import UpdateProductModal from "../../components/modals/Inventory/UpdateProductM
 import AddProductImageModal from "../../components/modals/Inventory/AddProductImageModal.jsx";
 
 import styles from "./InventoryAll.module.css";
+import toast from "react-hot-toast";
 
 export default function InventoryAll() {
   const navigate = useNavigate();
@@ -172,14 +173,14 @@ export default function InventoryAll() {
 
       if (!isMountedRef.current) return;
       setAddOpen(false);
-      alert("Product request sent to Admin (Pending approval)");
+      toast.success("Product request sent to Admin (Pending approval)");
     } catch (e) {
       console.error("createRequest failed:", e);
       console.log("URL:", e?.config?.url);
       console.log("STATUS:", e?.response?.status);
       console.log("DATA:", e?.response?.data);
       console.log("MSG:", e?.message);
-      alert("Failed to submit product request (check console)");
+      toast.error("Failed to submit product request");
     }
   };
 
@@ -278,7 +279,7 @@ export default function InventoryAll() {
 
   const handleToolbarExport = () => {
     exportToCSV(filtered);
-    alert("Exported: inventory-export.csv");
+    toast.success("Exported: inventory-export.csv");
   };
 
   const filtered = useMemo(() => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./AddProductImageModal.module.css";
+import Modal from "../../Modal/Modal.jsx";
 
 export default function AddProductImageModal({ open, onClose, onSubmit }) {
   const fileRef = useRef(null);
@@ -43,16 +44,8 @@ export default function AddProductImageModal({ open, onClose, onSubmit }) {
   };
 
   return (
-    <div className={styles.overlay} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.top}>
-          <div className={styles.title}>Add Product Image</div>
-          <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            x
-          </button>
-        </div>
-
-        <div className={styles.body}>
+    <Modal open={open} title="Add Product Image" onClose={onClose} width={640}>
+      <div className={styles.body}>
           <input ref={fileRef} type="file" accept="image/*" onChange={onFileChange} className={styles.file} />
 
           {!preview ? (
@@ -68,15 +61,14 @@ export default function AddProductImageModal({ open, onClose, onSubmit }) {
               </div>
             </div>
           )}
-        </div>
-
-        <div className={styles.actions}>
-          <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancel</button>
-          <button type="button" className={styles.primaryBtn} onClick={submit} disabled={!file}>
-            Save Image
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className={styles.actions}>
+        <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancel</button>
+        <button type="button" className={styles.primaryBtn} onClick={submit} disabled={!file}>
+          Save Image
+        </button>
+      </div>
+    </Modal>
   );
 }

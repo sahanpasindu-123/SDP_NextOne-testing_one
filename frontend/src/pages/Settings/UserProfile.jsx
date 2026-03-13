@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./UserProfile.module.css";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 
 export default function UserProfile() {
   const { role: authRole } = useAuth();
@@ -64,7 +65,7 @@ export default function UserProfile() {
       ? { firstName, lastName, email, phone }
       : { firstName, lastName, email, phone, role, bio, photoUrl };
     localStorage.setItem("userProfile", JSON.stringify(payload));
-    alert("Profile saved (stored locally on this device).");
+    toast.success("Profile saved (stored locally on this device).");
   };
 
   return (

@@ -193,7 +193,7 @@ textarea {
   padding: 9px;
   border-radius: 8px;
   border: none;
-  background: #f4b400;
+  background: var(--accent);
   font-weight: 600;
   font-size: 13px;
 }

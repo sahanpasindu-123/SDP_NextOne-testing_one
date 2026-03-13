@@ -15,7 +15,7 @@ import styles from "./ReportsInventory.module.css";
 import toast from "react-hot-toast";
 
 const chips = ["Today", "This Week", "This Month", "Last 3 Months", "Custom"];
-const COLORS = ["#E0AB00", "#4CE7FF", "#FF6B6B", "#FFD166", "#06D6A0", "#118AB2"];
+const COLORS = ["var(--accent)", "var(--accent-2)", "var(--red)", "var(--orange)", "var(--green)", "var(--blue)"];
 
 const escapeCsvCell = (v) => {
   const s = String(v ?? "");
@@ -166,16 +166,10 @@ export default function ReportsInventory() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.head}>
-        <div>
-          <div className={styles.h1}>Reports</div>
-          <div className={styles.sub}>
-            View and generate reports for your inventory and sales data.
-          </div>
-        </div>
-      </div>
+      <div className="pageTitle">Reports</div>
+      <div className="pageSub">View and generate reports for your inventory and sales data.</div>
 
-      <div className={styles.topCard}>
+      <div className={`card ${styles.topCard}`}>
         <div className={styles.tabs}>
           <NavLink
             to={`${base}/reports/sales`}
@@ -226,7 +220,7 @@ export default function ReportsInventory() {
         </div>
       </div>
 
-      <div className={styles.rangeRow}>
+      <div className={`card ${styles.rangeRow}`}>
         <div className={styles.rangeLeft}>
           <FiCalendar />
           <span className={styles.rangeLabel}>Date Range:</span>

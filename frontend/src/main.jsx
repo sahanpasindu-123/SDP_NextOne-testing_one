@@ -19,12 +19,11 @@ function applySystemPreferencesFromStorage() {
     const raw = localStorage.getItem("systemPreferences");
     const prefs = raw ? JSON.parse(raw) : {};
 
-    const darkMode = !!prefs?.darkMode;
     const language = normalizeLanguage(prefs?.language);
 
     const root = document.documentElement;
-    root.dataset.theme = darkMode ? "dark" : "light";
-    root.style.colorScheme = darkMode ? "dark" : "light";
+    root.removeAttribute("data-theme");
+    root.style.colorScheme = "light";
     root.lang = language === "Sinhala" ? "si" : "en";
   } catch {
     // ignore invalid localStorage; keep defaults

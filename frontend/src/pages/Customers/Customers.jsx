@@ -2,7 +2,10 @@ import { FiSearch, FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { customersAPI } from '../../api/customers'
 import Badge from '../../components/Badge/Badge.jsx'
+import Modal from '../../components/Modal/Modal.jsx'
+import Button from '../../components/Button/Button.jsx'
 import styles from './Customers.module.css'
+import toast from "react-hot-toast";
 
 export default function Customers() {
   const isMountedRef = useRef(true)
@@ -12,6 +15,15 @@ export default function Customers() {
   const [searchText, setSearchText] = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL") // ALL | ACTIVE | INACTIVE
   const [roleFilter, setRoleFilter] = useState("ALL") // ALL | VERIFIED | UNVERIFIED
+  const [formOpen, setFormOpen] = useState(false)
+  const [formMode, setFormMode] = useState("add") // add | edit
+  const [formSaving, setFormSaving] = useState(false)
+  const [formTarget, setFormTarget] = useState(null)
+  const [formName, setFormName] = useState("")
+  const [formEmail, setFormEmail] = useState("")
+  const [formPhone, setFormPhone] = useState("")
+  const [formStatus, setFormStatus] = useState("Active")
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
 
   const fetchCustomers = useCallback(async () => {
@@ -120,6 +132,81 @@ export default function Customers() {
     })
   }, [rows, searchText, statusFilter, roleFilter])
 
+  const openAdd = () => {
+    setFormMode("add")
+    setFormTarget(null)
+    setFormName("")
+    setFormEmail("")
+    setFormPhone("")
+    setFormStatus("Active")
+    setFormOpen(true)
+  }
+
+  const openEdit = (row) => {
+    setFormMode("edit")
+    setFormTarget(row)
+    setFormName(row?.name || "")
+    setFormEmail(row?.email || "")
+    setFormPhone(row?.phone === "N/A" ? "" : (row?.phone || ""))
+    setFormStatus(row?.status === "Inactive" ? "Inactive" : "Active")
+    setFormOpen(true)
+  }
+
+  const closeForm = () => {
+    if (formSaving) return
+    setFormOpen(false)
+  }
+
+  const submitForm = async () => {
+    if (formSaving) return
+    const name = String(formName || "").trim()
+    const email = String(formEmail || "").trim()
+    const phone = String(formPhone || "").trim()
+
+    if (!name) return toast.error("Customer name is required")
+    if (formMode === "add" && !email) return toast.error("Customer email is required")
+
+    try {
+      setFormSaving(true)
+      if (formMode === "add") {
+        await customersAPI.createCustomer({ name, email, phone })
+        toast.success("Customer added")
+      } else {
+        const id = formTarget?.id
+        if (!id) return toast.error("Missing customer id")
+        await customersAPI.updateCustomer(id, {
+          name,
+          phone,
+          status: formStatus === "Inactive" ? "Inactive" : "Active",
+        })
+        toast.success("Customer updated")
+      }
+
+      setFormOpen(false)
+      await fetchCustomers()
+    } catch (e) {
+      console.error(e)
+      toast.error(e?.response?.data?.message || (formMode === "add" ? "Add customer failed" : "Update failed"))
+    } finally {
+      if (isMountedRef.current) setFormSaving(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    const row = deleteTarget
+    if (!row?.id) return
+    try {
+      await customersAPI.deleteCustomer(row.id)
+      toast.success("Customer deleted")
+      if (!isMountedRef.current) return
+      setRows((prev) => (Array.isArray(prev) ? prev.filter((x) => x.id !== row.id) : prev))
+      setDeleteTarget(null)
+    } catch (e) {
+      console.error(e)
+      toast.error(e?.response?.data?.message || "Delete failed")
+    }
+  }
+
   return (
     <div className={styles.page}>
       <div className="pageTitle">Customer Management</div>
@@ -129,22 +216,7 @@ export default function Customers() {
           <div className={styles.h1}>Customer Management</div>
           <button
             className={styles.addBtn}
-            onClick={async () => {
-              try {
-                const name = window.prompt("Customer name?")
-                if (!name) return
-                const email = window.prompt("Customer email?")
-                if (!email) return
-                const phone = window.prompt("Customer phone? (optional)") || ""
-
-                await customersAPI.createCustomer({ name, email, phone })
-                alert("Customer added")
-                await fetchCustomers()
-              } catch (e) {
-                console.error(e)
-                alert(e?.response?.data?.message || "Add customer failed")
-              }
-            }}
+            onClick={openAdd}
           >
             <FiPlus /> Add Customer
           </button>
@@ -215,51 +287,14 @@ export default function Customers() {
                   <button
                     className={`${styles.iconBtn} ${styles.edit}`}
                     aria-label="Edit"
-                    onClick={async () => {
-                      try {
-                        if (!r.id) return alert("Missing customer id")
-
-                        const newName = window.prompt("New name:", r.name) ?? r.name
-                        const newPhone = window.prompt("New phone:", r.phone) ?? r.phone
-                        const active = window.confirm("Set customer as ACTIVE?\nOK = Active, Cancel = Inactive")
-
-                        await customersAPI.updateCustomer(r.id, {
-                          name: newName,
-                          phone: newPhone,
-                          // Backend expects status: "Active" | "Inactive"
-                          status: active ? "Active" : "Inactive",
-                        })
-
-                        alert("Customer updated")
-                        // reload list quickly
-                        await fetchCustomers()
-                      } catch (e) {
-                        console.error(e)
-                        alert(e?.response?.data?.message || "Update failed")
-                      }
-                    }}
+                    onClick={() => openEdit(r)}
                   >
                     <FiEdit2 />
                   </button>
                   <button
                     className={`${styles.iconBtn} ${styles.trash}`}
                     aria-label="Delete"
-                    onClick={async () => {
-                      try {
-                        if (!r.id) return alert("Missing customer id")
-                        const ok = window.confirm(`Delete customer "${r.name}"?`)
-                        if (!ok) return
-
-                        await customersAPI.deleteCustomer(r.id)
-                        alert("Customer deleted")
-                        // remove locally without full reload
-                        if (!isMountedRef.current) return
-                        setRows((prev) => pre?.filter((x) => x.id !== r.id))
-                      } catch (e) {
-                        console.error(e)
-                        alert(e?.response?.data?.message || "Delete failed")
-                      }
-                    }}
+                    onClick={() => setDeleteTarget(r)}
                   >
                     <FiTrash2 />
                   </button>
@@ -269,6 +304,97 @@ export default function Customers() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={formOpen}
+        title={formMode === "edit" ? "Edit Customer" : "Add Customer"}
+        onClose={closeForm}
+        width={560}
+      >
+        <div className={styles.modalForm}>
+          <div className={styles.field}>
+            <div className={styles.fieldLabel}>Name</div>
+            <input
+              className={styles.fieldInput}
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder="Customer name"
+              disabled={formSaving}
+              autoFocus
+            />
+          </div>
+
+          <div className={styles.field}>
+            <div className={styles.fieldLabel}>Email</div>
+            <input
+              className={styles.fieldInput}
+              value={formEmail}
+              onChange={(e) => setFormEmail(e.target.value)}
+              placeholder="customer@example.com"
+              disabled={formSaving || formMode === "edit"}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <div className={styles.fieldLabel}>Phone (optional)</div>
+            <input
+              className={styles.fieldInput}
+              value={formPhone}
+              onChange={(e) => setFormPhone(e.target.value)}
+              placeholder="Phone number"
+              disabled={formSaving}
+            />
+          </div>
+
+          {formMode === "edit" ? (
+            <div className={styles.field}>
+              <div className={styles.fieldLabel}>Status</div>
+              <select
+                className={styles.fieldInput}
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value)}
+                disabled={formSaving}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          ) : null}
+
+          <div className={styles.modalActions}>
+            <Button variant="secondary" onClick={closeForm} disabled={formSaving}>
+              Cancel
+            </Button>
+            <Button onClick={submitForm} disabled={formSaving}>
+              {formSaving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!deleteTarget}
+        title="Delete Customer"
+        onClose={() => setDeleteTarget(null)}
+        width={520}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: "#334155", fontWeight: 700 }}>
+            Delete customer <span style={{ fontWeight: 900 }}>{deleteTarget?.name}</span>?
+          </div>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            This action cannot be undone.
+          </div>
+          <div className={styles.modalActions}>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmDelete}>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

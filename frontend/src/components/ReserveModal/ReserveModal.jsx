@@ -1,6 +1,8 @@
 import styles from "./ReserveModal.module.css";
-import { FiX, FiMinus, FiPlus } from "react-icons/fi";
+import { FiMinus, FiPlus } from "react-icons/fi";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import Modal from "../Modal/Modal.jsx";
 
 export default function ReserveModal({ product, onClose, onConfirm }) {
   const [qty, setQty] = useState(1);
@@ -12,7 +14,8 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
     setSubmitting(false);
   }, [product]);
 
-  if (!product) return null;
+  const open = !!product;
+  if (!open) return null;
 
   const price = Number(product?.price) || 0;
   const available = Number(product?.available) || 0;
@@ -25,7 +28,7 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
     const safeQty = Math.max(1, Number(qty) || 1);
 
     if (Number.isFinite(available) && safeQty > available) {
-      alert("Not enough stock available");
+      toast.error("Not enough stock available");
       return;
     }
 
@@ -33,25 +36,18 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
 
     Promise.resolve(onConfirm(product, safeQty))
       .then(() => {
+        toast.success("Reservation confirmed");
         onClose?.();
       })
       .catch((e) => {
-        alert(e?.message || "Reservation failed");
+        toast.error(e?.message || "Reservation failed");
       })
       .finally(() => setSubmitting(false));
   };
 
   return (
-    <div className={styles.overlay} onClick={handleClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h3>Reserve Part</h3>
-          <button className={styles.closeBtn} onClick={handleClose}>
-            <FiX />
-          </button>
-        </div>
-
-        <div className={styles.content}>
+    <Modal open={open} title="Reserve Part" onClose={handleClose} width={760}>
+      <div className={styles.content}>
           <div className={styles.left}>
             <img
               src={product?.image || undefined}
@@ -113,7 +109,7 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
           </div>
         </div>
 
-        <div className={styles.footer}>
+      <div className={styles.footer}>
           <div className={styles.totals}>
             <div>
               <span>Subtotal</span>
@@ -126,6 +122,7 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
               type="button"
               className={styles.cancel}
               onClick={handleClose}
+              disabled={submitting}
             >
               Cancel
             </button>
@@ -138,8 +135,7 @@ export default function ReserveModal({ product, onClose, onConfirm }) {
               {submitting ? "Submitting..." : "Confirm Reservation"}
             </button>
           </div>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

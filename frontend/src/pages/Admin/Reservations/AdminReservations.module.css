@@ -1,5 +1,6 @@
 .page {
-  padding: 20px;
+  max-width: var(--content-max);
+  margin: 0 auto;
 }
 
 .tableCard {

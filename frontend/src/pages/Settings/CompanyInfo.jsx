@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import styles from "./CompanyInfo.module.css";
+import toast from "react-hot-toast";
 
 export default function CompanyInfo() {
   const [companyName, setCompanyName] = useState("Liyanage Motors");
@@ -45,7 +46,7 @@ export default function CompanyInfo() {
     };
 
     localStorage.setItem("companyInfo", JSON.stringify(payload));
-    alert("Company info saved (stored locally).");
+    toast.success("Company info saved (stored locally).");
   };
 
 

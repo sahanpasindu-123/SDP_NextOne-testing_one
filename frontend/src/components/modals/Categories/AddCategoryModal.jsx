@@ -1,13 +1,23 @@
 import { useEffect, useState } from "react";
 import styles from "./AddCategoryModal.module.css";
 import Button from "../../Button/Button";
+import Modal from "../../Modal/Modal.jsx";
 
-export default function AddCategoryModal({ open, onClose, onSubmit, loading }) {
+export default function AddCategoryModal({
+  open,
+  onClose,
+  onSubmit,
+  loading,
+  title = "Add Category",
+  initialName = "",
+  submitLabel = "Save",
+}) {
   const [name, setName] = useState("");
 
   useEffect(() => {
-    if (open) setName("");
-  }, [open]);
+    if (!open) return;
+    setName(String(initialName || ""));
+  }, [open, initialName]);
 
   if (!open) return null;
 
@@ -17,10 +27,10 @@ export default function AddCategoryModal({ open, onClose, onSubmit, loading }) {
   };
 
   return (
-    <div className={styles.backdrop} onClick={onClose}>
+    <Modal open={open} title={title} onClose={onClose} width={520}>
       <div className={styles.card} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <div className={styles.title}>Add Category</div>
+          <div className={styles.title}>{title}</div>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
             ✕
           </button>
@@ -46,10 +56,10 @@ export default function AddCategoryModal({ open, onClose, onSubmit, loading }) {
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !name.trim()}>
-            Save
+            {submitLabel}
           </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

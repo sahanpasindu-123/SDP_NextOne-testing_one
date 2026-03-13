@@ -10,21 +10,15 @@
 }
 
 .modal{
-  width:520px;
-  max-width:95vw;
-  background:#fff;
-  border-radius:10px;
-  box-shadow:0 18px 40px rgba(0,0,0,.25);
-  overflow:hidden;
+  width:100%;
+  background:transparent;
+  border-radius:0;
+  box-shadow:none;
+  overflow:visible;
 }
 
 .top{
-  height:56px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 18px;
-  border-bottom:1px solid #eef1f6;
+  display:none;
 }
 
 .title{
@@ -34,22 +28,14 @@
 }
 
 .close{
-  width:34px;
-  height:34px;
-  border:0;
-  background:transparent;
-  cursor:pointer;
-  font-size:22px;
-  line-height:1;
-  color:#9aa3b2;
-  border-radius:8px;
+  display:none;
 }
 .close:hover{
   background:#f3f4f6;
 }
 
 .body{
-  padding:18px;
+  padding:0;
   display:flex;
   flex-direction:column;
   gap:16px;
@@ -82,10 +68,11 @@
 }
 
 .actions{
-  padding:14px 18px 18px;
+  padding:0;
   display:flex;
   justify-content:flex-end;
   gap:12px;
+  margin-top:14px;
 }
 
 .cancelBtn{
@@ -104,7 +91,7 @@
   padding:0 18px;
   border:0;
   border-radius:8px;
-  background:#e0ab00;
+  background: var(--accent);
   color:#fff;
   font-weight:800;
   cursor:pointer;

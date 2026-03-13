@@ -4,6 +4,8 @@ import { FiAlertTriangle, FiArrowLeft, FiTrash2 } from "react-icons/fi";
 import styles from "./DeleteProduct.module.css";
 import toast from "react-hot-toast";
 import { inventoryAPI } from "../../../../api/inventory";
+import Modal from "../../../../components/Modal/Modal.jsx";
+import Button from "../../../../components/Button/Button.jsx";
 
 
 export default function DeleteProduct() {
@@ -17,6 +19,7 @@ export default function DeleteProduct() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -50,9 +53,11 @@ export default function DeleteProduct() {
   const goBack = () => navigate(-1);
 
   const handleDelete = async () => {
-    const ok = window.confirm("Are you sure you want to delete this product?");
-    if (!ok) return;
+    if (deleting) return;
+    setConfirmOpen(true);
+  };
 
+  const confirmDelete = async () => {
     if (deleting) return;
 
     try {
@@ -143,6 +148,26 @@ export default function DeleteProduct() {
           </button>
         </div>
       </div>
+
+      <Modal open={confirmOpen} title="Confirm Delete" onClose={() => setConfirmOpen(false)} width={520}>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: "#334155", fontWeight: 700 }}>
+            Delete <span style={{ fontWeight: 900 }}>{product?.Name || "this product"}</span>?
+          </div>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            This action cannot be undone.
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <Button variant="secondary" onClick={() => setConfirmOpen(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

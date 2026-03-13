@@ -22,7 +22,7 @@ const nav = [
   { to: '/admin/sales-history', label: 'Sales History', icon: <FiBarChart2 /> },
   { to: '/admin/reservations', label: 'Reservations', icon: <FiCalendar /> },
   { to: '/admin/reports', label: 'Reports', icon: <FiBarChart2 /> },
-  { to: '/admin/low-stock', label: 'Low Stock', icon: <FiAlertCircle />, badge: '5' },
+  { to: '/admin/low-stock', label: 'Low Stock', icon: <FiAlertCircle /> },
   { to: '/admin/user-management', label: 'User Management', icon: <FiUsers /> },
   { to: "/admin/categories", label: "Categories", icon: <FiTag /> },
   { to: "/admin/contacts", label: "Contacts", icon: <FiMail /> },

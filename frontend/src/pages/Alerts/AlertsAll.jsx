@@ -7,6 +7,7 @@ import Badge from "../../components/Badge/Badge.jsx";
 import Table from "../../components/Table/Table.jsx";
 import Button from "../../components/Button/Button.jsx";
 import styles from "./AlertsAll.module.css";
+import toast from "react-hot-toast";
 
 const tabs = [
   { label: "All", value: "all" },
@@ -80,7 +81,7 @@ export default function AlertsAll() {
       setRows(list);
     } catch (e) {
       console.error("alerts load failed:", e);
-      alert("Failed to load alerts");
+      toast.error("Failed to load alerts");
       if (isMountedRef.current) {
         setRows([]);
       }

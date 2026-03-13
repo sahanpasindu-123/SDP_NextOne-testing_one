@@ -3,6 +3,7 @@ import styles from "./Security.module.css";
 import { changeEmployeePassword } from "../../api/employees";
 import { changeAdminPassword } from "../../api/admin";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 
 export default function Security() {
   const [cur, setCur] = useState("");
@@ -17,15 +18,15 @@ export default function Security() {
     try {
       // 1️⃣ Frontend validations
       if (!cur || !nw || !conf) {
-        alert("Please fill all fields");
+        toast.error("Please fill all fields");
         return;
       }
       if (nw !== conf) {
-        alert("New password and confirm password do not match");
+        toast.error("New password and confirm password do not match");
         return;
       }
       if (nw.length < 8) {
-        alert("New password must be at least 8 characters");
+        toast.error("New password must be at least 8 characters");
         return;
       }
 
@@ -42,12 +43,12 @@ export default function Security() {
           newPassword: nw,
         });
       } else {
-        alert("Invalid role");
+        toast.error("Invalid role");
         return;
       }
 
       // 3️⃣ Success
-      alert(res?.data?.message || "Password updated successfully");
+      toast.success(res?.data?.message || "Password updated successfully");
 
       // 4️⃣ Clear inputs
       setCur("");
@@ -58,7 +59,12 @@ export default function Security() {
       console.log("DATA:", err?.data ?? err?.response?.data);
       console.log("FULL:", err);
 
-      alert(err?.message || err?.data?.message || err?.response?.data?.message || "Password update failed");
+      toast.error(
+        err?.message ||
+          err?.data?.message ||
+          err?.response?.data?.message ||
+          "Password update failed"
+      );
     }
   };
 
