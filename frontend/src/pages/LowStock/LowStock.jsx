@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FiDownload } from 'react-icons/fi'
+import { categoriesAPI } from '../../api/categories'
 import { inventoryAPI } from '../../api/inventory'
 import styles from './LowStock.module.css'
 
@@ -23,7 +24,8 @@ export default function LowStock() {
   const inFlightRef = useRef(false)
 
   const [products, setProducts] = useState([])
-  const [categoryFilter, setCategoryFilter] = useState('all') // all | CategoryCode
+  const [dbCategories, setDbCategories] = useState(null)
+  const [categoryFilter, setCategoryFilter] = useState('all') // all | CategoryID
   const [stockFilter, setStockFilter] = useState('all') // all | low | critical
   const [page, setPage] = useState(1)
   const pageSize = 6
@@ -45,6 +47,21 @@ export default function LowStock() {
 
       const res = await inventoryAPI.list()
       const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+
+      try {
+        const catRes = await categoriesAPI.getAll()
+        const catList = Array.isArray(catRes?.data)
+          ? catRes.data
+          : Array.isArray(catRes)
+            ? catRes
+            : []
+        if (isMountedRef.current && reqId === requestIdRef.current) {
+          setDbCategories(catList)
+        }
+      } catch (catErr) {
+        console.error('[LowStock] Failed to load categories:', catErr)
+      }
+
       if (!isMountedRef.current || reqId !== requestIdRef.current) return
       setProducts(list)
       setError(null)
@@ -171,6 +188,19 @@ export default function LowStock() {
   }, [products])
 
   const categories = useMemo(() => {
+    if (Array.isArray(dbCategories)) {
+      return dbCategories
+        .map((c) => {
+          const value = String(c?.CategoryID ?? c?.id ?? '').trim()
+          const name = String(c?.Name ?? c?.name ?? '').trim()
+          const code = String(c?.CategoryCode ?? c?.categoryCode ?? '').trim()
+          const label = name || code || value
+          return value ? { value, label } : null
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.label.localeCompare(b.label))
+    }
+
     const map = new Map()
 
     for (const r of lowStockRows) {
@@ -201,7 +231,7 @@ export default function LowStock() {
         }
       })
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [lowStockRows])
+  }, [dbCategories, lowStockRows])
 
   useEffect(() => {
     if (categoryFilter === 'all') return
@@ -340,10 +370,10 @@ export default function LowStock() {
               className={styles.filterSelect}
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              disabled={loading || refreshing || (!categories.length && categoryFilter === 'all')}
+              disabled={loading || refreshing}
               aria-label="Filter by category"
             >
-              <option value="all">Category: All</option>
+              <option value="all">All</option>
               {categories.map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label || c.value}
