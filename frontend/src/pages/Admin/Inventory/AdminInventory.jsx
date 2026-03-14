@@ -343,6 +343,19 @@ export default function AdminInventory() {
     return Array.isArray(categoryList) ? categoryList.filter(Boolean) : [];
   }, [categoryList]);
 
+  const updateInitial = useMemo(() => {
+    return {
+      productName: selectedProduct?.Name,
+      sku: selectedProduct?.ProductCode,
+      category: selectedProduct?.CategoryName,
+      stockQty: selectedProduct?.Stock,
+      price: selectedProduct?.Price,
+      desc: selectedProduct?.Description,
+      minQty: selectedProduct?.StockLimit,
+      imageUrl: selectedProduct?.ImageURL,
+    };
+  }, [selectedProduct]);
+
   return (
     <div className={styles.page}>
       <div className="pageTitle">Inventory</div>
@@ -411,16 +424,7 @@ export default function AdminInventory() {
         }}
         onSubmit={handleUpdateSubmit}
         categories={categoriesForModal.map((c) => c?.Name || "")}
-        initial={{
-          productName: selectedProduct?.Name,
-          sku: selectedProduct?.ProductCode,
-          category: selectedProduct?.CategoryName,
-          stockQty: selectedProduct?.Stock,
-          price: selectedProduct?.Price,
-          desc: selectedProduct?.Description,
-          minQty: selectedProduct?.StockLimit,
-          imageUrl: selectedProduct?.ImageURL,
-        }}
+        initial={updateInitial}
       />
 
       <AddProductImageModal

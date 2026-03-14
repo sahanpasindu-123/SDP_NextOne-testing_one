@@ -50,6 +50,12 @@ export default function UpdateProductModal({
     if (fileRef.current) fileRef.current.value = "";
   }, [open, initial]);
 
+  useEffect(() => {
+    return () => {
+      revokePreview(preview);
+    };
+  }, [preview]);
+
   if (!open) return null;
 
   const pickFile = () => fileRef.current?.click();
@@ -68,12 +74,6 @@ export default function UpdateProductModal({
     setPreview("");
     if (fileRef.current) fileRef.current.value = "";
   };
-
-  useEffect(() => {
-    return () => {
-      revokePreview(preview);
-    };
-  }, [preview]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
