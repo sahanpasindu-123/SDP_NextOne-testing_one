@@ -67,17 +67,6 @@ export default function MyReservations() {
       setRows(
         list.map((r) => ({
           id: r.ReservationID,
-          productCode:
-            r.product?.ProductCode ??
-            r.product?.productCode ??
-            r.productCode ??
-            "-",
-          categoryCode:
-            r.product?.CategoryCode ??
-            r.product?.categoryCode ??
-            r.product?.category?.CategoryCode ??
-            r.product?.category?.categoryCode ??
-            "-",
           part: r.product?.Name ?? "—",
           qty: r.Quantity,
           date: formatDate(r.ReservedAt),
@@ -181,10 +170,6 @@ export default function MyReservations() {
               <div className={styles.part}>
                 <div className={styles.pName}>{r.part}</div>
                 <div className={styles.pMeta}>
-                  <span>Product Code: {r.productCode}</span>
-                  <span className={styles.dot}>•</span>
-                  <span>Category: {r.categoryCode}</span>
-                  <span className={styles.dot}>•</span>
                   <span>Expires: {r.expiresAt}</span>
                 </div>
               </div>
