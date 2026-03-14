@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import {
   FiBarChart2,
   FiPieChart,
@@ -32,6 +32,7 @@ export default function ReportsInventory() {
 
   const [stats, setStats] = useState([]);
   const [pieData, setPieData] = useState([]);
+  const [selectedSlice, setSelectedSlice] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,6 +46,7 @@ export default function ReportsInventory() {
 
   useEffect(() => {
     if (!isMountedRef.current) return;
+    setSelectedSlice(null);
     fetchInventoryReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
@@ -164,6 +166,15 @@ export default function ReportsInventory() {
     fetchInventoryReport();
   };
 
+  const handlePieSliceClick = (data) => {
+    const p = data?.payload ?? data ?? {};
+    const name = p?.name ?? p?.key ?? p?.category ?? p?.CategoryName ?? p?.CategoryCode;
+    const valueRaw = p?.value ?? data?.value;
+    const value = Number(valueRaw);
+    if (!name) return;
+    setSelectedSlice({ name: String(name), value: Number.isFinite(value) ? value : 0 });
+  };
+
   return (
     <div className={styles.page}>
       <div className="pageTitle">Reports</div>
@@ -261,7 +272,10 @@ export default function ReportsInventory() {
 
         <div className={styles.grid2}>
           <div className={styles.box}>
-            <div className={styles.boxTitle}>Inventory by Category</div>
+            <div className={styles.boxTitle}>
+              Inventory by Category
+              {selectedSlice ? ` — ${selectedSlice.name} - ${selectedSlice.value}` : ""}
+            </div>
 
             {loading && !pieData.length ? (
               <div style={{ padding: 16, color: "#6b7280", fontWeight: 800 }}>
@@ -273,14 +287,17 @@ export default function ReportsInventory() {
                   <Pie
                     data={pieData}
                     dataKey="value"
+                    nameKey="name"
                     cx="50%"
                     cy="50%"
                     outerRadius={110}
+                    onClick={handlePieSliceClick}
                   >
                     {pieData.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
+                  <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
