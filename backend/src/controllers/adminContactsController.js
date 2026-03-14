@@ -1,6 +1,13 @@
 const prisma = require("../utils/prisma");
 const { sendMail } = require("../utils/mailer");
 
+function isValidEmail(email) {
+  if (!email) return false;
+  const cleaned = String(email).trim().toLowerCase();
+  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return regex.test(cleaned);
+}
+
 /**
  * GET /api/admin/contacts
  * Admin views all contact messages
@@ -147,12 +154,19 @@ async function replyToContact(req, res) {
     }
 
     // ✅ Update contact with reply (persist even if email sending fails)
-    const updatedContact = await prisma.contact.update({
+    const customerEmail = String(contact.customer.Email || "").trim().toLowerCase();
+    if (!isValidEmail(customerEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer email is invalid for this account.",
+      });
+    }
+
+    let updatedContact = await prisma.contact.update({
       where: { ContactID: contactId },
       data: {
         RepliedBy: adminId,
         ReplyMessage: replyMessage,
-        RepliedAt: new Date(),
       },
     });
 
@@ -161,11 +175,12 @@ async function replyToContact(req, res) {
     const safeCustomerMessage = String(contact.Message || "").replaceAll("\n", "<br/>");
     const safeReply = String(replyMessage).replaceAll("\n", "<br/>");
 
-    let mailSent = false;
     try {
       await sendMail({
-        to: contact.customer.Email,
-        subject: "Reply to your inquiry",
+        to: customerEmail,
+        subject: contact.Subject
+          ? `Reply: ${String(contact.Subject).slice(0, 150)}`
+          : "Reply to your inquiry",
         html: `
           <p>Dear ${customerName},</p>
           <p>${safeReply}</p>
@@ -176,18 +191,25 @@ async function replyToContact(req, res) {
           <p>Best regards,<br/>NextOne Support Team</p>
         `,
       });
-      mailSent = true;
     } catch (mailErr) {
-      // IMPORTANT: reply is already saved; do not return 500 to avoid duplicate resend attempts.
       console.error("Contact reply email failed:", mailErr);
+      return res.status(502).json({
+        success: false,
+        mailSent: false,
+        message:
+          "Reply saved, but email delivery failed. Please verify SMTP settings and try again.",
+      });
     }
+
+    updatedContact = await prisma.contact.update({
+      where: { ContactID: contactId },
+      data: { RepliedAt: new Date() },
+    });
 
     return res.status(200).json({
       success: true,
-      mailSent,
-      message: mailSent
-        ? "Reply sent successfully"
-        : "Reply saved, but email delivery failed. You may copy the reply and contact the customer manually.",
+      mailSent: true,
+      message: "Reply sent successfully",
       data: updatedContact,
     });
   } catch (error) {

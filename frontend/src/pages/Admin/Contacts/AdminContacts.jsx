@@ -9,6 +9,7 @@ export default function AdminContacts() {
   const navigate = useNavigate();
   const isMountedRef = useRef(true);
   const inFlightRef = useRef(false);
+  const pollRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,9 +51,37 @@ export default function AdminContacts() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    load();
+
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        if (document.visibilityState !== "visible") return;
+        load({ silent: true });
+      }, 8000);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        load();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       isMountedRef.current = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      stopPolling();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

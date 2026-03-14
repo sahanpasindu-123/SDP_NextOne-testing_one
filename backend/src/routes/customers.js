@@ -4,6 +4,13 @@ const prisma = require("../utils/prisma");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 const bcrypt = require("bcryptjs");
 
+function isValidEmail(email) {
+  if (!email) return false;
+  const cleaned = String(email).trim().toLowerCase();
+  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return regex.test(cleaned);
+}
+
 // GET /api/customers - List all customers (Admin/Employee only)
 router.get("/", authenticateToken, authorizeRoles("ADMIN", "EMPLOYEE"), async (req, res) => {
   try {
@@ -96,6 +103,10 @@ router.post("/", authenticateToken, authorizeRoles("ADMIN"), async (req, res) =>
       return res.status(400).json({ success: false, message: "Name, email, and phone are required" });
     }
 
+    if (!isValidEmail(cleanEmail)) {
+      return res.status(400).json({ success: false, message: "Invalid email" });
+    }
+
     if (cleanPhone.length > 15) {
       return res.status(400).json({ success: false, message: "Phone number is too long" });
     }
@@ -171,12 +182,17 @@ router.put("/:id", authenticateToken, authorizeRoles("ADMIN"), async (req, res) 
     if (phone !== undefined && !String(phone || "").trim()) {
       return res.status(400).json({ success: false, message: "Phone is required" });
     }
+    const cleanEmail =
+      email !== undefined ? String(email).trim().toLowerCase() : undefined;
+    if (cleanEmail !== undefined && !isValidEmail(cleanEmail)) {
+      return res.status(400).json({ success: false, message: "Invalid email" });
+    }
 
     const customer = await prisma.customer.update({
       where: { CustomerID: customerId },
       data: {
         Name: name !== undefined ? String(name).trim() : undefined,
-        Email: email !== undefined ? String(email).trim().toLowerCase() : undefined,
+        Email: cleanEmail,
         Phone: phone !== undefined ? String(phone).trim() : undefined,
         isActive: status === "Active" ? true : false
       }
