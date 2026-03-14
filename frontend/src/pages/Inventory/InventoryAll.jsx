@@ -257,7 +257,6 @@ export default function InventoryAll() {
       <div className="pageTitle">Manage Inventory</div>
 
       <div className={styles.blockTitle}>
-        <div className={styles.h1}>Inventory Management</div>
         <div className={styles.sub}>Manage and track your JCB spare parts inventory.</div>
       </div>
 

@@ -87,6 +87,7 @@ export function mapApiProductToCard(p, i = 0) {
     src.category?.name ??
     src.category ??
     "";
+  const categoryKey = String(categoryCode || categoryName || "").trim();
 
   const productCode =
     src.ProductCode ??
@@ -107,6 +108,7 @@ export function mapApiProductToCard(p, i = 0) {
     CategoryCode: String(categoryCode || ""),
     categoryCode: String(categoryCode || ""),
     categoryName: String(categoryName || ""),
+    categoryKey,
     category: String(categoryCode || categoryName || "Uncategorized"),
     categoryId: categoryId != null ? String(categoryId) : "",
     desc: String(desc || "") || "—",
@@ -161,10 +163,14 @@ export default function PartsCatalog() {
 
     if (filters.category !== "all") {
       list = list.filter((p) => {
-        const productCategoryCode = String(
-          p?.CategoryCode ?? p?.categoryCode ?? ""
+        const productCategoryKey = String(
+          p?.categoryKey ??
+          p?.CategoryCode ??
+          p?.categoryCode ??
+          p?.categoryName ??
+          ""
         ).trim();
-        return productCategoryCode === String(filters.category);
+        return productCategoryKey === String(filters.category).trim();
       });
     }
 
@@ -245,7 +251,7 @@ export default function PartsCatalog() {
 
       setFilters((prev) => ({
         ...prev,
-        category: String(match?.CategoryCode || codeWanted),
+        category: String(match?.CategoryCode || match?.Name || codeWanted),
       }));
 
       return;
@@ -259,7 +265,7 @@ export default function PartsCatalog() {
       if (match) {
         setFilters((prev) => ({
           ...prev,
-          category: String(match?.CategoryCode),
+          category: String(match?.CategoryCode || match?.Name || match?.CategoryID),
         }));
       }
 
@@ -283,7 +289,12 @@ export default function PartsCatalog() {
     if (match?.CategoryCode) {
       setFilters((prev) => ({
         ...prev,
-        category: String(match?.CategoryCode),
+        category: String(match?.CategoryCode || match?.Name),
+      }));
+    } else if (match?.Name) {
+      setFilters((prev) => ({
+        ...prev,
+        category: String(match?.Name),
       }));
     }
   }, [categories, searchParams]);
@@ -365,13 +376,18 @@ export default function PartsCatalog() {
           >
             <option value="all">All Categories</option>
             {(Array.isArray(categories) ? categories : [])
-              .filter((c) => String(c?.CategoryCode || "").trim())
+              .map((c) => ({
+                key: String(c?.CategoryCode || c?.Name || "").trim(),
+                name: c?.Name || String(c?.CategoryCode || ""),
+                code: c?.CategoryCode,
+              }))
+              .filter((c) => c.key)
               .map((c) => (
                 <option
-                  key={String(c?.CategoryCode)}
-                  value={String(c?.CategoryCode)}
+                  key={c.key}
+                  value={c.key}
                 >
-                  {c?.Name || String(c?.CategoryCode)}
+                  {c.code ? `${c.name} (${c.code})` : c.name}
                 </option>
               ))}
           </select>

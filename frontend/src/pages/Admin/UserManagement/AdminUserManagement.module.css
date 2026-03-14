@@ -16,9 +16,28 @@
   gap: 10px;
   padding: 0 12px;
   background:#fff;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.search:focus-within{
+  border-color: rgba(99,102,241,.35);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 .sIcon{color:#94a3b8}
-.search input{border:0; outline:none; width:100%; font-size:13px}
+.search input{
+  border:0;
+  outline:none;
+  width:100%;
+  font-size:13px;
+  background:transparent;
+  box-shadow:none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.search input:focus,
+.search input:focus-visible{
+  outline:none;
+  box-shadow:none;
+}
 
 .table{margin-top: 12px; overflow:hidden}
 .tHead{

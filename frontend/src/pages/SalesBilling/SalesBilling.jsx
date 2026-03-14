@@ -363,7 +363,6 @@ export default function SalesBilling() {
       <div className="pageTitle">Sales & Billing</div>
 
       <div className={styles.blockTitle}>
-        <div className={styles.h1}>Sales & Billing</div>
         <div className={styles.sub}>
           Manage your sales, invoices, and billing information.
         </div>

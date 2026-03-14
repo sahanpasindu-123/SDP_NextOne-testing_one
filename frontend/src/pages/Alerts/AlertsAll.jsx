@@ -28,6 +28,17 @@ export default function AlertsAll() {
 
   const [priorityFilter, setPriorityFilter] = useState("all"); // all|high|medium
   const [dateRange, setDateRange] = useState("all"); // all|today|7d|30d
+  const priorityOptions = [
+    { value: "all", label: "All Priorities" },
+    { value: "high", label: "High" },
+    { value: "medium", label: "Medium" },
+  ];
+  const dateOptions = [
+    { value: "all", label: "All Dates" },
+    { value: "today", label: "Today" },
+    { value: "7d", label: "Last 7 Days" },
+    { value: "30d", label: "Last 30 Days" },
+  ];
 
   const mapTabToType = (t) => {
     const m = {
@@ -166,7 +177,6 @@ export default function AlertsAll() {
       <div className="pageTitle">Alerts & Notifications</div>
 
       <div className={styles.blockTitle}>
-        <div className={styles.h1}>Alerts & Notifications</div>
         <div className={styles.sub}>Manage system alerts and notifications for your inventory.</div>
       </div>
 
@@ -192,29 +202,31 @@ export default function AlertsAll() {
         </div>
 
         <div className={styles.rightBtns}>
-          <button
-            className={styles.dd}
-            onClick={() => {
-              const order = ["all", "high", "medium"];
-              const i = order.indexOf(priorityFilter);
-              setPriorityFilter(order[(i + 1) % order.length]);
-            }}
-            type="button"
+          <select
+            className={styles.filterSelect}
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            aria-label="Filter alerts by priority"
           >
-            {priorityFilter === "all" ? "All Priorities" : priorityFilter.toUpperCase()} ˅
-          </button>
+            {priorityOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
 
-          <button
-            className={styles.dd}
-            onClick={() => {
-              const order = ["all", "today", "7d", "30d"];
-              const i = order.indexOf(dateRange);
-              setDateRange(order[(i + 1) % order.length]);
-            }}
-            type="button"
+          <select
+            className={styles.filterSelect}
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            aria-label="Filter alerts by date range"
           >
-            {dateRange === "all" ? "All Dates" : dateRange.toUpperCase()} ˅
-          </button>
+            {dateOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -215,17 +215,17 @@ export default function Customers() {
       <div className="pageTitle">Customer Management</div>
 
       <div className={styles.hero}>
-        <div className={styles.heroTop}>
-          <div className={styles.h1}>Customer Management</div>
-          {canManageCustomers ? (
+        {canManageCustomers ? (
+          <div className={styles.heroTop}>
             <button
               className={styles.addBtn}
+              style={{ marginLeft: "auto" }}
               onClick={openAdd}
             >
               <FiPlus /> Add Customer
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div className={`card ${styles.panel}`}>
           <div className={styles.filters}>
@@ -238,26 +238,26 @@ export default function Customers() {
               />
 
             </div>
-            <button
-              className={styles.dd}
-              onClick={() => {
-                const order = ["ALL", "VERIFIED", "UNVERIFIED"]
-                const i = order.indexOf(roleFilter)
-                setRoleFilter(order[(i + 1) % order.length])
-              }}
+            <select
+              className={styles.filterSelect}
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              aria-label="Filter customers by verification status"
             >
-              {roleFilter === "ALL" ? "All Customers" : roleFilter} v
-            </button>
-            <button
-              className={styles.dd}
-              onClick={() => {
-                const order = ["ALL", "ACTIVE", "INACTIVE"]
-                const i = order.indexOf(statusFilter)
-                setStatusFilter(order[(i + 1) % order.length])
-              }}
+              <option value="ALL">All Customers</option>
+              <option value="VERIFIED">Verified</option>
+              <option value="UNVERIFIED">Unverified</option>
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter customers by status"
             >
-              {statusFilter === "ALL" ? "All Status" : statusFilter} v
-            </button>
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
 
           </div>
 

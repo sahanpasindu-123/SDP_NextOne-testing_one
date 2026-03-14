@@ -160,16 +160,14 @@ export default function Reservations() {
     return { pending, approved, todaysPickup };
   }, [rows]);
 
-  // ---------
-  // Status dropdown button (cycle)
-  // ---------
-  const cycleStatus = () => {
-    const order = ["ALL", "PENDING", "CONFIRMED", "COMPLETED", "REJECTED", "CANCELLED"];
-    const idx = order.indexOf(statusFilter);
-    setStatusFilter(order[(idx + 1) % order.length]);
-  };
-
-  const statusLabel = statusFilter === "ALL" ? "All Statuses" : statusFilter;
+  const statusOptions = [
+    { value: "ALL", label: "All Statuses" },
+    { value: "PENDING", label: "Pending" },
+    { value: "CONFIRMED", label: "Approved" },
+    { value: "COMPLETED", label: "Completed" },
+    { value: "REJECTED", label: "Rejected" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ];
 
   // ---------
   // Table columns
@@ -279,7 +277,6 @@ export default function Reservations() {
       <div className="pageTitle">Reservations</div>
 
       <div className={styles.blockTitle}>
-        <div className={styles.h1}>Reservations</div>
         <div className={styles.sub}>Manage customer reservations for spare parts.</div>
       </div>
 
@@ -287,15 +284,25 @@ export default function Reservations() {
         <div className={styles.search}>
           <FiSearch className={styles.sIcon} />
           <input
+            className={styles.searchInput}
             placeholder="Search..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
         </div>
 
-        <button className={styles.dd} onClick={cycleStatus}>
-          {statusLabel} v
-        </button>
+        <select
+          className={styles.filterSelect}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter reservations by status"
+        >
+          {statusOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className={styles.stats}>

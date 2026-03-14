@@ -30,6 +30,7 @@ export default function LowStock() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
+  const [exportFormat, setExportFormat] = useState('csv') // csv | json | print
 
   const load = useCallback(async ({ mode } = { mode: 'initial' }) => {
     if (inFlightRef.current) return
@@ -115,6 +116,13 @@ export default function LowStock() {
       const low = stockQuantity > 0 && stockQuantity <= threshold
       const reorder = Math.max(threshold - stockQuantity, 0)
 
+      const categoryId =
+        src?.CategoryID ??
+        src?.categoryId ??
+        src?.category?.CategoryID ??
+        src?.category?.id ??
+        null
+
       const categoryCode =
         src?.CategoryCode ??
         src?.categoryCode ??
@@ -129,6 +137,12 @@ export default function LowStock() {
         src?.category?.name ??
         ''
 
+      // Prefer a stable numeric ID if available; fall back to code/name so the
+      // dropdown value always matches a real data field coming from the API.
+      const categoryKey = String(
+        categoryId ?? categoryCode ?? categoryName ?? ''
+      ).trim()
+
       return {
         part: src?.Name || src?.name || 'N/A',
         id: productId,
@@ -136,7 +150,9 @@ export default function LowStock() {
         partNo: productId,
         CategoryCode: String(categoryCode || ''),
         categoryCode: String(categoryCode || ''),
+        categoryId: categoryId != null ? String(categoryId) : '',
         categoryName: String(categoryName || ''),
+        categoryKey,
         units: stockQuantity,
         min: threshold,
         reorder,
@@ -158,18 +174,32 @@ export default function LowStock() {
     const map = new Map()
 
     for (const r of lowStockRows) {
-      const code = String(r?.CategoryCode || '').trim()
-      if (!code) continue
+      const key = String(
+        r?.categoryId ||
+          r?.CategoryID ||
+          r?.categoryKey ||
+          r?.CategoryCode ||
+          r?.categoryName ||
+          ''
+      ).trim()
+
+      if (!key) continue
 
       const name = String(r?.categoryName || '').trim()
-      if (!map.has(code)) map.set(code, name)
+      const code = String(r?.CategoryCode || '').trim()
+
+      if (!map.has(key)) map.set(key, { name, code })
     }
 
     return Array.from(map.entries())
-      .map(([code, name]) => ({
-        value: code,
-        label: name ? `${name} (${code})` : code,
-      }))
+      .map(([key, meta]) => {
+        const baseLabel = meta.name || meta.code || key
+        const suffix = meta.name && meta.code ? ` (${meta.code})` : ''
+        return {
+          value: key,
+          label: `${baseLabel}${suffix}`,
+        }
+      })
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [lowStockRows])
 
@@ -183,7 +213,19 @@ export default function LowStock() {
     let list = Array.isArray(lowStockRows) ? lowStockRows : []
 
     if (categoryFilter !== 'all') {
-      list = list.filter((r) => String(r?.CategoryCode || '') === String(categoryFilter))
+      list = list.filter((r) => {
+        const candidates = [
+          r?.categoryId,
+          r?.CategoryID,
+          r?.categoryKey,
+          r?.CategoryCode,
+          r?.categoryName,
+        ]
+
+        return candidates.some(
+          (v) => String(v ?? '').trim() === String(categoryFilter)
+        )
+      })
     }
 
     if (stockFilter === 'critical') {
@@ -246,29 +288,45 @@ export default function LowStock() {
     URL.revokeObjectURL(url)
   }
 
-  const cycleCategory = () => {
-    if (loading || refreshing) return
-    setPage(1)
-    if (!categories.length) {
-      setCategoryFilter('all')
+  const exportToJSON = () => {
+    const rows = Array.isArray(filteredRows) ? filteredRows : []
+    if (!rows.length) return
+
+    const payload = rows.map((r) => ({
+      productId: r?.productId ?? '',
+      name: r?.part ?? '',
+      categoryCode: r?.CategoryCode ?? '',
+      stockQuantity: toNumber(r?.units ?? 0),
+      threshold: toNumber(r?.min ?? 0),
+      status: r?.critical ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+      lastUpdated: r?.last ?? '',
+    }))
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'low-stock-export.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExport = () => {
+    if (loading || refreshing || totalResults === 0) return
+
+    if (exportFormat === 'json') {
+      exportToJSON()
       return
     }
 
-    setCategoryFilter((prev) => {
-      const opts = ['all', ...categories.map((c) => c.value)]
-      const idx = opts.findIndex((o) => String(o) === String(prev))
-      return opts[(idx + 1) % opts.length]
-    })
-  }
+    if (exportFormat === 'print') {
+      window.print()
+      return
+    }
 
-  const cycleStockLevel = () => {
-    if (loading || refreshing) return
-    setPage(1)
-    setStockFilter((prev) => {
-      if (prev === 'all') return 'low'
-      if (prev === 'low') return 'critical'
-      return 'all'
-    })
+    exportToCSV()
   }
 
   return (
@@ -277,14 +335,47 @@ export default function LowStock() {
 
       <div className={styles.hero}>
         <div className={styles.heroTop}>
-          <div className={styles.h1}>Low Stock Alerts</div>
+          <div className={styles.rightFilters} style={{ marginLeft: "auto" }}>
+            <select
+              className={styles.filterSelect}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              disabled={loading || refreshing || (!categories.length && categoryFilter === 'all')}
+              aria-label="Filter by category"
+            >
+              <option value="all">Category: All</option>
+              {categories.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label || c.value}
+                </option>
+              ))}
+            </select>
 
-          <div className={styles.rightFilters}>
-            <button className={styles.dd} onClick={cycleCategory}>Category ˅</button>
-            <button className={styles.dd} onClick={cycleStockLevel}>Stock Level ˅</button>
-            <button className={styles.dd}>Format ˅</button>
+            <select
+              className={styles.filterSelect}
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              disabled={loading || refreshing}
+              aria-label="Filter by stock level"
+            >
+              <option value="all">Stock Level: All</option>
+              <option value="low">Stock Level: Low</option>
+              <option value="critical">Stock Level: Out of Stock</option>
+            </select>
+
+            <select
+              className={styles.filterSelect}
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value)}
+              disabled={loading || refreshing}
+              aria-label="Export format"
+            >
+              <option value="csv">Format: CSV</option>
+              <option value="json">Format: JSON</option>
+              <option value="print">Format: Print View</option>
+            </select>
             <button
-              className={styles.dd}
+              className={styles.filterButton}
               onClick={() => load({ mode: 'refresh' })}
               disabled={loading || refreshing}
               aria-label="Refresh"
@@ -294,7 +385,7 @@ export default function LowStock() {
             </button>
             <button
               className={styles.export}
-              onClick={exportToCSV}
+              onClick={handleExport}
               disabled={loading || refreshing || totalResults === 0}
             >
               <FiDownload /> Export
