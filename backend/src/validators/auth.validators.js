@@ -26,4 +26,30 @@ const CustomerSignupSchema = z.object({
   password: z.string().min(6),
 });
 
-module.exports = { LoginSchema, StaffLoginSchema, CustomerLoginSchema, CustomerSignupSchema };
+// Used by /auth/forgot-password and /auth/resend-verification
+const EmailSchema = z.object({
+  email: z.string().email(),
+});
+
+// Used by /auth/verify-email and /auth/verify-code
+const VerifyCodeSchema = z.object({
+  email: z.string().email(),
+  code: z.string().min(1),
+});
+
+// Used by /auth/reset-password
+const ResetPasswordSchema = z.object({
+  email: z.string().email(),
+  code: z.string().min(1),
+  newPassword: z.string().min(1),
+});
+
+module.exports = {
+  LoginSchema,
+  StaffLoginSchema,
+  CustomerLoginSchema,
+  CustomerSignupSchema,
+  EmailSchema,
+  VerifyCodeSchema,
+  ResetPasswordSchema,
+};

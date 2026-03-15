@@ -1,19 +1,47 @@
 import { useState } from "react";
 import styles from "./Auth.module.css";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authAPI } from "../../../api/auth";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [email, setEmail] = useState("");
+  const prefillEmail = (() => {
+    const candidates = [];
+
+    if (typeof location.state?.email === "string") candidates.push(location.state.email);
+
+    const qp = new URLSearchParams(location.search).get("email");
+    if (typeof qp === "string") candidates.push(qp);
+
+    try {
+      const pending = localStorage.getItem("pendingVerifyEmail");
+      if (typeof pending === "string") candidates.push(pending);
+    } catch {}
+
+    try {
+      const raw = localStorage.getItem("userProfile");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.email === "string") candidates.push(parsed.email);
+      }
+    } catch {}
+
+    const best = candidates.find((v) => String(v || "").trim());
+    return best ? String(best).trim() : "";
+  })();
+
+  const [email, setEmail] = useState(prefillEmail);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSendCode = async () => {
     setError("");
 
-    if (!email) {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
       setError("Please enter your email");
       return;
     }
@@ -21,7 +49,7 @@ export default function ForgotPassword() {
     try {
       setLoading(true);
 
-      const data = await authAPI.forgotPassword({ email });
+      const data = await authAPI.forgotPassword({ email: normalizedEmail });
 
       if (!data?.success) {
         setError(data?.message || "Failed to send code");
@@ -30,7 +58,7 @@ export default function ForgotPassword() {
 
       // ✅ AFTER sending code → go to verify page
       navigate("/auth/verify", {
-        state: { email },
+        state: { email: normalizedEmail },
       });
     } catch (err) {
       setError(err?.message || "Server error. Try again.");
@@ -50,9 +78,19 @@ export default function ForgotPassword() {
       <input
         className={styles.input}
         type="email"
-        placeholder="Enter Email"
+        placeholder="Enter your email"
+        name="email"
+        autoComplete="email"
+        inputMode="email"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        aria-invalid={!!error}
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          if (error) setError("");
+        }}
       />
 
       <button
@@ -60,11 +98,16 @@ export default function ForgotPassword() {
         className={styles.primary}
         onClick={handleSendCode}
         disabled={loading}
+        style={{ marginTop: 22 }}
       >
         {loading ? "Sending..." : "Send Code"}
       </button>
 
-      {error && <div style={{ color: "red", marginTop: 10 }}>{error}</div>}
+      {error && (
+        <div style={{ color: "#ef4444", marginTop: 12, textAlign: "center", fontWeight: 700 }}>
+          {error}
+        </div>
+      )}
 
       <div className={styles.bottom}>
         <Link className={styles.link} to="/customer/signin">

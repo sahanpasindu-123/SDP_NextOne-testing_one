@@ -99,7 +99,11 @@ export default function SignIn() {
               <span>Remember me</span>
             </label>
 
-            <Link className={styles.link} to="/auth/forgot">
+            <Link
+              className={styles.link}
+              to="/auth/forgot"
+              state={{ email: formData.email }}
+            >
               Forgot password?
             </Link>
           </div>

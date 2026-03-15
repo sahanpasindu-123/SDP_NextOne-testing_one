@@ -66,6 +66,7 @@ export default function VerifyCode() {
       <button
         type="button"
         className={styles.primary}
+        style={{ marginTop: 16 }}
         onClick={handleVerify}
         disabled={loading}
       >
