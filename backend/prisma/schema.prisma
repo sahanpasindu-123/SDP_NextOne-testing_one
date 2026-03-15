@@ -155,6 +155,8 @@ model Reservation {
   ReservedAt    DateTime  @default(now())
   ExpiresAt     DateTime?
   ApprovedBy    Int?
+  approvedByUserId Int?   @map("ApprovedByUserId")
+  approvedByRole   String? @map("ApprovedByRole") @db.VarChar(20)
   CreatedAt     DateTime  @default(now())
   UpdatedAt     DateTime  @updatedAt
   admin         Admin?    @relation(fields: [ApprovedBy], references: [id])

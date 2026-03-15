@@ -341,6 +341,8 @@ router.patch(
           data: {
             Status: STATUS.CONFIRMED,
             ApprovedBy: adminId,
+            approvedByUserId: adminId,
+            approvedByRole: "ADMIN",
           },
         });
 
@@ -453,6 +455,8 @@ router.patch(
           data: {
             Status: STATUS.REJECTED,
             ApprovedBy: adminId,
+            approvedByUserId: adminId,
+            approvedByRole: "ADMIN",
           },
         });
 

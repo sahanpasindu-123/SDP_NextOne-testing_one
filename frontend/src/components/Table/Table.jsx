@@ -4,6 +4,25 @@ export default function Table({ columns, rows, rowClassName = null }) {
   const safeColumns = Array.isArray(columns) ? columns : []
   const safeRows = Array.isArray(rows) ? rows : []
   const resolveRowClass = typeof rowClassName === 'function' ? rowClassName : null
+  const getBaseRowKey = (r, idx) =>
+    r?.id ??
+    r?.key ??
+    r?.ProductID ??
+    r?.ReservationID ??
+    r?.SaleID ??
+    r?.CustomerID ??
+    r?.raw?.id ??
+    r?.raw?.ProductID ??
+    r?.raw?.ReservationID ??
+    r?.raw?.SaleID ??
+    idx
+
+  const baseRowKeys = safeRows.map(getBaseRowKey)
+  const baseKeyCounts = baseRowKeys.reduce((acc, k) => {
+    const sk = String(k)
+    acc[sk] = (acc[sk] || 0) + 1
+    return acc
+  }, {})
 
   return (
     <div className={styles.wrap}>
@@ -22,18 +41,9 @@ export default function Table({ columns, rows, rowClassName = null }) {
         </thead>
         <tbody>
           {safeRows.map((r, idx) => {
+            const baseRowKey = baseRowKeys[idx]
             const rowKey =
-              r?.id ??
-              r?.key ??
-              r?.ProductID ??
-              r?.ReservationID ??
-              r?.SaleID ??
-              r?.CustomerID ??
-              r?.raw?.id ??
-              r?.raw?.ProductID ??
-              r?.raw?.ReservationID ??
-              r?.raw?.SaleID ??
-              idx
+              baseKeyCounts[String(baseRowKey)] > 1 ? `${baseRowKey}-${idx}` : baseRowKey
             return (
               <tr
                 key={rowKey}

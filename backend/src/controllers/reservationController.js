@@ -70,6 +70,8 @@ const confirmReservation = async (req, res) => {
       const updateData = { Status: "CONFIRMED" };
       if (role === "ADMIN" && Number.isFinite(dbId) && dbId > 0) {
         updateData.ApprovedBy = dbId;
+        updateData.approvedByUserId = dbId;
+        updateData.approvedByRole = "ADMIN";
       }
 
       const updated = await tx.reservation.update({

@@ -94,6 +94,20 @@ function pickTokenByPortalPath() {
   return sessionStorage.getItem("customerToken") || localStorage.getItem("customerToken");
 }
 
+// Some endpoints are role-specific regardless of the current UI portal path.
+// Keep this narrow to avoid changing unrelated behavior.
+function pickTokenByRequestUrl(url) {
+  const u = String(url || "");
+  if (!u) return null;
+
+  // Employee reservations APIs should always use the employee token when available.
+  if (u.includes("employee-reservations")) {
+    return sessionStorage.getItem("employeeToken") || localStorage.getItem("employeeToken");
+  }
+
+  return null;
+}
+
 if (!axiosClient[INTERCEPTOR_FLAG]) {
   axiosClient[INTERCEPTOR_FLAG] = true;
 
@@ -102,7 +116,8 @@ if (!axiosClient[INTERCEPTOR_FLAG]) {
   // ===============================
 axiosClient.interceptors.request.use(
   (config) => {
-    const portalToken = pickTokenByPortalPath();
+    const urlToken = pickTokenByRequestUrl(config?.url);
+    const portalToken = urlToken || pickTokenByPortalPath();
 
     // fallback to legacy keys (for old pages)
     const token =

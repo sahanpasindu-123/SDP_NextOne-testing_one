@@ -273,9 +273,17 @@ router.post(
           select: { id: true },
         });
         if (!assigned) {
-          const e = new Error("Not authorized for this reservation");
-          e.status = 403;
-          throw e;
+          // If the employee has NO place assignments at all, do not block reservation selling.
+          // If they do have assignments, enforce them.
+          const hasAnyAssignment = await tx.employeePlace.findFirst({
+            where: { EmployeeID },
+            select: { id: true },
+          });
+          if (hasAnyAssignment) {
+            const e = new Error("Not authorized for this reservation");
+            e.status = 403;
+            throw e;
+          }
         }
 
         // ✅ Atomic guard FIRST: only ONE request can flip CONFIRMED -> COMPLETED

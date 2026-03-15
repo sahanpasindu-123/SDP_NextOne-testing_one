@@ -37,6 +37,18 @@ const formatDate = (val) => {
   return d.toISOString().slice(0, 10);
 };
 
+const approvalActorLabel = (reservation) => {
+  const s = String(reservation?.Status || "").toUpperCase();
+  if (!["CONFIRMED", "REJECTED"].includes(s)) return "";
+
+  const role = String(reservation?.approvedByRole || "").toUpperCase();
+  if (role === "ADMIN") return "Admin";
+  if (role === "EMPLOYEE") return "Employee";
+
+  if (reservation?.ApprovedBy != null) return "Admin";
+  return "";
+};
+
 export default function AdminReservations() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +75,7 @@ export default function AdminReservations() {
           total: formatMoney(r.Total),
           reserved: formatDate(r.ReservedAt),
           status: normalizeStatusLabel(r.Status),
+          approvedBy: approvalActorLabel(r),
           rawStatus: String(r.Status || "").toUpperCase(),
         }))
       );
@@ -151,6 +164,12 @@ export default function AdminReservations() {
       header: "Status",
       width: 130,
       render: (r) => <Badge tone={toneForStatus(r.status)}>{r.status}</Badge>,
+    },
+    {
+      key: "approvedBy",
+      header: "Approved By",
+      width: 140,
+      render: (r) => (r.approvedBy ? <span>{r.approvedBy}</span> : null),
     },
     {
       key: "actions",
