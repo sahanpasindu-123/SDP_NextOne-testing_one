@@ -6,7 +6,7 @@
   align-items:center;
   justify-content:center;
   padding: 20px;
-  z-index: 50;
+  z-index: 10000;
   backdrop-filter: blur(2px);
   transition: background 0.2s ease;
 }

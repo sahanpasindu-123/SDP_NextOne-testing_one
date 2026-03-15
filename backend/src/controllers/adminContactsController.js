@@ -89,15 +89,37 @@ async function getContactById(req, res) {
       });
     }
 
+    // Simple conversation-like history: all contact messages for this customer.
+    // Keeps existing structure (each message is a Contact row) and only enriches the detail response.
+    const historyDesc = await prisma.contact.findMany({
+      where: { CustomerID: contact.CustomerID },
+      orderBy: { CreatedAt: "desc" },
+      take: 50,
+      select: {
+        ContactID: true,
+        Subject: true,
+        Message: true,
+        CreatedAt: true,
+        RepliedBy: true,
+        ReplyMessage: true,
+        RepliedAt: true,
+      },
+    });
+    const history = historyDesc.reverse();
+
     return res.status(200).json({
       success: true,
-      data: contact,
+      data: { ...contact, history },
     });
   } catch (error) {
     console.error("Get contact by id error:", error);
+
+    const debugError =
+      process.env.NODE_ENV !== "production" ? error?.message : undefined;
     return res.status(500).json({
       success: false,
       message: "Failed to fetch contact message",
+      ...(debugError ? { error: debugError } : {}),
     });
   }
 }
@@ -162,11 +184,16 @@ async function replyToContact(req, res) {
       });
     }
 
+    // Save reply first (email sending happens after saving).
+    // RepliedAt is the time the admin replied (saved), not necessarily when email delivered.
     let updatedContact = await prisma.contact.update({
       where: { ContactID: contactId },
       data: {
+        // Link reply to the replying admin (FK)
+        // NOTE: Use the scalar FK to avoid failures when Prisma relation fields are out-of-sync.
         RepliedBy: adminId,
         ReplyMessage: replyMessage,
+        RepliedAt: new Date(),
       },
     });
 
@@ -193,18 +220,19 @@ async function replyToContact(req, res) {
       });
     } catch (mailErr) {
       console.error("Contact reply email failed:", mailErr);
-      return res.status(502).json({
-        success: false,
+
+      // 200 OK because the reply is saved; UI should show delivery failure clearly.
+      const debugMailError = String(
+        mailErr?.message || mailErr || "Email delivery failed"
+      );
+      return res.status(200).json({
+        success: true,
         mailSent: false,
-        message:
-          "Reply saved, but email delivery failed. Please verify SMTP settings and try again.",
+        message: `Reply saved, but email delivery failed: ${debugMailError}`,
+        error: debugMailError,
+        data: updatedContact,
       });
     }
-
-    updatedContact = await prisma.contact.update({
-      where: { ContactID: contactId },
-      data: { RepliedAt: new Date() },
-    });
 
     return res.status(200).json({
       success: true,
@@ -214,9 +242,11 @@ async function replyToContact(req, res) {
     });
   } catch (error) {
     console.error("Reply to contact error:", error);
+    const debugError = String(error?.message || error || "Unknown error");
     return res.status(500).json({
       success: false,
-      message: "Failed to send reply",
+      message: `Failed to send reply: ${debugError}`,
+      error: debugError,
     });
   }
 }

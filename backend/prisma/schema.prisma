@@ -234,6 +234,10 @@ model Contact {
   RepliedBy    Int?
   ReplyMessage String?
   RepliedAt    DateTime?
+  // Email delivery tracking for admin replies (nullable for backward-compatibility)
+  ReplyMailStatus String?   @db.VarChar(20)
+  ReplyMailError  String?   @db.Text
+  ReplyMailSentAt DateTime?
 
   customer Customer @relation(fields: [CustomerID], references: [CustomerID])
   admin    Admin?   @relation("AdminContactReplies", fields: [RepliedBy], references: [id])

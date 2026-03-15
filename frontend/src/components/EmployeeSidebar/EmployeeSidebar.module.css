@@ -41,6 +41,13 @@
   color: var(--sidebar-text);
   position:relative;
 }
+button.item{
+  background: transparent;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
 .item:hover{background: rgba(255,255,255,.06)}
 .icon{font-size:18px; opacity:.95}
 .label{font-size:13px; font-weight:500}

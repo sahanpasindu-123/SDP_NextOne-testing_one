@@ -1,20 +1,43 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./ContactUs.module.css";
 import { FiMapPin, FiPhone, FiMail } from "react-icons/fi";
 import { createContactMessage } from "../../../api/contacts";
+import { customersAPI } from "../../../api/customers";
 
 export default function ContactUs() {
-  // NOTE: Backend creates contact for the logged-in customer (customerId from token)
-  // So name/email fields are not required for backend flow.
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const isMountedRef = useRef(true);
+  const [accountEmail, setAccountEmail] = useState("");
 
   const [subject, setSubject] = useState(""); // optional
   const [message, setMessage] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [loadingEmail, setLoadingEmail] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    async function loadMe() {
+      try {
+        setLoadingEmail(true);
+        const me = await customersAPI.getMe();
+        const email = me?.data?.Email || "";
+        if (isMountedRef.current) setAccountEmail(String(email || ""));
+      } catch (e) {
+        // Contact can still be sent (backend uses CustomerID from token), but we avoid showing a wrong email.
+        if (isMountedRef.current) setAccountEmail("");
+      } finally {
+        if (isMountedRef.current) setLoadingEmail(false);
+      }
+    }
+
+    loadMe();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,10 +70,6 @@ export default function ContactUs() {
       setSuccess("Message sent successfully.");
       setSubject("");
       setMessage("");
-
-      // optional: clear these too (they are UI-only)
-      setName("");
-      setEmail("");
     } catch (err) {
       console.error(err);
 
@@ -111,24 +130,15 @@ export default function ContactUs() {
               </div>
             ) : null}
 
-            {/* Optional UI-only fields */}
-            <label>
-              <span>Name (optional)</span>
-              <input
-                placeholder="Enter your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-
-            <label>
-              <span>Email (optional)</span>
-              <input
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </label>
+            <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 6 }}>
+              {loadingEmail ? (
+                <span>Loading your registered email…</span>
+              ) : accountEmail ? (
+                <span>Replies will be sent to your registered email: <strong>{accountEmail}</strong></span>
+              ) : (
+                <span>Replies will be sent to your registered account email.</span>
+              )}
+            </div>
 
             <label>
               <span>Subject (optional)</span>

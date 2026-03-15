@@ -102,6 +102,7 @@
 
 .check {
   display: flex;
+  flex-direction: row;
   gap: 10px;
   align-items: center;
   color: #374151;

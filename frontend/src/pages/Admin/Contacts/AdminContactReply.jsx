@@ -34,6 +34,15 @@ export default function AdminContactReply() {
 
   const isValidId = Number.isInteger(Number(id)) && Number(id) > 0;
 
+  const renderMailStatus = (c) => {
+    if (!c?.ReplyMessage) return null;
+    const s = String(c?.ReplyMailStatus || "").toLowerCase();
+    if (s === "sent") return "Sent";
+    if (s === "failed") return "Failed";
+    if (s === "pending") return "Pending";
+    return "Replied";
+  };
+
   // ---------- load contact ----------
   const load = async ({ silent = false, syncReplyMessage = true } = {}) => {
     if (!isValidId) {
@@ -205,6 +214,20 @@ export default function AdminContactReply() {
                   ? new Date(contact.CreatedAt).toLocaleString()
                   : "N/A"}
               </div>
+              {contact?.ReplyMessage ? (
+                <div>
+                  <strong>Email delivery:</strong> {renderMailStatus(contact)}
+                  {contact?.ReplyMailSentAt ? (
+                    <span> ({new Date(contact.ReplyMailSentAt).toLocaleString()})</span>
+                  ) : null}
+                </div>
+              ) : null}
+              {String(contact?.ReplyMailStatus || "").toLowerCase() === "failed" &&
+              contact?.ReplyMailError ? (
+                <div style={{ fontSize: 12, opacity: 0.85 }}>
+                  <strong>Delivery error:</strong> {String(contact.ReplyMailError)}
+                </div>
+              ) : null}
             </div>
 
             <hr style={{ margin: "12px 0" }} />
@@ -233,6 +256,42 @@ export default function AdminContactReply() {
               </Button>
             </div>
           </div>
+
+          {Array.isArray(contact?.history) && contact.history.length > 0 ? (
+            <div style={{ padding: 12, border: "1px solid #e5e5e5", borderRadius: 10 }}>
+              <strong>Conversation History</strong>
+              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                {contact.history.map((h) => (
+                  <div key={h?.ContactID} style={{ padding: 10, border: "1px solid #f0f0f0", borderRadius: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ fontWeight: 700 }}>
+                        #{h?.ContactID}{h?.Subject ? ` — ${h.Subject}` : ""}
+                      </div>
+                      <div style={{ fontSize: 12, opacity: 0.85 }}>
+                        {h?.CreatedAt ? new Date(h.CreatedAt).toLocaleString() : ""}
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>{h?.Message || ""}</div>
+
+                    {h?.ReplyMessage ? (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontWeight: 700 }}>
+                          Admin reply ({renderMailStatus(h)})
+                        </div>
+                        <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>{h.ReplyMessage}</div>
+                        {String(h?.ReplyMailStatus || "").toLowerCase() === "failed" && h?.ReplyMailError ? (
+                          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
+                            <strong>Delivery error:</strong> {String(h.ReplyMailError)}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

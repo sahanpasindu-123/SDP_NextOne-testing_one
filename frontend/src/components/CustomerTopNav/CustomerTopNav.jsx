@@ -1,10 +1,19 @@
+import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { FiPhone, FiHome, FiGrid, FiBookmark, FiUser, FiMail, FiLogIn, FiUserPlus, FiLogOut } from 'react-icons/fi'
 import { useAuth } from '../../context/AuthContext'
+import Modal from '../Modal/Modal.jsx'
+import Button from '../Button/Button.jsx'
 import styles from './CustomerTopNav.module.css'
 
 export default function CustomerTopNav() {
   const { isLoggedIn, logout } = useAuth()
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+
+  const confirmLogout = () => {
+    setLogoutConfirmOpen(false)
+    logout()
+  }
   return (
     <header className={styles.header}>
       <div className={styles.topStrip}>
@@ -49,9 +58,7 @@ export default function CustomerTopNav() {
             <button 
               className={styles.link} 
               onClick={() => {
-                const ok = window.confirm("Log out now?");
-                if (!ok) return;
-                logout()
+                setLogoutConfirmOpen(true)
               }}
             >
               <FiLogOut /> <span>Logout</span>
@@ -59,6 +66,23 @@ export default function CustomerTopNav() {
           )}
         </nav>
       </div>
+
+      <Modal
+        open={logoutConfirmOpen}
+        title="Confirm logout"
+        onClose={() => setLogoutConfirmOpen(false)}
+        width={460}
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ color: '#334155', fontWeight: 700 }}>Log out now?</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="secondary" onClick={() => setLogoutConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmLogout}>Log Out</Button>
+          </div>
+        </div>
+      </Modal>
     </header>
   )
 }

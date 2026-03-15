@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { FiHome, FiBox, FiShoppingCart, FiCalendar, FiBarChart2, FiUsers, FiAlertCircle, FiBell, FiSettings, FiLogOut } from 'react-icons/fi'
 import { useAuth } from '../../context/AuthContext'
+import Modal from '../Modal/Modal.jsx'
+import Button from '../Button/Button.jsx'
 import styles from './Sidebar.module.css'
 
 const nav = [
@@ -17,10 +20,14 @@ const nav = [
 export default function Sidebar() {
   const navigate = useNavigate()
   const { logout } = useAuth()
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
 
   const handleLogout = () => {
-    const ok = window.confirm('Log out now?')
-    if (!ok) return
+    setLogoutConfirmOpen(true)
+  }
+
+  const confirmLogout = () => {
+    setLogoutConfirmOpen(false)
     logout()
     navigate('/employee/signin')
   }
@@ -66,6 +73,23 @@ export default function Sidebar() {
           <span className={styles.label}>Log out</span>
         </a>
       </div>
+
+      <Modal
+        open={logoutConfirmOpen}
+        title="Confirm logout"
+        onClose={() => setLogoutConfirmOpen(false)}
+        width={460}
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ color: '#334155', fontWeight: 700 }}>Log out now?</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="secondary" onClick={() => setLogoutConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmLogout}>Log Out</Button>
+          </div>
+        </div>
+      </Modal>
     </aside>
   )
 }

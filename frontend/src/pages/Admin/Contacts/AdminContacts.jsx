@@ -89,9 +89,17 @@ export default function AdminContacts() {
   const rows = useMemo(() => {
     const needle = String(q || "").trim().toLowerCase();
     const base = Array.isArray(items) ? items : [];
-    if (!needle) return base;
+    const withStableKey = (list) =>
+      list.map((c) => ({
+        ...c,
+        // Table component falls back to CustomerID which is not unique for contacts.
+        // Provide a stable unique key to avoid missing/stale rows on re-render.
+        id: c?.ContactID ?? c?.id,
+      }));
 
-    return base.filter((c) => {
+    if (!needle) return withStableKey(base);
+
+    const filtered = base.filter((c) => {
       const hay = [
         c?.ContactID,
         c?.Subject,
@@ -104,6 +112,8 @@ export default function AdminContacts() {
         .toLowerCase();
       return hay.includes(needle);
     });
+
+    return withStableKey(filtered);
   }, [items, q]);
 
   const cols = [
@@ -140,8 +150,16 @@ export default function AdminContacts() {
       header: "Status",
       width: 120,
       render: (r) =>
-        r?.RepliedAt ? (
-          <Badge tone="success">Replied</Badge>
+        r?.ReplyMessage ? (
+          String(r?.ReplyMailStatus || "").toLowerCase() === "sent" ? (
+            <Badge tone="success">Sent</Badge>
+          ) : String(r?.ReplyMailStatus || "").toLowerCase() === "failed" ? (
+            <Badge tone="danger">Failed</Badge>
+          ) : String(r?.ReplyMailStatus || "").toLowerCase() === "pending" ? (
+            <Badge tone="warn">Pending</Badge>
+          ) : (
+            <Badge tone="info">Replied</Badge>
+          )
         ) : (
           <Badge tone="warn">Open</Badge>
         ),
