@@ -21,9 +21,10 @@ const CustomerLoginSchema = z.object({
 });
 
 const CustomerSignupSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  name: z.string().min(2, "Please enter your name."),
+  email: z.string().email("Please enter a valid email address."),
+  contact: z.string().min(1, "Please enter your phone number."),
+  password: z.string().min(1, "Please enter a password."),
 });
 
 // Used by /auth/forgot-password and /auth/resend-verification

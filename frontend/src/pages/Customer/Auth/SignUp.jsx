@@ -36,6 +36,31 @@ export default function SignUp() {
 
   const [error, setError] = useState("");
 
+  const toSafeSignupMessage = (input) => {
+    const msg = typeof input === "string" ? input.trim() : "";
+    if (!msg) return "Sign up failed. Please try again.";
+
+    // Never show raw backend/Prisma/stack/file-path details to users
+    const lower = msg.toLowerCase();
+    const looksTechnical =
+      lower.includes("prisma") ||
+      lower.includes("p2002") ||
+      lower.includes("unique constraint") ||
+      lower.includes("node_modules") ||
+      lower.includes("stack") ||
+      /[a-zA-Z]:\\/.test(msg) ||
+      /\/(src|node_modules)\//.test(msg) ||
+      /\bat\b.*\.(js|ts):\d+/.test(lower);
+
+    if (looksTechnical) return "Sign up failed. Please try again.";
+
+    // Normalize legacy backend messages (defense-in-depth)
+    if (msg === "Email already registered") return "This email is already registered.";
+    if (msg === "Phone already registered") return "This phone number is already registered.";
+
+    return msg;
+  };
+
   const onChange = (e) => {
     const { name, value } = e.target;
 
@@ -83,7 +108,7 @@ export default function SignUp() {
       });
 
       if (!res?.success) {
-        setError(res?.message || "Signup failed");
+        setError(toSafeSignupMessage(res?.message));
         return;
       }
 
@@ -92,10 +117,21 @@ export default function SignUp() {
       navigate("/auth/verify-email");
       return;
     } catch (err) {
+      const fieldErrors =
+        err?.data?.errors ||
+        err?.errors ||
+        err?.response?.data?.errors;
+
+      const firstFieldError = fieldErrors
+        ? Object.values(fieldErrors).flat().find(Boolean)
+        : null;
+
       const msg =
+        firstFieldError ||
+        err?.data?.message ||
         err?.response?.data?.message ||
         err?.message ||
-        "Signup failed";
+        "Sign up failed. Please try again.";
 
       if (msg.toLowerCase().includes("not verified")) {
         localStorage.setItem("pendingVerifyEmail", formData.email);
@@ -103,7 +139,7 @@ export default function SignUp() {
         return;
       }
 
-      setError(msg);
+      setError(toSafeSignupMessage(msg));
     }
   };
 

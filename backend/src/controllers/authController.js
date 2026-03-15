@@ -159,17 +159,17 @@ async function customerSignup(req, res) {
     const { name, email, contact, password } = req.body || {};
 
     if (!name || !email || !contact || !password) {
-      return res.status(400).json({ success: false, message: "All fields required" });
+      return res.status(400).json({ success: false, message: "Please fill in all fields." });
     }
 
     if (!isValidEmail(email)) {
-      return res.status(400).json({ success: false, message: "Invalid email address" });
+      return res.status(400).json({ success: false, message: "Please enter a valid email address." });
     }
 
     if (!isValidSLPhone(contact)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid phone number. Use 0771234567 or +94771234567",
+        message: "Please enter a valid Sri Lankan phone number.",
       });
     }
 
@@ -187,7 +187,7 @@ async function customerSignup(req, res) {
     });
 
     if (existing && existing.emailVerified) {
-      return res.status(409).json({ success: false, message: "Email already registered" });
+      return res.status(409).json({ success: false, message: "This email is already registered." });
     }
 
     if (existing && !existing.emailVerified) {
@@ -228,7 +228,37 @@ async function customerSignup(req, res) {
 
     return res.status(201).json({ success: true, message: "Signup success. Verify email." });
   } catch (e) {
-    return res.status(500).json({ success: false, message: e.message });
+    // Keep raw details in server logs only
+    console.error("customerSignup failed:", {
+      message: e?.message,
+      code: e?.code,
+      meta: e?.meta,
+      stack: e?.stack,
+    });
+
+    // Prisma unique constraint (P2002)
+    if (e?.code === "P2002") {
+      const target = e?.meta?.target;
+      const targets = Array.isArray(target) ? target : target ? [target] : [];
+      const t = targets.map((x) => String(x).toLowerCase());
+
+      if (t.some((x) => x.includes("phone"))) {
+        return res
+          .status(409)
+          .json({ success: false, message: "This phone number is already registered." });
+      }
+      if (t.some((x) => x.includes("email"))) {
+        return res
+          .status(409)
+          .json({ success: false, message: "This email is already registered." });
+      }
+
+      return res.status(409).json({ success: false, message: "Account already exists." });
+    }
+
+    return res
+      .status(500)
+      .json({ success: false, message: "Sign up failed. Please try again." });
   }
 }
 
