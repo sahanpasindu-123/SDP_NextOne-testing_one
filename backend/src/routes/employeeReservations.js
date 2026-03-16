@@ -30,22 +30,16 @@ router.get(
         select: { PlaceID: true },
       });
 
-      const placeIds = assignedPlaces.map(p => p.PlaceID);
-
-      if (placeIds.length === 0) {
-        return res.json({
-          success: true,
-          data: [],
-          meta: { reason: "NO_PLACE_ASSIGNMENTS" },
-          message:
-            "No place assignments found for this employee. Ask an admin to assign you to a place to view reservations.",
-        });
-      }
+      const placeIds = assignedPlaces.map((p) => p.PlaceID);
 
       // 2) Reservation base filter
-      const where = {
-        product: { PlaceID: { in: placeIds } },
-      };
+      // If the employee has NO place assignments at all, do not block reservation visibility.
+      // If they do have assignments, enforce them.
+      const where = {};
+      if (placeIds.length > 0) {
+        // Reservation.product is a relation; use relation filters (is) to filter by Product.PlaceID.
+        where.product = { is: { PlaceID: { in: placeIds } } };
+      }
       if (status) where.Status = status;
 
       // 3) Fetch reservations + product + place
@@ -131,9 +125,17 @@ router.patch(
           select: { id: true },
         });
         if (!assigned) {
-          const e = new Error("Not authorized for this reservation");
-          e.status = 403;
-          throw e;
+          // If the employee has NO place assignments at all, do not block approving.
+          // If they do have assignments, enforce them.
+          const hasAnyAssignment = await tx.employeePlace.findFirst({
+            where: { EmployeeID: employeeId },
+            select: { id: true },
+          });
+          if (hasAnyAssignment) {
+            const e = new Error("Not authorized for this reservation");
+            e.status = 403;
+            throw e;
+          }
         }
 
         // Enforce expiry (3-day rule) AFTER authorization checks
@@ -212,9 +214,17 @@ router.patch(
           select: { id: true },
         });
         if (!assigned) {
-          const e = new Error("Not authorized for this reservation");
-          e.status = 403;
-          throw e;
+          // If the employee has NO place assignments at all, do not block rejecting.
+          // If they do have assignments, enforce them.
+          const hasAnyAssignment = await tx.employeePlace.findFirst({
+            where: { EmployeeID: employeeId },
+            select: { id: true },
+          });
+          if (hasAnyAssignment) {
+            const e = new Error("Not authorized for this reservation");
+            e.status = 403;
+            throw e;
+          }
         }
 
         // Enforce expiry (3-day rule) before allowing reject (prevents double stock return).
