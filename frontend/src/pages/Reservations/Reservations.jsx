@@ -39,6 +39,7 @@ export default function Reservations() {
   const normalizeStatusLabel = (rawStatus) => {
     const s = String(rawStatus || "").toUpperCase();
     if (s === "PENDING") return "Pending";
+    if (s === "RESERVED") return "Reserved";
     if (s === "CONFIRMED") return "Approved";
     if (s === "COMPLETED") return "Completed";
     if (s === "REJECTED") return "Rejected";
@@ -224,7 +225,8 @@ export default function Reservations() {
       header: "Actions",
       width: 160,
       render: (r) =>
-        r.status === "Pending" ? (
+        String(r.raw?.Status || "").toUpperCase() === "PENDING" ||
+        String(r.raw?.Status || "").toUpperCase() === "RESERVED" ? (
           <div className={styles.actions}>
             <button
               className={`${styles.aBtn} ${styles.ok}`}

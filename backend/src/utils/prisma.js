@@ -24,6 +24,14 @@ async function shutdown() {
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+// nodemon uses SIGUSR2 for restarts; disconnect so Prisma doesn't keep engine files locked.
+process.on("SIGUSR2", async () => {
+  try {
+    await prisma.$disconnect();
+  } finally {
+    process.kill(process.pid, "SIGUSR2");
+  }
+});
 
 // ✅ Export ONLY the PrismaClient instance
 module.exports = prisma;

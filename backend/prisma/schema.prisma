@@ -1,5 +1,8 @@
 generator client {
   provider = "prisma-client-js"
+  // Windows + synced folders (e.g. OneDrive) can cause EPERM issues with the default "library" engine.
+  // Using the binary engine is more robust for install/run in such environments.
+  engineType = "binary"
 }
 
 datasource db {

@@ -427,13 +427,11 @@ export default function LowStock() {
           <div className={styles.sumCardY}>
             <div className={styles.sumTitle}>Total Low Stock Items</div>
             <div className={styles.sumVal}>{lowCount}</div>
-            <div className={styles.sumSub}>↗ +2 since yesterday</div>
             <div className={styles.sumIcon}>i</div>
           </div>
           <div className={styles.sumCardR}>
             <div className={styles.sumTitleR}>Critical Stock Items</div>
             <div className={styles.sumVal}>{criticalCount}</div>
-            <div className={styles.sumSubR}>↗ +1 since yesterday</div>
             <div className={styles.sumIconR}>!</div>
           </div>
         </div>

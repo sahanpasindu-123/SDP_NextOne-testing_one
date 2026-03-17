@@ -17,7 +17,7 @@ const normalizeStatusLabel = (rawStatus) => {
   const s = String(rawStatus || "").toUpperCase();
   if (s === "PENDING") return "Pending";
   if (s === "RESERVED") return "Reserved";
-  if (s === "CONFIRMED") return "Reserved";
+  if (s === "CONFIRMED") return "Approved";
   if (s === "COMPLETED") return "Completed";
   if (s === "REJECTED") return "Rejected";
   if (s === "CANCELLED") return "Cancelled";
@@ -178,6 +178,8 @@ export default function MyReservations() {
               <div>
                 {r.status === "Pending" ? (
                   <Badge tone="warn">Pending</Badge>
+                ) : r.status === "Approved" ? (
+                  <Badge tone="info">Approved</Badge>
                 ) : r.status === "Reserved" ? (
                   <Badge tone="info">Reserved</Badge>
                 ) : r.status === "Completed" ? (

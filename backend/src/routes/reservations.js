@@ -10,6 +10,11 @@ const { writeAuditLog } = require("../utils/auditLog");
 const {
   confirmReservation,
   cancelReservation,
+  RESERVATION_STATUS: STATUS,
+  normStatus,
+  isPendingLike,
+  isFinal,
+  actorUpdateForReservation,
 } = require("../controllers/reservationController");
 
 const {
@@ -19,26 +24,6 @@ const {
   expireReservationIfNeededTx,
 } = require("../services/reservationService");
 
-/**
- * Helpers
- */
-const normStatus = (s) => String(s || "").trim().toUpperCase();
-
-const STATUS = {
-  PENDING: "PENDING",
-  RESERVED: "RESERVED",
-  CONFIRMED: "CONFIRMED",
-  CANCELLED: "CANCELLED",
-  REJECTED: "REJECTED",
-  COMPLETED: "COMPLETED",
-};
-
-const isPendingLike = (s) =>
-  [STATUS.PENDING, STATUS.RESERVED].includes(normStatus(s));
-
-const isFinal = (s) =>
-  [STATUS.CANCELLED, STATUS.REJECTED, STATUS.COMPLETED].includes(normStatus(s));
-
 const parseId = (raw) => {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -47,6 +32,37 @@ const parseId = (raw) => {
 const expireIfNeededTx = async (tx, reservationId) => {
   const exp = await expireReservationIfNeededTx(tx, reservationId);
   return !!exp?.expired;
+};
+
+const fetchAdminReservations = async ({
+  status = null,
+  page = 1,
+  limit = 50,
+  paginated = true,
+}) => {
+  const where = status ? { Status: status } : {};
+
+  if (!paginated) {
+    const list = await prisma.reservation.findMany({
+      where,
+      orderBy: { ReservedAt: "desc" },
+      include: { customer: true, product: true, admin: true },
+    });
+    return { list, total: list.length };
+  }
+
+  const [list, total] = await Promise.all([
+    prisma.reservation.findMany({
+      where,
+      orderBy: { ReservedAt: "desc" },
+      include: { customer: true, product: true, admin: true },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.reservation.count({ where }),
+  ]);
+
+  return { list, total };
 };
 
 // Transaction-safe audit log helper (so audit + stock changes are atomic)
@@ -195,18 +211,13 @@ router.get(
       const limit = Math.min(Math.max(limitRaw, 1), 500);
 
       const status = req.query.status ? normStatus(req.query.status) : null;
-      const where = status ? { Status: status } : {};
 
-      const [list, total] = await Promise.all([
-        prisma.reservation.findMany({
-          where,
-          orderBy: { ReservedAt: "desc" },
-          include: { customer: true, product: true, admin: true },
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        prisma.reservation.count({ where }),
-      ]);
+      const { list, total } = await fetchAdminReservations({
+        status,
+        page,
+        limit,
+        paginated: true,
+      });
 
       return res.json({
         success: true,
@@ -275,10 +286,7 @@ router.get(
   authorizeRoles("ADMIN"),
   async (req, res) => {
     try {
-      const list = await prisma.reservation.findMany({
-        orderBy: { ReservedAt: "desc" },
-        include: { customer: true, product: true, admin: true },
-      });
+      const { list } = await fetchAdminReservations({ paginated: false });
 
       return res.json({ success: true, data: list });
     } catch (err) {
@@ -340,9 +348,7 @@ router.patch(
           where: { ReservationID: reservationId },
           data: {
             Status: STATUS.CONFIRMED,
-            ApprovedBy: adminId,
-            approvedByUserId: adminId,
-            approvedByRole: "ADMIN",
+            ...actorUpdateForReservation("ADMIN", adminId),
           },
         });
 
@@ -454,9 +460,7 @@ router.patch(
           where: { ReservationID: reservationId },
           data: {
             Status: STATUS.REJECTED,
-            ApprovedBy: adminId,
-            approvedByUserId: adminId,
-            approvedByRole: "ADMIN",
+            ...actorUpdateForReservation("ADMIN", adminId),
           },
         });
 
@@ -558,7 +562,7 @@ router.patch(
           where: { ReservationID: reservationId },
           data: {
             Status: STATUS.COMPLETED,
-            ApprovedBy: adminId,
+            ...actorUpdateForReservation("ADMIN", adminId),
           },
         });
 
@@ -686,7 +690,7 @@ router.patch(
           where: { ReservationID: reservationId },
           data: {
             Status: STATUS.CANCELLED,
-            ApprovedBy: adminId,
+            ...actorUpdateForReservation("ADMIN", adminId),
           },
         });
 

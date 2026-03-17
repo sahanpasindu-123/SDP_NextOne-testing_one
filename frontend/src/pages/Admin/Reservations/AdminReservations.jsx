@@ -3,6 +3,7 @@ import Table from "../../../components/Table/Table.jsx";
 import Badge from "../../../components/Badge/Badge.jsx";
 import styles from "./AdminReservations.module.css";
 import { reservationsAPI } from "../../../api/reservations";
+import { employeesAPI } from "../../../api/employees";
 import toast from "react-hot-toast";
 import Modal from "../../../components/Modal/Modal.jsx";
 import Button from "../../../components/Button/Button.jsx";
@@ -18,6 +19,7 @@ const formatReservationId = (id) => {
 const normalizeStatusLabel = (rawStatus) => {
   const s = String(rawStatus || "").toUpperCase();
   if (s === "PENDING") return "Pending";
+  if (s === "RESERVED") return "Reserved";
   if (s === "CONFIRMED") return "Approved";
   if (s === "COMPLETED") return "Completed";
   if (s === "REJECTED") return "Rejected";
@@ -37,15 +39,30 @@ const formatDate = (val) => {
   return d.toISOString().slice(0, 10);
 };
 
-const approvalActorLabel = (reservation) => {
+const approvalActorLabel = (reservation, employeeNameById) => {
   const s = String(reservation?.Status || "").toUpperCase();
   if (!["CONFIRMED", "REJECTED"].includes(s)) return "";
 
   const role = String(reservation?.approvedByRole || "").toUpperCase();
-  if (role === "ADMIN") return "Admin";
-  if (role === "EMPLOYEE") return "Employee";
+  if (role === "ADMIN") return reservation?.admin?.Name || reservation?.admin?.name || "Admin";
+  if (role === "EMPLOYEE") {
+    const rawId = reservation?.approvedByUserId ?? reservation?.ApprovedBy;
+    const id = Number(rawId);
+    const name = Number.isFinite(id) ? employeeNameById?.get(id) : null;
+    return name || "Employee";
+  }
 
-  if (reservation?.ApprovedBy != null) return "Admin";
+  // Legacy fallback: if ApprovedBy exists and an admin relation resolves, treat as admin approval.
+  if (reservation?.ApprovedBy != null) {
+    return reservation?.admin?.Name || reservation?.admin?.name || "Admin";
+  }
+
+  // Legacy fallback: if approvedByUserId exists and matches a known employee, treat as employee approval.
+  if (reservation?.approvedByUserId != null) {
+    const id = Number(reservation.approvedByUserId);
+    const name = Number.isFinite(id) ? employeeNameById?.get(id) : null;
+    if (name) return name;
+  }
   return "";
 };
 
@@ -57,11 +74,28 @@ export default function AdminReservations() {
   const [rejectTarget, setRejectTarget] = useState(null);
   const isMountedRef = useRef(true);
   const pollRef = useRef(null);
+  const employeeNameByIdRef = useRef(new Map());
 
   const load = async ({ silent = false } = {}) => {
     try {
       setError(null);
       if (!silent) setLoading(true);
+
+      // Cache employee id -> name for displaying employee approvals.
+      if (employeeNameByIdRef.current.size === 0) {
+        try {
+          const empRes = await employeesAPI.list();
+          const empList = Array.isArray(empRes?.data) ? empRes.data : [];
+          employeeNameByIdRef.current = new Map(
+            empList
+              .map((e) => [Number(e?.id), String(e?.name || "").trim()])
+              .filter(([id, name]) => Number.isFinite(id) && !!name)
+          );
+        } catch {
+          // ignore (keep fallback labels)
+        }
+      }
+
       const res = await reservationsAPI.getAdminReservations();
       const list = Array.isArray(res?.data) ? res.data : [];
       if (!isMountedRef.current) return;
@@ -75,7 +109,7 @@ export default function AdminReservations() {
           total: formatMoney(r.Total),
           reserved: formatDate(r.ReservedAt),
           status: normalizeStatusLabel(r.Status),
-          approvedBy: approvalActorLabel(r),
+          approvedBy: approvalActorLabel(r, employeeNameByIdRef.current),
           rawStatus: String(r.Status || "").toUpperCase(),
         }))
       );

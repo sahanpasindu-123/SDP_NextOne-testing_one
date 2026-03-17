@@ -5,7 +5,12 @@ const prisma = require("../utils/prisma");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 const { expireReservationIfNeededTx } = require("../services/reservationService");
 
-const normStatus = (s) => String(s || "").trim().toUpperCase();
+const {
+  RESERVATION_STATUS: STATUS,
+  normStatus,
+  isPendingLike,
+  actorUpdateForReservation,
+} = require("../controllers/reservationController");
 
 // ------------------------------------
 // GET /api/employee/reservations
@@ -107,7 +112,7 @@ router.patch(
         }
 
         const current = normStatus(r.Status);
-        if (!["PENDING", "RESERVED"].includes(current)) {
+        if (!isPendingLike(current)) {
           const e = new Error(`Cannot approve a ${current.toLowerCase()} reservation`);
           e.status = 400;
           throw e;
@@ -145,8 +150,8 @@ router.patch(
         }
 
         const lock = await tx.reservation.updateMany({
-          where: { ReservationID: reservationId, Status: { in: ["PENDING", "RESERVED"] } },
-          data: { Status: "CONFIRMED" },
+          where: { ReservationID: reservationId, Status: { in: [STATUS.PENDING, STATUS.RESERVED] } },
+          data: { Status: STATUS.CONFIRMED, ...actorUpdateForReservation("EMPLOYEE", employeeId) },
         });
 
         if (lock.count !== 1) {
@@ -234,15 +239,15 @@ router.patch(
         }
 
         const current = normStatus(r.Status);
-        if (!["PENDING", "RESERVED", "CONFIRMED"].includes(current)) {
+        if (!isPendingLike(current)) {
           const e = new Error(`Cannot reject a ${current.toLowerCase()} reservation`);
           e.status = 400;
           throw e;
         }
 
         const lock = await tx.reservation.updateMany({
-          where: { ReservationID: reservationId, Status: { in: ["PENDING", "RESERVED", "CONFIRMED"] } },
-          data: { Status: "REJECTED" },
+          where: { ReservationID: reservationId, Status: { in: [STATUS.PENDING, STATUS.RESERVED] } },
+          data: { Status: STATUS.REJECTED, ...actorUpdateForReservation("EMPLOYEE", employeeId) },
         });
 
         if (lock.count !== 1) {

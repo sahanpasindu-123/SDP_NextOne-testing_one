@@ -8,6 +8,7 @@ export default function AddNewProductModal({
   onClose,
   onSubmit,
   categories = [],
+  products = [],
   title = "Add New Product",
   submitLabel = "Add Item",
   showProductCode = true,
@@ -15,10 +16,8 @@ export default function AddNewProductModal({
 }) {
   const fileRef = useRef(null);
   const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeProducts = Array.isArray(products) ? products : [];
 
-  // =======================
-  // STATE
-  // =======================
   const [productName, setProductName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [price, setPrice] = useState("");
@@ -30,9 +29,6 @@ export default function AddNewProductModal({
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState("");
 
-  // =======================
-  // CATEGORY LOOKUP MAP
-  // =======================
   const categoryById = useMemo(() => {
     const map = new Map();
     safeCategories.forEach((c) => {
@@ -47,9 +43,42 @@ export default function AddNewProductModal({
     return categoryById.get(String(categoryId)) || null;
   }, [categoryById, categoryId]);
 
-  // =======================
-  // RESET FORM ON OPEN
-  // =======================
+  const getCleanCategoryPrefix = (category) => {
+    const rawPrefix = String(category?.CategoryCode || "")
+      .trim()
+      .toUpperCase();
+
+    if (!rawPrefix) return "";
+
+    return rawPrefix.split("-")[0];
+  };
+
+  const generateNextProductCode = (category, productList) => {
+    const prefix = getCleanCategoryPrefix(category);
+
+    if (!prefix) return "";
+
+    const usedNumbers = productList
+      .map((p) =>
+        String(
+          p?.ProductCode ||
+            p?.productCode ||
+            p?.SKU ||
+            p?.sku ||
+            ""
+        )
+          .trim()
+          .toUpperCase()
+      )
+      .filter((code) => code.startsWith(`${prefix}-`))
+      .map((code) => Number(code.split("-")[1]))
+      .filter((num) => Number.isFinite(num));
+
+    const nextNumber = usedNumbers.length ? Math.max(...usedNumbers) + 1 : 1;
+
+    return `${prefix}-${String(nextNumber).padStart(3, "0")}`;
+  };
+
   useEffect(() => {
     if (!open) return;
 
@@ -67,9 +96,19 @@ export default function AddNewProductModal({
     if (fileRef.current) fileRef.current.value = "";
   }, [open]);
 
-  // =======================
-  // IMAGE HANDLING
-  // =======================
+  useEffect(() => {
+    if (!open) return;
+    if (!showProductCode) return;
+
+    if (!selectedCategory) {
+      setProductCode("");
+      return;
+    }
+
+    const nextCode = generateNextProductCode(selectedCategory, safeProducts);
+    setProductCode(nextCode);
+  }, [open, showProductCode, selectedCategory, safeProducts]);
+
   const pickFile = () => fileRef.current?.click();
 
   const onFileChange = (e) => {
@@ -94,34 +133,43 @@ export default function AddNewProductModal({
     };
   }, [preview]);
 
-  // =======================
-  // CATEGORY CHANGE
-  // =======================
   const handleCategoryChange = (e) => {
     const id = e.target.value;
     setCategoryId(id);
   };
 
-  // =======================
-  // SUBMIT
-  // =======================
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!productName.trim()) return toast.error("Product Name is required");
 
     if (showProductCode) {
-      const code = productCode.trim();
-      if (requireProductCode && !code) return toast.error("Product ID is required");
-      if (code && !/^COO-\d{3}$/.test(code)) {
-        return toast.error("Product ID must be like COO-001");
+      const code = productCode.trim().toUpperCase();
+
+      if (requireProductCode && !code) {
+        return toast.error("Product ID is required");
+      }
+
+      const selectedPrefix = getCleanCategoryPrefix(selectedCategory);
+
+      if (!selectedPrefix) {
+        return toast.error("Selected category code is missing");
+      }
+
+      const codePattern = new RegExp(`^${selectedPrefix}-\\d{3}$`);
+
+      if (code && !codePattern.test(code)) {
+        return toast.error(`Product ID must be like ${selectedPrefix}-001`);
       }
     }
+
     if (!categoryId) return toast.error("Category is required");
     if (!price || Number(price) <= 0) return toast.error("Valid price required");
+
     if (stockQty === "" || Number(stockQty) < 0) {
       return toast.error("Valid stock quantity required");
     }
+
     if (minQty === "" || Number(minQty) < 0) {
       return toast.error("Valid minimum quantity required");
     }
@@ -141,152 +189,155 @@ export default function AddNewProductModal({
 
   if (!open) return null;
 
-  // =======================
-  // UI
-  // =======================
   return (
     <Modal open={open} title={title} onClose={onClose} width={760}>
       <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.grid}>
-            <div className={styles.block}>
-              <div className={styles.label}>Product Name *</div>
-              <input
-                className={styles.input}
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.block}>
-              <div className={styles.label}>Category *</div>
-              <select
-                className={styles.select}
-                value={categoryId}
-                onChange={handleCategoryChange}
-              >
-                <option value="" disabled>
-                  Select category
-                </option>
-                {safeCategories.map((c) => (
-                  <option key={c.CategoryID} value={c.CategoryID}>
-                    {c.Name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.block}>
-              <div className={styles.label}>Price *</div>
-              <input
-                type="number"
-                className={styles.input}
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.block}>
-              <div className={styles.label}>Stock Quantity *</div>
-              <input
-                type="number"
-                className={styles.input}
-                value={stockQty}
-                onChange={(e) => setStockQty(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.block}>
-              <div className={styles.label}>Minimum Required Quantity *</div>
-              <input
-                type="number"
-                className={styles.input}
-                value={minQty}
-                onChange={(e) => setMinQty(e.target.value)}
-              />
-            </div>
-
-            {!showProductCode ? null : (
-              <div className={styles.block}>
-                <div className={styles.label}>Product ID {requireProductCode ? "*" : ""}</div>
-                <input
-                  className={styles.input}
-                  value={productCode}
-                  onChange={(e) => setProductCode(e.target.value.toUpperCase())}
-                  placeholder="COO-001"
-                />
-              </div>
-            )}
-
-            <div className={`${styles.block} ${styles.full}`}>
-              <div className={styles.label}>Description</div>
-              <textarea
-                className={styles.textarea}
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-              />
-            </div>
-
-            <div className={`${styles.block} ${styles.full}`}>
-              <div className={styles.label}>Product Image</div>
-
-              <div className={styles.uploadRow}>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={onFileChange}
-                  className={styles.file}
-                />
-
-                {!preview ? (
-                  <button
-                    type="button"
-                    className={styles.uploadBtn}
-                    onClick={pickFile}
-                  >
-                    Add Image
-                  </button>
-                ) : (
-                  <div className={styles.previewWrap}>
-                    <img
-                      className={styles.previewImg}
-                      src={preview}
-                      alt="Preview"
-                    />
-                    <div className={styles.previewActions}>
-                      <button
-                        type="button"
-                        className={styles.smallBtn}
-                        onClick={pickFile}
-                      >
-                        Change
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.smallDanger}
-                        onClick={removeImage}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+        <div className={styles.grid}>
+          <div className={styles.block}>
+            <div className={styles.label}>Product Name *</div>
+            <input
+              className={styles.input}
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+            />
           </div>
 
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.cancelBtn}
-              onClick={onClose}
+          <div className={styles.block}>
+            <div className={styles.label}>Category *</div>
+            <select
+              className={styles.select}
+              value={categoryId}
+              onChange={handleCategoryChange}
             >
-              Cancel
-            </button>
-            <button type="submit" className={styles.primaryBtn}>
-              {submitLabel}
-            </button>
+              <option value="" disabled>
+                Select category
+              </option>
+              {safeCategories.map((c) => (
+                <option key={c.CategoryID} value={c.CategoryID}>
+                  {c.Name}
+                </option>
+              ))}
+            </select>
           </div>
+
+          <div className={styles.block}>
+            <div className={styles.label}>Price *</div>
+            <input
+              type="number"
+              className={styles.input}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.block}>
+            <div className={styles.label}>Stock Quantity *</div>
+            <input
+              type="number"
+              className={styles.input}
+              value={stockQty}
+              onChange={(e) => setStockQty(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.block}>
+            <div className={styles.label}>Minimum Required Quantity *</div>
+            <input
+              type="number"
+              className={styles.input}
+              value={minQty}
+              onChange={(e) => setMinQty(e.target.value)}
+            />
+          </div>
+
+          {!showProductCode ? null : (
+            <div className={styles.block}>
+              <div className={styles.label}>
+                Product ID {requireProductCode ? "*" : ""}
+              </div>
+              <input
+                className={styles.input}
+                value={productCode}
+                onChange={(e) => setProductCode(e.target.value.toUpperCase())}
+                placeholder={
+                  getCleanCategoryPrefix(selectedCategory)
+                    ? `${getCleanCategoryPrefix(selectedCategory)}-001`
+                    : "Select category first"
+                }
+              />
+            </div>
+          )}
+
+          <div className={`${styles.block} ${styles.full}`}>
+            <div className={styles.label}>Description</div>
+            <textarea
+              className={styles.textarea}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+            />
+          </div>
+
+          <div className={`${styles.block} ${styles.full}`}>
+            <div className={styles.label}>Product Image</div>
+
+            <div className={styles.uploadRow}>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                onChange={onFileChange}
+                className={styles.file}
+              />
+
+              {!preview ? (
+                <button
+                  type="button"
+                  className={styles.uploadBtn}
+                  onClick={pickFile}
+                >
+                  Add Image
+                </button>
+              ) : (
+                <div className={styles.previewWrap}>
+                  <img
+                    className={styles.previewImg}
+                    src={preview}
+                    alt="Preview"
+                  />
+                  <div className={styles.previewActions}>
+                    <button
+                      type="button"
+                      className={styles.smallBtn}
+                      onClick={pickFile}
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.smallDanger}
+                      onClick={removeImage}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.cancelBtn}
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button type="submit" className={styles.primaryBtn}>
+            {submitLabel}
+          </button>
+        </div>
       </form>
     </Modal>
   );

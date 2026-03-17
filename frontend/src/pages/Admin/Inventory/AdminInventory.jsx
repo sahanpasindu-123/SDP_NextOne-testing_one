@@ -14,6 +14,26 @@ import styles from "./AdminInventory.module.css";
 import toast from "react-hot-toast";
 import { inventoryAPI } from "../../../api/inventory";
 
+const getProductCode = (product) => {
+  const candidates = [
+    product?.ProductCode,
+    product?.productCode,
+    product?.SKU,
+    product?.sku,
+    product?.code,
+    product?.Code,
+  ];
+
+  const found = candidates.find(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== ""
+  );
+
+  return found == null ? "" : String(found).trim().toUpperCase();
+};
+
 export default function AdminInventory() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,6 +60,7 @@ export default function AdminInventory() {
   const fetchProducts = useCallback(async () => {
     setLoadingProducts(true);
     setPageError("");
+
     try {
       const q = debouncedQRef.current;
       const p = await inventoryAPI.list(q ? { q } : {});
@@ -113,26 +134,122 @@ export default function AdminInventory() {
 
   const rows = useMemo(() => {
     const safeProducts = Array.isArray(products) ? products : [];
-    return safeProducts.map((p) => ({
-      id: p.ProductID,
-      name: p.Name,
-      sku: p.ProductCode || "N/A",
-      category: p.CategoryName || "N/A",
-      stock: p.Stock,
-      price: `Rs ${Number(p.Price).toLocaleString()}`,
-      status: (() => {
-        const stock = Number(p.Stock ?? 0);
-        const limit = p.StockLimit == null ? 5 : Number(p.StockLimit);
-        if (stock <= 0) return "Out of Stock";
-        if (Number.isFinite(limit) && stock <= limit) return "Low Stock";
-        return "In Stock";
-      })(),
-      imageUrl: p.ImageURL,
-      raw: p,
-    }));
+
+    return safeProducts.map((p) => {
+      const productId = p?.ProductID ?? p?.productId ?? p?.id ?? null;
+      const resolvedSku = getProductCode(p);
+      const categoryName =
+        p?.CategoryName ||
+        p?.categoryName ||
+        p?.category ||
+        "";
+      const categoryId =
+        p?.CategoryID ??
+        p?.categoryId ??
+        p?.categoryID ??
+        null;
+      const categoryCode =
+        p?.CategoryCode ||
+        p?.categoryCode ||
+        "";
+      const stock = p?.Stock ?? p?.stockQty ?? 0;
+      const price = p?.Price ?? p?.price ?? 0;
+      const stockLimit = p?.StockLimit ?? p?.minQty ?? 5;
+
+      return {
+        id: productId,
+        name: p?.Name || p?.name || "N/A",
+        sku: resolvedSku || "N/A",
+        category: categoryName || "N/A",
+        stock,
+        price: `Rs ${Number(price || 0).toLocaleString()}`,
+        status: (() => {
+          const stockNumber = Number(stock ?? 0);
+          const limit = stockLimit == null ? 5 : Number(stockLimit);
+
+          if (stockNumber <= 0) return "Out of Stock";
+          if (Number.isFinite(limit) && stockNumber <= limit) return "Low Stock";
+          return "In Stock";
+        })(),
+        imageUrl: p?.ImageURL || p?.imageUrl || "",
+        raw: {
+          ...p,
+          ProductID: productId,
+          resolvedSku,
+          ProductCode: resolvedSku,
+          SKU: resolvedSku,
+          sku: resolvedSku,
+          CategoryID: categoryId,
+          CategoryCode: categoryCode,
+          CategoryName: categoryName,
+          Stock: stock,
+          Price: price,
+          StockLimit: stockLimit,
+          ImageURL: p?.ImageURL || p?.imageUrl || "",
+        },
+      };
+    });
   }, [products]);
 
   const isEmpty = !loadingProducts && rows.length === 0;
+
+  const closeInventoryModals = () => {
+    setAddOpen(false);
+    setUpdateOpen(false);
+    setImageOpen(false);
+  };
+
+  const openEditModal = (product) => {
+    closeInventoryModals();
+
+    const resolvedSku =
+      product?.resolvedSku ||
+      product?.sku ||
+      product?.SKU ||
+      product?.ProductCode ||
+      product?.productCode ||
+      getProductCode(product);
+
+    setSelectedProduct({
+      ...product,
+      resolvedSku,
+      ProductID: product?.ProductID ?? product?.productId ?? product?.id ?? null,
+      ProductCode: resolvedSku,
+      SKU: resolvedSku,
+      sku: resolvedSku,
+      CategoryID:
+        product?.CategoryID ??
+        product?.categoryId ??
+        product?.categoryID ??
+        null,
+      CategoryCode:
+        product?.CategoryCode ||
+        product?.categoryCode ||
+        "",
+      CategoryName:
+        product?.CategoryName ||
+        product?.categoryName ||
+        product?.category ||
+        "",
+      Name: product?.Name || product?.name || "",
+      Stock: product?.Stock ?? product?.stockQty ?? "",
+      Price: product?.Price ?? product?.price ?? "",
+      Description: product?.Description || product?.desc || "",
+      StockLimit: product?.StockLimit ?? product?.minQty ?? "",
+      ImageURL: product?.ImageURL || product?.imageUrl || "",
+    });
+
+    setUpdateOpen(true);
+  };
+
+  const openImageModal = (product) => {
+    closeInventoryModals();
+    setSelectedProduct({
+      ...product,
+      ProductID: product?.ProductID ?? product?.productId ?? product?.id ?? null,
+    });
+    setImageOpen(true);
+  };
 
   const cols = [
     { key: "name", header: "Item Name" },
@@ -161,11 +278,7 @@ export default function AdminInventory() {
         <div className={styles.actions}>
           <button
             className={`${styles.iconBtn} ${styles.edit}`}
-            onClick={() => {
-              closeInventoryModals();
-              setSelectedProduct(r.raw);
-              setUpdateOpen(true);
-            }}
+            onClick={() => openEditModal(r.raw)}
             title="Edit"
             disabled={isSubmitting}
             style={
@@ -195,11 +308,7 @@ export default function AdminInventory() {
 
           <button
             className={`${styles.iconBtn} ${styles.image}`}
-            onClick={() => {
-              closeInventoryModals();
-              setSelectedProduct(r.raw);
-              setImageOpen(true);
-            }}
+            onClick={() => openImageModal(r.raw)}
             title="Update image"
             disabled={isSubmitting}
             style={
@@ -220,8 +329,8 @@ export default function AdminInventory() {
 
     try {
       setIsSubmitting(true);
-      const fd = new FormData();
 
+      const fd = new FormData();
       fd.append("productName", data.productName);
       fd.append("category", data.categoryName || "");
 
@@ -260,28 +369,32 @@ export default function AdminInventory() {
   };
 
   const handleUpdateSubmit = async (data) => {
-    if (!selectedProduct?.ProductID) return;
+    const productId =
+      selectedProduct?.ProductID ??
+      selectedProduct?.productId ??
+      selectedProduct?.id;
+
+    if (!productId) return;
     if (isSubmitting) return;
 
     try {
       setIsSubmitting(true);
 
-      const selectedCategoryName = data?.category || "";
-      const matchedCategory = (
-        Array.isArray(categoriesForModal) ? categoriesForModal : []
-      ).find(
-        (c) =>
-          String(c?.Name || "").toLowerCase() ===
-          String(selectedCategoryName).toLowerCase()
-      );
+      const selectedCategoryId =
+        data?.categoryId ??
+        data?.CategoryID ??
+        undefined;
 
-      const categoryId = matchedCategory?.CategoryID;
+      const selectedCategoryName =
+        data?.category ||
+        data?.categoryName ||
+        "";
 
-      await inventoryAPI.update(selectedProduct.ProductID, {
+      await inventoryAPI.update(productId, {
         productName: data.productName,
         productCode: data.sku,
         category: selectedCategoryName,
-        categoryId: categoryId ?? undefined,
+        categoryId: selectedCategoryId ?? undefined,
         price: data.price,
         stockQty: data.stockQty,
         minQty: data.minQty,
@@ -290,6 +403,7 @@ export default function AdminInventory() {
 
       if (!isMountedRef.current) return;
       setUpdateOpen(false);
+      setSelectedProduct(null);
       await fetchProducts();
       toast.success("Product updated");
     } catch (e) {
@@ -303,15 +417,21 @@ export default function AdminInventory() {
   };
 
   const handleImageSubmit = async (file) => {
-    if (!selectedProduct?.ProductID) return;
+    const productId =
+      selectedProduct?.ProductID ??
+      selectedProduct?.productId ??
+      selectedProduct?.id;
+
+    if (!productId) return;
     if (isSubmitting) return;
 
     try {
       setIsSubmitting(true);
-      await inventoryAPI.updateImage(selectedProduct.ProductID, file);
+      await inventoryAPI.updateImage(productId, file);
 
       if (!isMountedRef.current) return;
       setImageOpen(false);
+      setSelectedProduct(null);
       await fetchProducts();
       toast.success("Image updated");
     } catch (e) {
@@ -322,12 +442,6 @@ export default function AdminInventory() {
         setIsSubmitting(false);
       }
     }
-  };
-
-  const closeInventoryModals = () => {
-    setAddOpen(false);
-    setUpdateOpen(false);
-    setImageOpen(false);
   };
 
   const openAddProduct = () => {
@@ -344,15 +458,37 @@ export default function AdminInventory() {
   }, [categoryList]);
 
   const updateInitial = useMemo(() => {
+    const resolvedSku =
+      selectedProduct?.resolvedSku ||
+      selectedProduct?.sku ||
+      selectedProduct?.SKU ||
+      selectedProduct?.ProductCode ||
+      selectedProduct?.productCode ||
+      getProductCode(selectedProduct);
+
     return {
-      productName: selectedProduct?.Name,
-      sku: selectedProduct?.ProductCode,
-      category: selectedProduct?.CategoryName,
-      stockQty: selectedProduct?.Stock,
-      price: selectedProduct?.Price,
-      desc: selectedProduct?.Description,
-      minQty: selectedProduct?.StockLimit,
-      imageUrl: selectedProduct?.ImageURL,
+      productName: selectedProduct?.Name || selectedProduct?.name || "",
+      sku: resolvedSku,
+      SKU: resolvedSku,
+      ProductCode: resolvedSku,
+      categoryId:
+        selectedProduct?.CategoryID != null
+          ? String(selectedProduct.CategoryID)
+          : "",
+      categoryName:
+        selectedProduct?.CategoryName ||
+        selectedProduct?.categoryName ||
+        selectedProduct?.category ||
+        "",
+      categoryCode:
+        selectedProduct?.CategoryCode ||
+        selectedProduct?.categoryCode ||
+        "",
+      stockQty: selectedProduct?.Stock ?? selectedProduct?.stockQty ?? "",
+      price: selectedProduct?.Price ?? selectedProduct?.price ?? "",
+      desc: selectedProduct?.Description || selectedProduct?.desc || "",
+      minQty: selectedProduct?.StockLimit ?? selectedProduct?.minQty ?? "",
+      imageUrl: selectedProduct?.ImageURL || selectedProduct?.imageUrl || "",
     };
   }, [selectedProduct]);
 
@@ -414,6 +550,7 @@ export default function AdminInventory() {
         onClose={() => setAddOpen(false)}
         onSubmit={handleAddSubmit}
         categories={categoriesForModal}
+        products={products}
       />
 
       <UpdateProductModal
@@ -423,7 +560,7 @@ export default function AdminInventory() {
           setSelectedProduct(null);
         }}
         onSubmit={handleUpdateSubmit}
-        categories={categoriesForModal.map((c) => c?.Name || "")}
+        categories={categoriesForModal}
         initial={updateInitial}
       />
 

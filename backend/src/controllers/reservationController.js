@@ -5,6 +5,42 @@ function normStatus(s) {
   return String(s || "").trim().toUpperCase();
 }
 
+const RESERVATION_STATUS = Object.freeze({
+  PENDING: "PENDING",
+  RESERVED: "RESERVED",
+  CONFIRMED: "CONFIRMED",
+  CANCELLED: "CANCELLED",
+  REJECTED: "REJECTED",
+  COMPLETED: "COMPLETED",
+});
+
+function isPendingLike(s) {
+  return [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.RESERVED].includes(normStatus(s));
+}
+
+function isFinal(s) {
+  return [
+    RESERVATION_STATUS.CANCELLED,
+    RESERVATION_STATUS.REJECTED,
+    RESERVATION_STATUS.COMPLETED,
+  ].includes(normStatus(s));
+}
+
+function actorUpdateForReservation(role, dbId) {
+  const r = normStatus(role);
+  const id = Number(dbId);
+  if (!Number.isFinite(id) || id <= 0) return {};
+
+  if (r === "ADMIN") {
+    return { ApprovedBy: id, approvedByUserId: id, approvedByRole: "ADMIN" };
+  }
+  if (r === "EMPLOYEE") {
+    // ApprovedBy is an ADMIN foreign key; keep it null for employee actions.
+    return { ApprovedBy: null, approvedByUserId: id, approvedByRole: "EMPLOYEE" };
+  }
+  return {};
+}
+
 // ------------------------------
 // CONFIRM RESERVATION
 // ------------------------------
@@ -58,7 +94,7 @@ const confirmReservation = async (req, res) => {
       }
 
       // 3) Allow only PENDING/RESERVED -> CONFIRMED
-      if (!["PENDING", "RESERVED"].includes(current)) {
+      if (!isPendingLike(current)) {
         const e = new Error(`Cannot confirm a ${current.toLowerCase()} reservation`);
         e.status = 400;
         throw e;
@@ -67,12 +103,7 @@ const confirmReservation = async (req, res) => {
       // 4) Update status
       // IMPORTANT: Do NOT block multiple confirmed reservations per product.
       // Stock is decremented at reservation creation time.
-      const updateData = { Status: "CONFIRMED" };
-      if (role === "ADMIN" && Number.isFinite(dbId) && dbId > 0) {
-        updateData.ApprovedBy = dbId;
-        updateData.approvedByUserId = dbId;
-        updateData.approvedByRole = "ADMIN";
-      }
+      const updateData = { Status: RESERVATION_STATUS.CONFIRMED, ...actorUpdateForReservation(role, dbId) };
 
       const updated = await tx.reservation.update({
         where: { ReservationID: id },
@@ -146,7 +177,11 @@ const cancelReservation = async (req, res) => {
       }
 
       const current = normStatus(existing.Status);
-      const cancelAllowed = ["PENDING", "RESERVED", "CONFIRMED"];
+      const cancelAllowed = [
+        RESERVATION_STATUS.PENDING,
+        RESERVATION_STATUS.RESERVED,
+        RESERVATION_STATUS.CONFIRMED,
+      ];
       if (!cancelAllowed.includes(current)) {
         const e = new Error(
           `Cannot cancel a ${current.toLowerCase()} reservation`
@@ -163,7 +198,7 @@ const cancelReservation = async (req, res) => {
 
       return await tx.reservation.update({
         where: { ReservationID: id },
-        data: { Status: "CANCELLED" },
+        data: { Status: RESERVATION_STATUS.CANCELLED },
       });
     });
 
@@ -178,6 +213,11 @@ const cancelReservation = async (req, res) => {
 };
 
 module.exports = {
+  RESERVATION_STATUS,
+  normStatus,
+  isPendingLike,
+  isFinal,
+  actorUpdateForReservation,
   confirmReservation,
   cancelReservation,
 };
